@@ -87,17 +87,24 @@ fun AccountDetailScreen(
                         color = MaterialTheme.nexlifyColors.contentSecondary,
                     )
                 }
-                // Add button
-                Button(
-                    onClick = {
-                        if (account.type == AccountType.INVESTMENT) showAddSnapshot = true
-                        else showAddTransaction = true
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (account.type == AccountType.INVESTMENT) "Actualizar valor" else "Añadir transacción")
+                // Buttons — investment accounts have both actions
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (account.type == AccountType.INVESTMENT) {
+                        OutlinedButton(
+                            onClick = { showAddSnapshot = true },
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Accent),
+                        ) {
+                            Text("Actualizar valor", color = Accent)
+                        }
+                    }
+                    Button(
+                        onClick = { showAddTransaction = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Añadir transacción")
+                    }
                 }
             }
         }
@@ -121,20 +128,18 @@ fun AccountDetailScreen(
 
         item { HorizontalDivider(color = MaterialTheme.nexlifyColors.border) }
 
-        // ── List heading ──────────────────────────────────────────────────
-        item {
-            Text(
-                text = if (account.type == AccountType.INVESTMENT) "Historial semanal" else "Transacciones",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 4.dp),
-            )
-        }
-
-        // ── Investment snapshots ──────────────────────────────────────────
+        // ── Investment snapshots (valor de mercado semanal) ───────────────
         if (account.type == AccountType.INVESTMENT) {
+            item {
+                Text(
+                    text = "Valor de mercado semanal",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
             if (state.snapshots.isEmpty()) {
-                item { EmptyListHint("Aún no hay registros semanales") }
+                item { EmptyListHint("Sin registros semanales — pulsa \"Actualizar valor\" para añadir") }
             } else {
                 items(state.snapshots, key = { it.id }) { snapshot ->
                     SnapshotRow(
@@ -143,20 +148,27 @@ fun AccountDetailScreen(
                     )
                 }
             }
+            item { HorizontalDivider(color = MaterialTheme.nexlifyColors.border) }
         }
 
-        // ── Bank / Cash transactions ──────────────────────────────────────
-        if (account.type != AccountType.INVESTMENT) {
-            if (state.transactions.isEmpty()) {
-                item { EmptyListHint("Aún no hay transacciones") }
-            } else {
-                items(state.transactions, key = { it.id }) { tx ->
-                    TransactionRow(
-                        transaction = tx,
-                        allAccounts = state.allAccounts,
-                        onDelete = { viewModel.deleteTransaction(tx.id) },
-                    )
-                }
+        // ── Transactions (all account types) ──────────────────────────────
+        item {
+            Text(
+                text = "Transacciones",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 4.dp),
+            )
+        }
+        if (state.transactions.isEmpty()) {
+            item { EmptyListHint("Aún no hay transacciones") }
+        } else {
+            items(state.transactions, key = { it.id }) { tx ->
+                TransactionRow(
+                    transaction = tx,
+                    allAccounts = state.allAccounts,
+                    onDelete = { viewModel.deleteTransaction(tx.id) },
+                )
             }
         }
     }

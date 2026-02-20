@@ -25,7 +25,7 @@ data class AccountDetailUiState(
     val balance: Double = 0.0,
     val transactions: List<Transaction> = emptyList(),
     val snapshots: List<InvestmentSnapshot> = emptyList(),
-    val allAccounts: List<Account> = emptyList(), // for transfer destination picker
+    val allAccounts: List<Account> = emptyList(),
 )
 
 class AccountDetailViewModel(
@@ -48,7 +48,7 @@ class AccountDetailViewModel(
             val account = accountRepository.getAccountById(accountId) ?: return@launch
             _uiState.value = _uiState.value.copy(account = account)
 
-            // Always observe all accounts (needed for transfer/deposit destination picker)
+            // Always observe all other accounts (for destination picker)
             launch {
                 accountRepository.observeAccounts().collect { accounts ->
                     _uiState.value = _uiState.value.copy(
@@ -57,30 +57,35 @@ class AccountDetailViewModel(
                 }
             }
 
-            when (account.type) {
-                AccountType.INVESTMENT -> {
-                    snapshotRepository.observeSnapshotsForAccount(accountId).collect { snapshots ->
-                        val balance = snapshots.firstOrNull()?.totalValue ?: 0.0
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            balance = balance,
-                            snapshots = snapshots,
-                        )
-                    }
+            // All account types observe transactions
+            launch {
+                transactionRepository.observeTransactionsForAccount(accountId).collect { txns ->
+                    val balance = calculateBalance(account.type)
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        balance = balance,
+                        transactions = txns,
+                    )
                 }
-                AccountType.BANK, AccountType.CASH -> {
-                    transactionRepository.observeTransactionsForAccount(accountId).collect { txns ->
-                        val balance = transactionRepository.getAccountBalance(accountId)
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            balance = balance,
-                            transactions = txns,
-                        )
-                    }
+            }
+
+            // Investment accounts also observe snapshots
+            if (account.type == AccountType.INVESTMENT) {
+                snapshotRepository.observeSnapshotsForAccount(accountId).collect { snapshots ->
+                    // Balance = latest snapshot if exists, otherwise sum of transactions
+                    val balance = snapshots.firstOrNull()?.totalValue
+                        ?: transactionRepository.getAccountBalance(accountId)
+                    _uiState.value = _uiState.value.copy(
+                        balance = balance,
+                        snapshots = snapshots,
+                    )
                 }
             }
         }
     }
+
+    private suspend fun calculateBalance(type: AccountType): Double =
+        transactionRepository.getAccountBalance(accountId)
 
     fun addTransaction(
         type: TransactionType,
@@ -92,7 +97,7 @@ class AccountDetailViewModel(
     ) {
         scope.launch {
             when {
-                // TRANSFER: origin = EXPENSE, destination = INCOME (both keep relatedAccountId)
+                // TRANSFER: EXPENSE on origin, INCOME on destination
                 type == TransactionType.TRANSFER && relatedAccountId != null -> {
                     transactionRepository.insertTransaction(
                         accountId = accountId,
@@ -113,8 +118,8 @@ class AccountDetailViewModel(
                         date = date,
                     )
                 }
-                // INVESTMENT_DEPOSIT: origin = EXPENSE with relatedAccountId
-                type == TransactionType.INVESTMENT_DEPOSIT -> {
+                // INVESTMENT_DEPOSIT: EXPENSE on bank origin, INCOME on investment destination
+                type == TransactionType.INVESTMENT_DEPOSIT && relatedAccountId != null -> {
                     transactionRepository.insertTransaction(
                         accountId = accountId,
                         type = TransactionType.EXPENSE,
@@ -124,8 +129,16 @@ class AccountDetailViewModel(
                         relatedAccountId = relatedAccountId,
                         date = date,
                     )
+                    transactionRepository.insertTransaction(
+                        accountId = relatedAccountId,
+                        type = TransactionType.INCOME,
+                        amount = amount,
+                        category = category,
+                        description = description,
+                        relatedAccountId = accountId,
+                        date = date,
+                    )
                 }
-                // INCOME / EXPENSE: insert as-is
                 else -> {
                     transactionRepository.insertTransaction(
                         accountId = accountId,

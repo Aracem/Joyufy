@@ -69,11 +69,15 @@ class DashboardViewModel(
                         val balanceFlows = accounts.map { account ->
                             when (account.type) {
                                 AccountType.INVESTMENT ->
-                                    snapshotRepository.observeSnapshotsForAccount(account.id)
-                                        .flatMapLatest { snapshots ->
-                                            flowOf(AccountSummary(account, snapshots.firstOrNull()?.totalValue ?: 0.0))
-                                        }
-                                AccountType.BANK, AccountType.CASH ->
+                                    combine(
+                                        snapshotRepository.observeSnapshotsForAccount(account.id),
+                                        transactionRepository.observeTransactionsForAccount(account.id),
+                                    ) { snapshots, _ ->
+                                        val balance = snapshots.firstOrNull()?.totalValue
+                                            ?: transactionRepository.getAccountBalance(account.id)
+                                        AccountSummary(account, balance)
+                                    }
+                                        AccountType.BANK, AccountType.CASH ->
                                     transactionRepository.observeTransactionsForAccount(account.id)
                                         .flatMapLatest { _ ->
                                             flowOf(AccountSummary(
