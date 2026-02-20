@@ -7,6 +7,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import com.aracem.nexlify.ui.account.AccountDetailScreen
 import com.aracem.nexlify.ui.account.CreateAccountDialog
 import com.aracem.nexlify.ui.components.Sidebar
 import com.aracem.nexlify.ui.dashboard.DashboardScreen
@@ -44,9 +45,10 @@ fun App() {
                             currentScreen = Screen.AccountDetail(account.id)
                         },
                     )
-                    is Screen.AccountDetail -> {
-                        // TODO: AccountDetailScreen(screen.accountId)
-                    }
+                    is Screen.AccountDetail -> AccountDetailScreen(
+                        accountId = screen.accountId,
+                        onBack = { currentScreen = Screen.Dashboard },
+                    )
                     is Screen.Settings -> {
                         // TODO: SettingsScreen()
                     }
