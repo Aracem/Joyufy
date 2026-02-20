@@ -6,6 +6,9 @@ import com.aracem.nexlify.data.repository.TransactionRepository
 import com.aracem.nexlify.data.repository.WealthRepository
 import com.aracem.nexlify.domain.model.Account
 import com.aracem.nexlify.domain.model.AccountType
+import com.aracem.nexlify.domain.model.InvestmentSnapshot
+import com.aracem.nexlify.domain.model.Transaction
+import com.aracem.nexlify.domain.model.TransactionType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,6 +57,7 @@ class DashboardViewModel(
 
     init {
         observeBalances()
+        observeWealthHistory()
         checkMissingSnapshots()
     }
 
@@ -99,6 +103,51 @@ class DashboardViewModel(
                     )
                 }
         }
+    }
+
+    private fun observeWealthHistory() {
+        scope.launch {
+            combine(
+                transactionRepository.observeAllBankCashTransactions(),
+                snapshotRepository.observeAllSnapshots(),
+            ) { transactions, snapshots ->
+                buildWealthHistory(transactions, snapshots)
+            }.collect { points ->
+                _uiState.value = _uiState.value.copy(wealthHistory = points)
+            }
+        }
+    }
+
+    private fun buildWealthHistory(
+        allTransactions: List<Transaction>,
+        allSnapshots: List<InvestmentSnapshot>,
+    ): List<WealthPoint> {
+        val millisInWeek = 7 * 86_400_000L
+        val now = currentWeekStartMillis()
+        val weekStarts = (52 downTo 0).map { now - it * millisInWeek }
+        val snapshotsByAccount = allSnapshots.groupBy { it.accountId }
+
+        val points = weekStarts.map { weekStart ->
+            val weekEnd = weekStart + millisInWeek - 1
+
+            val bankBalance = allTransactions
+                .filter { it.date <= weekEnd }
+                .sumOf { tx ->
+                    if (tx.type == TransactionType.INCOME) tx.amount else -tx.amount
+                }
+
+            val investmentBalance = snapshotsByAccount.values.sumOf { snapshots ->
+                snapshots
+                    .filter { it.weekDate <= weekEnd }
+                    .maxByOrNull { it.weekDate }
+                    ?.totalValue ?: 0.0
+            }
+
+            WealthPoint(weekDate = weekStart, totalWealth = bankBalance + investmentBalance)
+        }
+
+        val firstNonZero = points.indexOfFirst { it.totalWealth != 0.0 }
+        return if (firstNonZero >= 0) points.drop(firstNonZero) else emptyList()
     }
 
     private fun checkMissingSnapshots() {

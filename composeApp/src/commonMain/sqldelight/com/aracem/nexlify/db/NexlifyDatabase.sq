@@ -112,6 +112,22 @@ WHERE a.type = 'INVESTMENT'
   );
 
 
+-- Todas las transacciones de cuentas BANK/CASH (para historial)
+getAllBankCashTransactions:
+SELECT t.*
+FROM `Transaction` t
+INNER JOIN Account a ON t.account_id = a.id
+WHERE a.type IN ('BANK', 'CASH') AND a.is_archived = 0
+ORDER BY t.date ASC;
+
+-- Todos los snapshots de cuentas activas (para historial)
+getAllSnapshots:
+SELECT s.*
+FROM InvestmentSnapshot s
+INNER JOIN Account a ON s.account_id = a.id
+WHERE a.is_archived = 0
+ORDER BY s.week_date ASC;
+
 -- ──────────────────────────────────────────
 -- Queries agregadas para el Dashboard
 -- ──────────────────────────────────────────

@@ -20,6 +20,13 @@ class InvestmentSnapshotRepository(private val db: NexlifyDatabase) {
             .mapToList(Dispatchers.IO)
             .map { list -> list.map { it.toDomain() } }
 
+    fun observeAllSnapshots(): Flow<List<InvestmentSnapshot>> =
+        db.nexlifyDatabaseQueries
+            .getAllSnapshots()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { list -> list.map { it.toDomain() } }
+
     suspend fun getLatestSnapshot(accountId: Long): InvestmentSnapshot? = withContext(Dispatchers.IO) {
         db.nexlifyDatabaseQueries
             .getLatestSnapshotForAccount(accountId)
@@ -34,6 +41,13 @@ class InvestmentSnapshotRepository(private val db: NexlifyDatabase) {
     ): List<InvestmentSnapshot> = withContext(Dispatchers.IO) {
         db.nexlifyDatabaseQueries
             .getSnapshotsBetween(accountId, from, to)
+            .executeAsList()
+            .map { it.toDomain() }
+    }
+
+    suspend fun getAllSnapshots(): List<InvestmentSnapshot> = withContext(Dispatchers.IO) {
+        db.nexlifyDatabaseQueries
+            .getAllSnapshots()
             .executeAsList()
             .map { it.toDomain() }
     }

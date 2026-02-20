@@ -20,6 +20,13 @@ class TransactionRepository(private val db: NexlifyDatabase) {
             .mapToList(Dispatchers.IO)
             .map { list -> list.map { it.toDomain() } }
 
+    fun observeAllBankCashTransactions(): Flow<List<Transaction>> =
+        db.nexlifyDatabaseQueries
+            .getAllBankCashTransactions()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { list -> list.map { it.toDomain() } }
+
     suspend fun getTransactionsBetween(
         accountId: Long,
         from: Long,
@@ -27,6 +34,13 @@ class TransactionRepository(private val db: NexlifyDatabase) {
     ): List<Transaction> = withContext(Dispatchers.IO) {
         db.nexlifyDatabaseQueries
             .getTransactionsBetween(accountId, from, to)
+            .executeAsList()
+            .map { it.toDomain() }
+    }
+
+    suspend fun getAllBankCashTransactions(): List<Transaction> = withContext(Dispatchers.IO) {
+        db.nexlifyDatabaseQueries
+            .getAllBankCashTransactions()
             .executeAsList()
             .map { it.toDomain() }
     }
