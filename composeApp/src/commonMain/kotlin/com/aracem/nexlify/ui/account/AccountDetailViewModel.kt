@@ -48,7 +48,14 @@ class AccountDetailViewModel(
             val account = accountRepository.getAccountById(accountId) ?: return@launch
             _uiState.value = _uiState.value.copy(account = account)
 
-            val allAccounts = accountRepository.observeAccounts()
+            // Always observe all accounts (needed for transfer/deposit destination picker)
+            launch {
+                accountRepository.observeAccounts().collect { accounts ->
+                    _uiState.value = _uiState.value.copy(
+                        allAccounts = accounts.filter { it.id != accountId }
+                    )
+                }
+            }
 
             when (account.type) {
                 AccountType.INVESTMENT -> {
@@ -62,14 +69,6 @@ class AccountDetailViewModel(
                     }
                 }
                 AccountType.BANK, AccountType.CASH -> {
-                    // Collect transactions and all accounts in parallel
-                    launch {
-                        allAccounts.collect { accounts ->
-                            _uiState.value = _uiState.value.copy(
-                                allAccounts = accounts.filter { it.id != accountId }
-                            )
-                        }
-                    }
                     transactionRepository.observeTransactionsForAccount(accountId).collect { txns ->
                         val balance = transactionRepository.getAccountBalance(accountId)
                         _uiState.value = _uiState.value.copy(

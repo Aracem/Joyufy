@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.aracem.nexlify.domain.model.Account
+import com.aracem.nexlify.domain.model.AccountType
 import com.aracem.nexlify.domain.model.TransactionCategory
 import com.aracem.nexlify.domain.model.TransactionType
 import com.aracem.nexlify.ui.theme.Accent
@@ -147,8 +148,17 @@ fun AddTransactionDialog(
                         focusedBorderColor = Accent, focusedLabelColor = Accent),
                 )
 
-                // Cuenta destino (TRANSFER e INVESTMENT_DEPOSIT)
-                if ((selectedType == TransactionType.TRANSFER || selectedType == TransactionType.INVESTMENT_DEPOSIT) && availableAccounts.isNotEmpty()) {
+                // Cuenta destino filtrada por tipo
+                val destinationAccounts = when (selectedType) {
+                    TransactionType.TRANSFER -> availableAccounts.filter {
+                        it.type == AccountType.BANK || it.type == AccountType.CASH
+                    }
+                    TransactionType.INVESTMENT_DEPOSIT -> availableAccounts.filter {
+                        it.type == AccountType.INVESTMENT
+                    }
+                    else -> emptyList()
+                }
+                if ((selectedType == TransactionType.TRANSFER || selectedType == TransactionType.INVESTMENT_DEPOSIT) && destinationAccounts.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     ExposedDropdownMenuBox(
                         expanded = relatedExpanded,
@@ -158,7 +168,7 @@ fun AddTransactionDialog(
                             value = selectedRelatedAccount?.name ?: "",
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Cuenta destino") },
+                            label = { Text(if (selectedType == TransactionType.INVESTMENT_DEPOSIT) "Cuenta de inversión destino" else "Cuenta destino") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(relatedExpanded) },
                             modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -168,7 +178,7 @@ fun AddTransactionDialog(
                             expanded = relatedExpanded,
                             onDismissRequest = { relatedExpanded = false },
                         ) {
-                            availableAccounts.forEach { account ->
+                            destinationAccounts.forEach { account ->
                                 DropdownMenuItem(
                                     text = { Text(account.name) },
                                     onClick = { selectedRelatedAccount = account; relatedExpanded = false },
