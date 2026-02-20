@@ -13,10 +13,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.aracem.nexlify.domain.model.Account
 import com.aracem.nexlify.domain.model.AccountType
-import com.aracem.nexlify.ui.theme.ContentSecondary
 import com.aracem.nexlify.ui.theme.Negative
 import com.aracem.nexlify.ui.theme.Positive
-import com.aracem.nexlify.ui.theme.SurfaceRaised
+import com.aracem.nexlify.ui.theme.nexlifyColors
 
 @Composable
 fun AccountCard(
@@ -29,7 +28,7 @@ fun AccountCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(SurfaceRaised)
+            .background(MaterialTheme.nexlifyColors.surfaceRaised)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -53,7 +52,7 @@ fun AccountCard(
             Text(
                 text = account.type.label,
                 style = MaterialTheme.typography.bodySmall,
-                color = ContentSecondary,
+                color = MaterialTheme.nexlifyColors.contentSecondary,
             )
         }
 

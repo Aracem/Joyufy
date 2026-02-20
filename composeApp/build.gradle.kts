@@ -46,6 +46,9 @@ kotlin {
             // SQLDelight Desktop driver
             implementation(libs.sqldelight.driver.sqlite)
             implementation(libs.sqlite.jdbc)
+
+            // Main dispatcher for desktop (Swing event loop)
+            implementation(libs.kotlinx.coroutines.swing)
         }
     }
 }

@@ -11,25 +11,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.aracem.nexlify.ui.navigation.Screen
 import com.aracem.nexlify.ui.theme.Accent
-import com.aracem.nexlify.ui.theme.ContentSecondary
-import com.aracem.nexlify.ui.theme.SurfaceDefault
-import com.aracem.nexlify.ui.theme.SurfaceRaised
+import com.aracem.nexlify.ui.theme.nexlifyColors
 
 @Composable
 fun Sidebar(
     currentScreen: Screen,
     onScreenSelected: (Screen) -> Unit,
+    darkMode: Boolean,
+    onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .width(220.dp)
             .fillMaxHeight()
-            .background(SurfaceDefault)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(vertical = 24.dp, horizontal = 12.dp),
     ) {
         // Logo / App name
@@ -51,6 +52,30 @@ fun Sidebar(
 
         Spacer(Modifier.weight(1f))
 
+        // Theme toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.small)
+                .clickable(onClick = onToggleTheme)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (darkMode) "☀" else "☾",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.nexlifyColors.contentSecondary,
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = if (darkMode) "Modo claro" else "Modo oscuro",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.nexlifyColors.contentSecondary,
+            )
+        }
+
+        Spacer(Modifier.height(4.dp))
+
         SidebarItem(
             label = "Ajustes",
             icon = Icons.Default.Settings,
@@ -71,7 +96,9 @@ private fun SidebarItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .background(if (selected) SurfaceRaised else androidx.compose.ui.graphics.Color.Transparent)
+            .background(
+                if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -79,14 +106,15 @@ private fun SidebarItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (selected) Accent else ContentSecondary,
+            tint = if (selected) Accent else MaterialTheme.nexlifyColors.contentSecondary,
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(10.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (selected) MaterialTheme.colorScheme.onSurface else ContentSecondary,
+            color = if (selected) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.nexlifyColors.contentSecondary,
         )
     }
 }

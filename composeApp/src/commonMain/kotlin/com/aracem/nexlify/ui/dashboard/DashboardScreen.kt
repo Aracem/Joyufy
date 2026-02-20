@@ -55,7 +55,7 @@ fun DashboardScreen(
                 Text(
                     text = "Patrimonio total",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ContentSecondary,
+                    color = MaterialTheme.nexlifyColors.contentSecondary,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -103,13 +103,13 @@ fun DashboardScreen(
                         Text(
                             text = "Sin cuentas todavía",
                             style = MaterialTheme.typography.titleMedium,
-                            color = ContentSecondary,
+                            color = MaterialTheme.nexlifyColors.contentSecondary,
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = "Añade tu primera cuenta desde Ajustes",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ContentSecondary.copy(alpha = 0.6f),
+                            color = MaterialTheme.nexlifyColors.contentSecondary.copy(alpha = 0.6f),
                         )
                     }
                 }
@@ -127,7 +127,7 @@ private fun WealthChartCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceDefault, MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
             .padding(20.dp),
     ) {
         Row(
@@ -144,7 +144,7 @@ private fun WealthChartCard(
                 Icon(
                     imageVector = if (mode == ChartMode.AREA) Icons.AutoMirrored.Filled.List else Icons.Default.DateRange,
                     contentDescription = "Cambiar vista",
-                    tint = ContentSecondary,
+                    tint = MaterialTheme.nexlifyColors.contentSecondary,
                     modifier = Modifier.size(18.dp),
                 )
             }

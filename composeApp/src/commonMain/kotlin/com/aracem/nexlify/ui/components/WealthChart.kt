@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.aracem.nexlify.ui.dashboard.ChartMode
 import com.aracem.nexlify.ui.dashboard.WealthPoint
 import com.aracem.nexlify.ui.theme.Accent
-import com.aracem.nexlify.ui.theme.ContentSecondary
+import com.aracem.nexlify.ui.theme.nexlifyColors
 
 @Composable
 fun WealthChart(
@@ -28,7 +28,7 @@ fun WealthChart(
             Text(
                 "Sin datos aún",
                 style = MaterialTheme.typography.bodySmall,
-                color = ContentSecondary,
+                color = MaterialTheme.nexlifyColors.contentSecondary,
             )
         }
         return

@@ -9,8 +9,9 @@ actual class DatabaseDriverFactory actual constructor() {
     actual fun createDriver(): SqlDriver {
         val dbDir = File(System.getProperty("user.home"), ".nexlify").also { it.mkdirs() }
         val dbFile = File(dbDir, "nexlify.db")
+        val isNew = !dbFile.exists()
         val driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}")
-        NexlifyDatabase.Schema.create(driver)
+        if (isNew) NexlifyDatabase.Schema.create(driver)
         return driver
     }
 }
