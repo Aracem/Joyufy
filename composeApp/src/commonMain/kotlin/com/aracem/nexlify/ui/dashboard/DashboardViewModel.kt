@@ -12,7 +12,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -51,29 +53,47 @@ class DashboardViewModel(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
-        observeAccounts()
+        observeBalances()
         checkMissingSnapshots()
     }
 
-    private fun observeAccounts() {
+    private fun observeBalances() {
         scope.launch {
-            accountRepository.observeAccounts().collect { accounts ->
-                val summaries = accounts.map { account ->
-                    val balance = when (account.type) {
-                        AccountType.INVESTMENT ->
-                            snapshotRepository.getLatestSnapshot(account.id)?.totalValue ?: 0.0
-                        AccountType.BANK, AccountType.CASH ->
-                            transactionRepository.getAccountBalance(account.id)
+            // Observe accounts list — when it changes, set up per-account flows
+            accountRepository.observeAccounts()
+                .flatMapLatest { accounts ->
+                    if (accounts.isEmpty()) {
+                        flowOf(emptyList<AccountSummary>())
+                    } else {
+                        // For each account create a Flow<Double> that reacts to its own data changes
+                        val balanceFlows = accounts.map { account ->
+                            when (account.type) {
+                                AccountType.INVESTMENT ->
+                                    snapshotRepository.observeSnapshotsForAccount(account.id)
+                                        .flatMapLatest { snapshots ->
+                                            flowOf(AccountSummary(account, snapshots.firstOrNull()?.totalValue ?: 0.0))
+                                        }
+                                AccountType.BANK, AccountType.CASH ->
+                                    transactionRepository.observeTransactionsForAccount(account.id)
+                                        .flatMapLatest { _ ->
+                                            flowOf(AccountSummary(
+                                                account,
+                                                transactionRepository.getAccountBalance(account.id)
+                                            ))
+                                        }
+                            }
+                        }
+                        combine(balanceFlows) { it.toList() }
                     }
-                    AccountSummary(account, balance)
                 }
-                val totalWealth = summaries.sumOf { it.balance }
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    accountSummaries = summaries,
-                    totalWealth = totalWealth,
-                )
-            }
+                .collect { summaries ->
+                    val totalWealth = summaries.sumOf { it.balance }
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        accountSummaries = summaries,
+                        totalWealth = totalWealth,
+                    )
+                }
         }
     }
 
@@ -95,10 +115,9 @@ class DashboardViewModel(
     }
 
     private fun currentWeekStartMillis(): Long {
-        // Monday 00:00 UTC of the current week
         val now = Clock.System.now()
         val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
-        val dayOfWeek = local.dayOfWeek.ordinal // Monday = 0
+        val dayOfWeek = local.dayOfWeek.ordinal
         val millisInDay = 86_400_000L
         return (now.toEpochMilliseconds() / millisInDay - dayOfWeek) * millisInDay
     }
