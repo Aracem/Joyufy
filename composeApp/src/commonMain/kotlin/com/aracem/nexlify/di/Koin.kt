@@ -6,6 +6,7 @@ import com.aracem.nexlify.data.repository.InvestmentSnapshotRepository
 import com.aracem.nexlify.data.repository.TransactionRepository
 import com.aracem.nexlify.data.repository.WealthRepository
 import com.aracem.nexlify.db.NexlifyDatabase
+import com.aracem.nexlify.ui.dashboard.DashboardViewModel
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 
@@ -18,8 +19,12 @@ val dataModule = module {
     single { WealthRepository(get()) }
 }
 
+val viewModelModule = module {
+    factory { DashboardViewModel(get(), get(), get(), get()) }
+}
+
 fun initKoin() {
     startKoin {
-        modules(dataModule)
+        modules(dataModule, viewModelModule)
     }
 }
