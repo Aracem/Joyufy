@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -24,6 +25,7 @@ fun Sidebar(
     onScreenSelected: (Screen) -> Unit,
     darkMode: Boolean,
     onToggleTheme: () -> Unit,
+    onAddAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -49,6 +51,31 @@ fun Sidebar(
             selected = currentScreen is Screen.Dashboard,
             onClick = { onScreenSelected(Screen.Dashboard) },
         )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Add account button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.small)
+                .clickable(onClick = onAddAccount)
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Nueva cuenta",
+                tint = Accent,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "Nueva cuenta",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Accent,
+            )
+        }
 
         Spacer(Modifier.weight(1f))
 
