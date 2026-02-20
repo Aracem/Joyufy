@@ -21,11 +21,16 @@ import kotlinx.datetime.Clock
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionDialog(
+    accountType: AccountType,
     availableAccounts: List<Account>,
     onDismiss: () -> Unit,
     onConfirm: (type: TransactionType, amount: Double, category: String?, description: String?, relatedAccountId: Long?, date: Long) -> Unit,
 ) {
-    var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
+    val allowedTypes = when (accountType) {
+        AccountType.INVESTMENT -> listOf(TransactionType.INCOME, TransactionType.TRANSFER)
+        AccountType.BANK, AccountType.CASH -> listOf(TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.TRANSFER)
+    }
+    var selectedType by remember { mutableStateOf(allowedTypes.first()) }
     var amountText by remember { mutableStateOf("") }
     var amountError by remember { mutableStateOf<String?>(null) }
     var category by remember { mutableStateOf("") }
@@ -64,13 +69,13 @@ fun AddTransactionDialog(
                     color = MaterialTheme.nexlifyColors.contentSecondary)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TransactionType.entries.forEach { type ->
+                    allowedTypes.forEach { type ->
                         val selected = selectedType == type
                         FilterChip(
                             selected = selected,
                             onClick = {
                                 selectedType = type
-                                if (type != TransactionType.TRANSFER && type != TransactionType.INVESTMENT_DEPOSIT) {
+                                if (type != TransactionType.TRANSFER) {
                                     selectedRelatedAccount = null
                                 }
                             },
@@ -148,17 +153,19 @@ fun AddTransactionDialog(
                         focusedBorderColor = Accent, focusedLabelColor = Accent),
                 )
 
-                // Cuenta destino filtrada por tipo
-                val destinationAccounts = when (selectedType) {
-                    TransactionType.TRANSFER -> availableAccounts.filter {
-                        it.type == AccountType.BANK || it.type == AccountType.CASH
+                // Cuenta destino (solo para transferencias)
+                val destinationAccounts = if (selectedType == TransactionType.TRANSFER) {
+                    when (accountType) {
+                        // From investment: can only transfer out to bank/cash
+                        AccountType.INVESTMENT -> availableAccounts.filter {
+                            it.type == AccountType.BANK || it.type == AccountType.CASH
+                        }
+                        // From bank/cash: can transfer to any account
+                        AccountType.BANK, AccountType.CASH -> availableAccounts
                     }
-                    TransactionType.INVESTMENT_DEPOSIT -> availableAccounts.filter {
-                        it.type == AccountType.INVESTMENT
-                    }
-                    else -> emptyList()
-                }
-                if ((selectedType == TransactionType.TRANSFER || selectedType == TransactionType.INVESTMENT_DEPOSIT) && destinationAccounts.isNotEmpty()) {
+                } else emptyList()
+
+                if (selectedType == TransactionType.TRANSFER && destinationAccounts.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     ExposedDropdownMenuBox(
                         expanded = relatedExpanded,
@@ -168,7 +175,7 @@ fun AddTransactionDialog(
                             value = selectedRelatedAccount?.name ?: "",
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text(if (selectedType == TransactionType.INVESTMENT_DEPOSIT) "Cuenta de inversión destino" else "Cuenta destino") },
+                            label = { Text("Cuenta destino") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(relatedExpanded) },
                             modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -228,5 +235,4 @@ private val TransactionType.label: String
         TransactionType.INCOME -> "Ingreso"
         TransactionType.EXPENSE -> "Gasto"
         TransactionType.TRANSFER -> "Transferencia"
-        TransactionType.INVESTMENT_DEPOSIT -> "Depósito"
     }

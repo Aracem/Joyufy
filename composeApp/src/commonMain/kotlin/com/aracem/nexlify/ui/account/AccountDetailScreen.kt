@@ -176,6 +176,7 @@ fun AccountDetailScreen(
     // ── Dialogs ───────────────────────────────────────────────────────────
     if (showAddTransaction) {
         AddTransactionDialog(
+            accountType = account.type,
             availableAccounts = state.allAccounts,
             onDismiss = { showAddTransaction = false },
             onConfirm = { type, amount, category, desc, relatedId, date ->
@@ -329,7 +330,6 @@ private val TransactionType.label: String
         TransactionType.INCOME -> "Ingreso"
         TransactionType.EXPENSE -> "Gasto"
         TransactionType.TRANSFER -> "Transferencia"
-        TransactionType.INVESTMENT_DEPOSIT -> "Depósito inversión"
     }
 
 private fun Long.formatDate(): String {

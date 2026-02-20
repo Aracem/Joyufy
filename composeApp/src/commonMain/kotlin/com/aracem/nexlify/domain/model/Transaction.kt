@@ -1,6 +1,6 @@
 package com.aracem.nexlify.domain.model
 
-enum class TransactionType { INCOME, EXPENSE, TRANSFER, INVESTMENT_DEPOSIT }
+enum class TransactionType { INCOME, EXPENSE, TRANSFER }
 
 // Suggested categories — user can also type freely
 enum class TransactionCategory(val label: String) {

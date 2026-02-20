@@ -118,27 +118,6 @@ class AccountDetailViewModel(
                         date = date,
                     )
                 }
-                // INVESTMENT_DEPOSIT: EXPENSE on bank origin, INCOME on investment destination
-                type == TransactionType.INVESTMENT_DEPOSIT && relatedAccountId != null -> {
-                    transactionRepository.insertTransaction(
-                        accountId = accountId,
-                        type = TransactionType.EXPENSE,
-                        amount = amount,
-                        category = category,
-                        description = description,
-                        relatedAccountId = relatedAccountId,
-                        date = date,
-                    )
-                    transactionRepository.insertTransaction(
-                        accountId = relatedAccountId,
-                        type = TransactionType.INCOME,
-                        amount = amount,
-                        category = category,
-                        description = description,
-                        relatedAccountId = accountId,
-                        date = date,
-                    )
-                }
                 else -> {
                     transactionRepository.insertTransaction(
                         accountId = accountId,
