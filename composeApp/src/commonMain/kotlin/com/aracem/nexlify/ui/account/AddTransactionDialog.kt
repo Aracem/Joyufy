@@ -205,7 +205,7 @@ fun AddTransactionDialog(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     ) {
-                        Text("Añadir")
+                        Text(if (selectedType == TransactionType.TRANSFER) "Transferir" else "Añadir")
                     }
                 }
             }
