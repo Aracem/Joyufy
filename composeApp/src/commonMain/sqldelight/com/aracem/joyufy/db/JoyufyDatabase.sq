@@ -68,6 +68,9 @@ WHERE id = ?;
 deleteTransaction:
 DELETE FROM `Transaction` WHERE id = ?;
 
+deleteAllTransactions:
+DELETE FROM `Transaction`;
+
 -- Balance calculado de una cuenta banco/efectivo
 getAccountBalance:
 SELECT
@@ -107,6 +110,9 @@ SELECT * FROM InvestmentSnapshot WHERE account_id = ? AND week_date BETWEEN ? AN
 deleteSnapshot:
 DELETE FROM InvestmentSnapshot WHERE id = ?;
 
+deleteAllSnapshots:
+DELETE FROM InvestmentSnapshot;
+
 -- Cuentas de inversión sin snapshot esta semana
 getInvestmentAccountsMissingThisWeek:
 SELECT a.*
@@ -117,6 +123,10 @@ WHERE a.type = 'INVESTMENT'
       SELECT account_id FROM InvestmentSnapshot WHERE week_date = ?
   );
 
+
+-- Todas las transacciones (para backup completo)
+getAllTransactions:
+SELECT * FROM `Transaction` ORDER BY date ASC;
 
 -- Todas las transacciones de cuentas BANK/CASH (para historial)
 getAllBankCashTransactions:

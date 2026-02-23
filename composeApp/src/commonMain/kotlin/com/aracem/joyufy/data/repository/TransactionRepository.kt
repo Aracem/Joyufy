@@ -45,6 +45,17 @@ class TransactionRepository(private val db: JoyufyDatabase) {
             .map { it.toDomain() }
     }
 
+    suspend fun getAllTransactions(): List<Transaction> = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries
+            .getAllTransactions()
+            .executeAsList()
+            .map { it.toDomain() }
+    }
+
+    suspend fun deleteAllTransactions(): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.deleteAllTransactions()
+    }
+
     suspend fun getAccountBalance(accountId: Long): Double = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries
             .getAccountBalance(accountId)

@@ -22,6 +22,10 @@ class AccountRepository(private val db: JoyufyDatabase) {
             .mapToList(Dispatchers.IO)
             .map { list -> list.map { it.toDomain() } }
 
+    suspend fun getAllAccounts(): List<Account> = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.getAllAccounts().executeAsList().map { it.toDomain() }
+    }
+
     suspend fun getAccountById(id: Long): Account? = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.getAccountById(id).executeAsOneOrNull()?.toDomain()
     }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,16 +18,59 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
+import com.aracem.joyufy.ui.backup.BackupEvent
+import com.aracem.joyufy.ui.backup.BackupViewModel
 import com.aracem.joyufy.ui.components.*
 import com.aracem.joyufy.ui.theme.*
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 @Composable
 fun DashboardScreen(
     onAccountClick: (Account) -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    backupViewModel: BackupViewModel = koinInject(),
     viewModel: DashboardViewModel = koinInject(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val backupEvent by backupViewModel.event.collectAsState()
+
+    // Confirm dialog before destructive import
+    var showImportConfirm by remember { mutableStateOf<(() -> Unit)?>(null) }
+    LaunchedEffect(backupEvent) {
+        if (backupEvent is BackupEvent.ImportReady) {
+            showImportConfirm = (backupEvent as BackupEvent.ImportReady).onConfirm
+        }
+    }
+    if (showImportConfirm != null) {
+        AlertDialog(
+            onDismissRequest = { showImportConfirm = null; backupViewModel.reset() },
+            title = { Text("¿Restaurar backup?") },
+            text = { Text("Se borrarán todos los datos actuales y se reemplazarán con los del archivo. Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = { showImportConfirm?.invoke(); showImportConfirm = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                ) { Text("Restaurar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportConfirm = null; backupViewModel.reset() }) {
+                    Text("Cancelar")
+                }
+            },
+        )
+    }
+
+    // Snackbar for success/error
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(backupEvent) {
+        when (val ev = backupEvent) {
+            is BackupEvent.Success -> { snackbarHostState.showSnackbar(ev.message); backupViewModel.reset() }
+            is BackupEvent.Error   -> { snackbarHostState.showSnackbar(ev.message); backupViewModel.reset() }
+            else -> {}
+        }
+    }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -35,6 +79,10 @@ fun DashboardScreen(
         return
     }
 
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -56,11 +104,21 @@ fun DashboardScreen(
         // Header — total patrimonio
         item {
             Column {
-                Text(
-                    text = "Patrimonio total",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.joyufyColors.contentSecondary,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Patrimonio total",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    DashboardMenu(
+                        onExport = onExport,
+                        onImport = onImport,
+                    )
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = state.totalWealth.formatCurrency(),
@@ -137,6 +195,7 @@ fun DashboardScreen(
             }
         }
     }
+    } // end Scaffold
 }
 
 @Composable
@@ -337,6 +396,37 @@ fun ChartRangeSelector(
                     selectedBorderColor = Accent,
                 ),
                 modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DashboardMenu(
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.size(32.dp)) {
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = "Más opciones",
+                tint = MaterialTheme.joyufyColors.contentSecondary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("Exportar datos") },
+                onClick = { expanded = false; onExport() },
+            )
+            DropdownMenuItem(
+                text = { Text("Importar datos") },
+                onClick = { expanded = false; onImport() },
             )
         }
     }
