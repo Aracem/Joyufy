@@ -71,6 +71,26 @@ class TransactionRepository(private val db: NexlifyDatabase) {
         )
     }
 
+    suspend fun updateTransaction(
+        id: Long,
+        type: TransactionType,
+        amount: Double,
+        category: String?,
+        description: String?,
+        relatedAccountId: Long?,
+        date: Long,
+    ): Unit = withContext(Dispatchers.IO) {
+        db.nexlifyDatabaseQueries.updateTransaction(
+            type = type.name,
+            amount = amount,
+            category = category,
+            description = description,
+            related_account_id = relatedAccountId,
+            date = date,
+            id = id,
+        )
+    }
+
     suspend fun deleteTransaction(id: Long): Unit = withContext(Dispatchers.IO) {
         db.nexlifyDatabaseQueries.deleteTransaction(id)
     }

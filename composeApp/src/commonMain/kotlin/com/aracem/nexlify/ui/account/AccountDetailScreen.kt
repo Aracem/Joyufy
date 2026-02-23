@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +47,8 @@ fun AccountDetailScreen(
 
     var showAddTransaction by remember { mutableStateOf(false) }
     var showAddSnapshot by remember { mutableStateOf(false) }
+    var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var editingSnapshot by remember { mutableStateOf<InvestmentSnapshot?>(null) }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -162,6 +165,7 @@ fun AccountDetailScreen(
                 items(state.snapshots, key = { it.id }) { snapshot ->
                     SnapshotRow(
                         snapshot = snapshot,
+                        onEdit = { editingSnapshot = snapshot },
                         onDelete = { viewModel.deleteSnapshot(snapshot.id) },
                     )
                 }
@@ -185,6 +189,7 @@ fun AccountDetailScreen(
                 TransactionRow(
                     transaction = tx,
                     allAccounts = state.allAccounts,
+                    onEdit = { editingTransaction = tx },
                     onDelete = { viewModel.deleteTransaction(tx.id) },
                 )
             }
@@ -192,23 +197,37 @@ fun AccountDetailScreen(
     }
 
     // ── Dialogs ───────────────────────────────────────────────────────────
-    if (showAddTransaction) {
+    if (showAddTransaction || editingTransaction != null) {
         AddTransactionDialog(
             accountType = account.type,
             availableAccounts = state.allAccounts,
-            onDismiss = { showAddTransaction = false },
+            editingTransaction = editingTransaction,
+            onDismiss = { showAddTransaction = false; editingTransaction = null },
             onConfirm = { type, amount, category, desc, relatedId, date ->
-                viewModel.addTransaction(type, amount, category, desc, relatedId, date)
+                val editing = editingTransaction
+                if (editing != null) {
+                    viewModel.updateTransaction(editing.id, type, amount, category, desc, relatedId, date)
+                } else {
+                    viewModel.addTransaction(type, amount, category, desc, relatedId, date)
+                }
             },
         )
     }
 
-    if (showAddSnapshot) {
+    if (showAddSnapshot || editingSnapshot != null) {
         AddSnapshotDialog(
             accountName = account.name,
             currentValue = state.snapshots.firstOrNull()?.totalValue,
-            onDismiss = { showAddSnapshot = false },
-            onConfirm = { value, weekDate -> viewModel.addSnapshot(value, weekDate) },
+            editingSnapshot = editingSnapshot,
+            onDismiss = { showAddSnapshot = false; editingSnapshot = null },
+            onConfirm = { value, weekDate ->
+                val editing = editingSnapshot
+                if (editing != null) {
+                    viewModel.updateSnapshot(editing.id, value, weekDate)
+                } else {
+                    viewModel.addSnapshot(value, weekDate)
+                }
+            },
         )
     }
 }
@@ -269,6 +288,7 @@ private fun AccountHistoryCard(
 private fun TransactionRow(
     transaction: Transaction,
     allAccounts: List<com.aracem.nexlify.domain.model.Account>,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val relatedAccount = allAccounts.find { it.id == transaction.relatedAccountId }
@@ -333,6 +353,11 @@ private fun TransactionRow(
             color = amountColor,
         )
         Spacer(Modifier.width(4.dp))
+        IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Default.Edit, contentDescription = "Editar",
+                tint = MaterialTheme.nexlifyColors.contentSecondary,
+                modifier = Modifier.size(16.dp))
+        }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Default.Delete, contentDescription = "Eliminar",
                 tint = MaterialTheme.nexlifyColors.contentDisabled,
@@ -344,6 +369,7 @@ private fun TransactionRow(
 @Composable
 private fun SnapshotRow(
     snapshot: InvestmentSnapshot,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -367,6 +393,11 @@ private fun SnapshotRow(
             color = Positive,
         )
         Spacer(Modifier.width(4.dp))
+        IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Default.Edit, contentDescription = "Editar",
+                tint = MaterialTheme.nexlifyColors.contentSecondary,
+                modifier = Modifier.size(16.dp))
+        }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Default.Delete, contentDescription = "Eliminar",
                 tint = MaterialTheme.nexlifyColors.contentDisabled,

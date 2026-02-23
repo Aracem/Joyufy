@@ -59,6 +59,11 @@ SELECT * FROM `Transaction` WHERE account_id = ? ORDER BY date DESC;
 getTransactionsBetween:
 SELECT * FROM `Transaction` WHERE account_id = ? AND date BETWEEN ? AND ? ORDER BY date DESC;
 
+updateTransaction:
+UPDATE `Transaction`
+SET type = ?, amount = ?, category = ?, description = ?, related_account_id = ?, date = ?
+WHERE id = ?;
+
 deleteTransaction:
 DELETE FROM `Transaction` WHERE id = ?;
 
@@ -87,7 +92,7 @@ INSERT INTO InvestmentSnapshot (account_id, total_value, week_date)
 VALUES (?, ?, ?);
 
 updateSnapshot:
-UPDATE InvestmentSnapshot SET total_value = ? WHERE id = ?;
+UPDATE InvestmentSnapshot SET total_value = ?, week_date = ? WHERE id = ?;
 
 getSnapshotsForAccount:
 SELECT * FROM InvestmentSnapshot WHERE account_id = ? ORDER BY week_date DESC;

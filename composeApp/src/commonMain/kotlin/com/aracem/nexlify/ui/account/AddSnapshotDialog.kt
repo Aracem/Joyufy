@@ -24,13 +24,26 @@ fun AddSnapshotDialog(
     currentValue: Double?,
     onDismiss: () -> Unit,
     onConfirm: (totalValue: Double, weekDate: Long) -> Unit,
+    // If non-null, dialog is in edit mode
+    editingSnapshot: com.aracem.nexlify.domain.model.InvestmentSnapshot? = null,
 ) {
-    var valueText by remember { mutableStateOf(currentValue?.let { "%.2f".format(it) } ?: "") }
+    var valueText by remember {
+        mutableStateOf(editingSnapshot?.totalValue?.let { "%.2f".format(it) }
+            ?: currentValue?.let { "%.2f".format(it) } ?: "")
+    }
     var valueError by remember { mutableStateOf<String?>(null) }
 
     // Build last 12 weeks (including current) as options
     val weeks = remember { buildRecentWeeks(12) }
-    var selectedWeek by remember { mutableStateOf(weeks.first()) }
+    // Pre-select the week matching the snapshot being edited, or current week
+    var selectedWeek by remember {
+        mutableStateOf(
+            if (editingSnapshot != null)
+                weeks.firstOrNull { it.mondayMs == editingSnapshot.weekDate } ?: weeks.first()
+            else
+                weeks.first()
+        )
+    }
     var weekExpanded by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -46,7 +59,7 @@ fun AddSnapshotDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Actualizar valor",
+                            text = if (editingSnapshot != null) "Editar valor" else "Actualizar valor",
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -129,7 +142,7 @@ fun AddSnapshotDialog(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     ) {
-                        Text("Guardar")
+                        Text(if (editingSnapshot != null) "Guardar cambios" else "Guardar")
                     }
                 }
             }

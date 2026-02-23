@@ -239,6 +239,24 @@ class AccountDetailViewModel(
         }
     }
 
+    fun updateTransaction(
+        id: Long,
+        type: TransactionType,
+        amount: Double,
+        category: String?,
+        description: String?,
+        relatedAccountId: Long?,
+        date: Long,
+    ) {
+        scope.launch {
+            transactionRepository.updateTransaction(id, type, amount, category, description, relatedAccountId, date)
+        }
+    }
+
+    fun updateSnapshot(id: Long, totalValue: Double, weekDate: Long) {
+        scope.launch { snapshotRepository.updateSnapshot(id, totalValue, weekDate) }
+    }
+
     fun deleteTransaction(id: Long) {
         scope.launch { transactionRepository.deleteTransaction(id) }
     }

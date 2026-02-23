@@ -30,26 +30,34 @@ fun AddTransactionDialog(
     availableAccounts: List<Account>,
     onDismiss: () -> Unit,
     onConfirm: (type: TransactionType, amount: Double, category: String?, description: String?, relatedAccountId: Long?, date: Long) -> Unit,
+    // If non-null, dialog is in edit mode pre-populated with this transaction
+    editingTransaction: com.aracem.nexlify.domain.model.Transaction? = null,
 ) {
     val allowedTypes = when (accountType) {
         AccountType.INVESTMENT -> listOf(TransactionType.INCOME, TransactionType.TRANSFER)
         AccountType.BANK, AccountType.CASH -> listOf(TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.TRANSFER)
     }
-    var selectedType by remember { mutableStateOf(allowedTypes.first()) }
-    var amountText by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf(editingTransaction?.type ?: allowedTypes.first()) }
+    var amountText by remember { mutableStateOf(editingTransaction?.amount?.let { "%.2f".format(it) } ?: "") }
     var amountError by remember { mutableStateOf<String?>(null) }
-    var category by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedRelatedAccount by remember { mutableStateOf<Account?>(null) }
+    var category by remember { mutableStateOf(editingTransaction?.category ?: "") }
+    var description by remember { mutableStateOf(editingTransaction?.description ?: "") }
+    var selectedRelatedAccount by remember {
+        mutableStateOf(editingTransaction?.relatedAccountId?.let { id -> availableAccounts.find { it.id == id } })
+    }
     var categoryExpanded by remember { mutableStateOf(false) }
     var relatedExpanded by remember { mutableStateOf(false) }
 
-    // Date field — default today in dd/MM/yyyy
+    // Date field — default today or editing transaction date
     val todayLocal = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
     val todayFormatted = "%02d/%02d/%04d".format(
         todayLocal.dayOfMonth, todayLocal.monthNumber, todayLocal.year
     )
-    var dateText by remember { mutableStateOf(todayFormatted) }
+    val initialDate = editingTransaction?.date?.let { ms ->
+        val local = Instant.fromEpochMilliseconds(ms).toLocalDateTime(TimeZone.currentSystemDefault())
+        "%02d/%02d/%04d".format(local.dayOfMonth, local.monthNumber, local.year)
+    } ?: todayFormatted
+    var dateText by remember { mutableStateOf(initialDate) }
     var dateError by remember { mutableStateOf<String?>(null) }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -64,7 +72,7 @@ fun AddTransactionDialog(
                 // Header
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Nueva transacción",
+                        text = if (editingTransaction != null) "Editar transacción" else "Nueva transacción",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
@@ -252,7 +260,11 @@ fun AddTransactionDialog(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     ) {
-                        Text(if (selectedType == TransactionType.TRANSFER) "Transferir" else "Añadir")
+                        Text(when {
+                            editingTransaction != null -> "Guardar"
+                            selectedType == TransactionType.TRANSFER -> "Transferir"
+                            else -> "Añadir"
+                        })
                     }
                 }
             }

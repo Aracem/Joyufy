@@ -71,8 +71,8 @@ class InvestmentSnapshotRepository(private val db: NexlifyDatabase) {
         )
     }
 
-    suspend fun updateSnapshot(id: Long, totalValue: Double): Unit = withContext(Dispatchers.IO) {
-        db.nexlifyDatabaseQueries.updateSnapshot(total_value = totalValue, id = id)
+    suspend fun updateSnapshot(id: Long, totalValue: Double, weekDate: Long): Unit = withContext(Dispatchers.IO) {
+        db.nexlifyDatabaseQueries.updateSnapshot(total_value = totalValue, week_date = weekDate, id = id)
     }
 
     suspend fun deleteSnapshot(id: Long): Unit = withContext(Dispatchers.IO) {
