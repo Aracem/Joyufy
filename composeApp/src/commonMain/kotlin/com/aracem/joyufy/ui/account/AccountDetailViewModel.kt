@@ -75,10 +75,15 @@ class AccountDetailViewModel(
             // All account types observe transactions
             launch {
                 transactionRepository.observeTransactionsForAccount(accountId).collect { txns ->
-                    val balance = calculateBalance(account.type)
+                    // For INVESTMENT accounts the balance comes from snapshots — don't overwrite it here
+                    val newBalance = if (account.type != AccountType.INVESTMENT) {
+                        calculateBalance(account.type)
+                    } else {
+                        _uiState.value.balance
+                    }
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        balance = balance,
+                        balance = newBalance,
                         transactions = txns,
                     )
                 }

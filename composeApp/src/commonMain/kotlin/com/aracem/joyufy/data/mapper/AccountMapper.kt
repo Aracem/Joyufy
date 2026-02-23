@@ -16,8 +16,10 @@ fun AccountEntity.toDomain(): Account = Account(
 )
 
 fun Account.toColorHex(): String {
-    val argb = color.value.toLong()
-    return "#%06X".format(argb and 0xFFFFFF)
+    val r = (color.red * 255).toInt()
+    val g = (color.green * 255).toInt()
+    val b = (color.blue * 255).toInt()
+    return "#%02X%02X%02X".format(r, g, b)
 }
 
 /** Parses #RRGGBB or #AARRGGBB into a Compose Color. */
