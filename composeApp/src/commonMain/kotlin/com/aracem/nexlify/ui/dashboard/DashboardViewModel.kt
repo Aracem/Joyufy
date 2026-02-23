@@ -20,7 +20,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 
 data class AccountSummary(
@@ -46,6 +48,7 @@ enum class ChartRange(val weeks: Int?) {
     ONE_MONTH(4),
     THREE_MONTHS(13),
     SIX_MONTHS(26),
+    YTD(null),   // desde el 1 de enero — calculado dinámicamente
     ONE_YEAR(52),
     ALL(null),
 }
@@ -148,12 +151,24 @@ class DashboardViewModel(
         val now = currentWeekStartMillis()
 
         // Build the list of week starts based on range
-        val weekStarts = if (range.weeks != null) {
-            val count = range.weeks
-            (count downTo 0).map { now - it * millisInWeek }
-        } else {
-            // ALL: use up to 5 years of history
-            (260 downTo 0).map { now - it * millisInWeek }
+        val weekStarts = when {
+            range == ChartRange.YTD -> {
+                val local = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                val jan1Ms = LocalDate(local.year, 1, 1)
+                    .atStartOfDayIn(TimeZone.currentSystemDefault())
+                    .toEpochMilliseconds()
+                generateSequence(jan1Ms) { it + millisInWeek }
+                    .takeWhile { it <= now }
+                    .toList()
+            }
+            range.weeks != null -> {
+                val count = range.weeks
+                (count downTo 0).map { now - it * millisInWeek }
+            }
+            else -> {
+                // ALL: up to 5 years of history
+                (260 downTo 0).map { now - it * millisInWeek }
+            }
         }
 
         val snapshotsByAccount = allSnapshots.groupBy { it.accountId }

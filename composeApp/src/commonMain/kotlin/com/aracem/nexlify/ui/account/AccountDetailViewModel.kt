@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 
 data class SingleAccountPoint(
@@ -159,10 +161,18 @@ class AccountDetailViewModel(
     }
 
     private fun weekStartsForRange(range: ChartRange, now: Long, millisInWeek: Long): List<Long> =
-        if (range.weeks != null) {
-            (range.weeks downTo 0).map { now - it * millisInWeek }
-        } else {
-            (260 downTo 0).map { now - it * millisInWeek }
+        when {
+            range == ChartRange.YTD -> {
+                val local = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                val jan1Ms = LocalDate(local.year, 1, 1)
+                    .atStartOfDayIn(TimeZone.currentSystemDefault())
+                    .toEpochMilliseconds()
+                generateSequence(jan1Ms) { it + millisInWeek }
+                    .takeWhile { it <= now }
+                    .toList()
+            }
+            range.weeks != null -> (range.weeks downTo 0).map { now - it * millisInWeek }
+            else -> (260 downTo 0).map { now - it * millisInWeek }
         }
 
     private suspend fun calculateBalance(type: AccountType): Double =

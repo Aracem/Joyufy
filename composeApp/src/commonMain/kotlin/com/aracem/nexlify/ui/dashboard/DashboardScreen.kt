@@ -204,6 +204,7 @@ fun ChartRangeSelector(
         ChartRange.ONE_MONTH to "1M",
         ChartRange.THREE_MONTHS to "3M",
         ChartRange.SIX_MONTHS to "6M",
+        ChartRange.YTD to "YTD",
         ChartRange.ONE_YEAR to "1A",
         ChartRange.ALL to "Todo",
     )
