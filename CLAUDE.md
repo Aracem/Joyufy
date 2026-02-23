@@ -1,6 +1,6 @@
-# Nexlify — Contexto del proyecto para Claude
+# Joyufy — Contexto del proyecto para Claude
 
-## Qué es Nexlify
+## Qué es Joyufy
 App de escritorio (Mac, Windows, Linux) para control personal de finanzas.
 Stack: Kotlin + Compose Multiplatform, SQLDelight, Koin.
 

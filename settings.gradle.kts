@@ -1,4 +1,4 @@
-rootProject.name = "nexlify"
+rootProject.name = "joyufy"
 include(":composeApp")
 
 pluginManagement {

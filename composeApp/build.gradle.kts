@@ -55,19 +55,19 @@ kotlin {
 
 sqldelight {
     databases {
-        create("NexlifyDatabase") {
-            packageName.set("com.aracem.nexlify.db")
+        create("JoyufyDatabase") {
+            packageName.set("com.aracem.joyufy.db")
         }
     }
 }
 
 compose.desktop {
     application {
-        mainClass = "com.aracem.nexlify.MainKt"
+        mainClass = "com.aracem.joyufy.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "Nexlify"
+            packageName = "Joyufy"
             packageVersion = "1.0.0"
 
             macOS {
