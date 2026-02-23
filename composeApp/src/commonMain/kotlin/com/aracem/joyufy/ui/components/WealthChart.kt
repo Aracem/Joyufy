@@ -564,11 +564,11 @@ private fun DrawScope.drawBarChart(
 
     // ── X-axis date labels ────────────────────────────────────────────────────
     val labelStyle = TextStyle(color = labelColor, fontSize = 10.sp)
-    val xLabelCount = minOf(5, points.size)
-    val xLabelIndices = if (points.size <= xLabelCount) {
-        points.indices.toList()
-    } else {
-        (0 until xLabelCount).map { it * (points.size - 1) / (xLabelCount - 1) }
+    val sampleWidth = measurer.measure("00/00", labelStyle).size.width + 8f
+    val maxLabels = (chartW / sampleWidth).toInt().coerceAtLeast(2)
+    val step = (points.size.toFloat() / maxLabels).coerceAtLeast(1f)
+    val xLabelIndices = (0 until points.size).filter { i ->
+        i == 0 || i == points.size - 1 || (i % step.toInt() == 0)
     }
     xLabelIndices.forEach { i ->
         val label = points[i].weekDate.toShortDate()
@@ -724,11 +724,11 @@ private fun DrawScope.drawSingleBarChart(
     }
 
     val labelStyle = TextStyle(color = labelColor, fontSize = 10.sp)
-    val xLabelCount = minOf(5, points.size)
-    val xLabelIndices = if (points.size <= xLabelCount) {
-        points.indices.toList()
-    } else {
-        (0 until xLabelCount).map { it * (points.size - 1) / (xLabelCount - 1) }
+    val sampleWidth = measurer.measure("00/00", labelStyle).size.width + 8f
+    val maxLabels = (chartW / sampleWidth).toInt().coerceAtLeast(2)
+    val step = (points.size.toFloat() / maxLabels).coerceAtLeast(1f)
+    val xLabelIndices = (0 until points.size).filter { i ->
+        i == 0 || i == points.size - 1 || (i % step.toInt() == 0)
     }
     xLabelIndices.forEach { i ->
         val label = points[i].weekDate.toShortDate()
@@ -789,11 +789,14 @@ private fun DrawScope.drawXLabels(
     labelAt: (Int) -> Pair<Float, String>,
 ) {
     val labelStyle = TextStyle(color = labelColor, fontSize = 10.sp)
-    val xLabelCount = minOf(5, pointCount)
-    val xLabelIndices = if (pointCount <= xLabelCount) {
-        (0 until pointCount).toList()
-    } else {
-        (0 until xLabelCount).map { it * (pointCount - 1) / (xLabelCount - 1) }
+    // Measure a sample label to know how much space each needs
+    val sampleWidth = measurer.measure("00/00", labelStyle).size.width + 8f
+    val chartWidth = size.width - leftPadding - rightPadding
+    // How many labels fit without overlapping
+    val maxLabels = (chartWidth / sampleWidth).toInt().coerceAtLeast(2)
+    val step = (pointCount.toFloat() / maxLabels).coerceAtLeast(1f)
+    val xLabelIndices = (0 until pointCount).filter { i ->
+        i == 0 || i == pointCount - 1 || (i % step.toInt() == 0)
     }
     xLabelIndices.forEach { i ->
         val (x, label) = labelAt(i)
