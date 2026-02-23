@@ -28,10 +28,27 @@ data class AccountSummary(
     val balance: Double,
 )
 
+data class AccountPoint(
+    val account: Account,
+    val weekDate: Long,
+    val balance: Double,
+)
+
 data class WealthPoint(
     val weekDate: Long,
     val totalWealth: Double,
+    val byAccount: List<AccountPoint> = emptyList(),
 )
+
+enum class ChartMode { AREA, BARS }
+
+enum class ChartRange(val weeks: Int?) {
+    ONE_MONTH(4),
+    THREE_MONTHS(13),
+    SIX_MONTHS(26),
+    ONE_YEAR(52),
+    ALL(null),
+}
 
 data class DashboardUiState(
     val isLoading: Boolean = true,
@@ -40,9 +57,8 @@ data class DashboardUiState(
     val accountSummaries: List<AccountSummary> = emptyList(),
     val accountsMissingSnapshot: List<Account> = emptyList(),
     val chartMode: ChartMode = ChartMode.AREA,
+    val chartRange: ChartRange = ChartRange.ONE_YEAR,
 )
-
-enum class ChartMode { AREA, BARS }
 
 class DashboardViewModel(
     private val accountRepository: AccountRepository,
@@ -105,13 +121,17 @@ class DashboardViewModel(
         }
     }
 
+    private val _chartRange = MutableStateFlow(ChartRange.ONE_YEAR)
+
     private fun observeWealthHistory() {
         scope.launch {
             combine(
+                accountRepository.observeAccounts(),
                 transactionRepository.observeAllBankCashTransactions(),
                 snapshotRepository.observeAllSnapshots(),
-            ) { transactions, snapshots ->
-                buildWealthHistory(transactions, snapshots)
+                _chartRange,
+            ) { accounts, transactions, snapshots, range ->
+                buildWealthHistory(accounts, transactions, snapshots, range)
             }.collect { points ->
                 _uiState.value = _uiState.value.copy(wealthHistory = points)
             }
@@ -119,31 +139,50 @@ class DashboardViewModel(
     }
 
     private fun buildWealthHistory(
+        accounts: List<Account>,
         allTransactions: List<Transaction>,
         allSnapshots: List<InvestmentSnapshot>,
+        range: ChartRange,
     ): List<WealthPoint> {
         val millisInWeek = 7 * 86_400_000L
         val now = currentWeekStartMillis()
-        val weekStarts = (52 downTo 0).map { now - it * millisInWeek }
+
+        // Build the list of week starts based on range
+        val weekStarts = if (range.weeks != null) {
+            val count = range.weeks
+            (count downTo 0).map { now - it * millisInWeek }
+        } else {
+            // ALL: use up to 5 years of history
+            (260 downTo 0).map { now - it * millisInWeek }
+        }
+
         val snapshotsByAccount = allSnapshots.groupBy { it.accountId }
+        val transactionsByAccount = allTransactions.groupBy { it.accountId }
 
         val points = weekStarts.map { weekStart ->
             val weekEnd = weekStart + millisInWeek - 1
 
-            val bankBalance = allTransactions
-                .filter { it.date <= weekEnd }
-                .sumOf { tx ->
-                    if (tx.type == TransactionType.INCOME) tx.amount else -tx.amount
+            val byAccount = accounts.map { account ->
+                val balance = when (account.type) {
+                    AccountType.INVESTMENT -> {
+                        snapshotsByAccount[account.id]
+                            ?.filter { it.weekDate <= weekEnd }
+                            ?.maxByOrNull { it.weekDate }
+                            ?.totalValue ?: 0.0
+                    }
+                    AccountType.BANK, AccountType.CASH -> {
+                        transactionsByAccount[account.id]
+                            ?.filter { it.date <= weekEnd }
+                            ?.sumOf { tx ->
+                                if (tx.type == TransactionType.INCOME) tx.amount else -tx.amount
+                            } ?: 0.0
+                    }
                 }
-
-            val investmentBalance = snapshotsByAccount.values.sumOf { snapshots ->
-                snapshots
-                    .filter { it.weekDate <= weekEnd }
-                    .maxByOrNull { it.weekDate }
-                    ?.totalValue ?: 0.0
+                AccountPoint(account = account, weekDate = weekStart, balance = balance)
             }
 
-            WealthPoint(weekDate = weekStart, totalWealth = bankBalance + investmentBalance)
+            val total = byAccount.sumOf { it.balance }
+            WealthPoint(weekDate = weekStart, totalWealth = total, byAccount = byAccount)
         }
 
         val firstNonZero = points.indexOfFirst { it.totalWealth != 0.0 }
@@ -161,6 +200,11 @@ class DashboardViewModel(
     fun toggleChartMode() {
         val next = if (_uiState.value.chartMode == ChartMode.AREA) ChartMode.BARS else ChartMode.AREA
         _uiState.value = _uiState.value.copy(chartMode = next)
+    }
+
+    fun setChartRange(range: ChartRange) {
+        _uiState.value = _uiState.value.copy(chartRange = range)
+        _chartRange.value = range
     }
 
     fun dismissMissingSnapshotBanner() {

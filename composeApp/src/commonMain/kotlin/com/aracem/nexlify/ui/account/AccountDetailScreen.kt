@@ -7,7 +7,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,7 +21,11 @@ import com.aracem.nexlify.domain.model.AccountType
 import com.aracem.nexlify.domain.model.InvestmentSnapshot
 import com.aracem.nexlify.domain.model.Transaction
 import com.aracem.nexlify.domain.model.TransactionType
+import com.aracem.nexlify.ui.components.SingleAccountChart
 import com.aracem.nexlify.ui.components.formatCurrency
+import com.aracem.nexlify.ui.dashboard.ChartMode
+import com.aracem.nexlify.ui.dashboard.ChartRange
+import com.aracem.nexlify.ui.dashboard.ChartRangeSelector
 import com.aracem.nexlify.ui.theme.Accent
 import com.aracem.nexlify.ui.theme.Negative
 import com.aracem.nexlify.ui.theme.Positive
@@ -128,6 +134,18 @@ fun AccountDetailScreen(
 
         item { HorizontalDivider(color = MaterialTheme.nexlifyColors.border) }
 
+        // ── Account history chart ─────────────────────────────────────────
+        item {
+            AccountHistoryCard(
+                history = state.accountHistory,
+                chartRange = state.chartRange,
+                account = account,
+                onRangeChange = viewModel::setChartRange,
+            )
+        }
+
+        item { HorizontalDivider(color = MaterialTheme.nexlifyColors.border) }
+
         // ── Investment snapshots (valor de mercado semanal) ───────────────
         if (account.type == AccountType.INVESTMENT) {
             item {
@@ -191,6 +209,56 @@ fun AccountDetailScreen(
             currentValue = state.snapshots.firstOrNull()?.totalValue,
             onDismiss = { showAddSnapshot = false },
             onConfirm = { viewModel.addSnapshot(it) },
+        )
+    }
+}
+
+// ── Account history card ───────────────────────────────────────────────────
+
+@Composable
+private fun AccountHistoryCard(
+    history: List<SingleAccountPoint>,
+    chartRange: ChartRange,
+    account: com.aracem.nexlify.domain.model.Account,
+    onRangeChange: (ChartRange) -> Unit,
+) {
+    var chartMode by remember { mutableStateOf(ChartMode.AREA) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+            .padding(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Evolución",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                onClick = { chartMode = if (chartMode == ChartMode.AREA) ChartMode.BARS else ChartMode.AREA },
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    imageVector = if (chartMode == ChartMode.AREA) Icons.AutoMirrored.Filled.List else Icons.Default.DateRange,
+                    contentDescription = "Cambiar vista",
+                    tint = MaterialTheme.nexlifyColors.contentSecondary,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        ChartRangeSelector(selected = chartRange, onSelect = onRangeChange)
+        Spacer(Modifier.height(8.dp))
+        SingleAccountChart(
+            points = history,
+            account = account,
+            mode = chartMode,
         )
     }
 }

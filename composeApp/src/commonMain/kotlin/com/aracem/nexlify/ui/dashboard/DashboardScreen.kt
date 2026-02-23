@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
@@ -11,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.aracem.nexlify.domain.model.Account
 import com.aracem.nexlify.ui.components.*
@@ -71,7 +73,10 @@ fun DashboardScreen(
             WealthChartCard(
                 points = state.wealthHistory,
                 mode = state.chartMode,
+                range = state.chartRange,
+                accounts = state.accountSummaries,
                 onToggleMode = viewModel::toggleChartMode,
+                onRangeChange = viewModel::setChartRange,
             )
         }
 
@@ -122,7 +127,10 @@ fun DashboardScreen(
 private fun WealthChartCard(
     points: List<WealthPoint>,
     mode: ChartMode,
+    range: ChartRange,
+    accounts: List<AccountSummary>,
     onToggleMode: () -> Unit,
+    onRangeChange: (ChartRange) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -149,7 +157,86 @@ private fun WealthChartCard(
                 )
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
+        ChartRangeSelector(selected = range, onSelect = onRangeChange)
+        Spacer(Modifier.height(12.dp))
         WealthChart(points = points, mode = mode)
+        if (accounts.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            ChartLegend(accounts = accounts)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChartLegend(accounts: List<AccountSummary>) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        accounts.forEach { summary ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(summary.account.color)
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    text = summary.account.name,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.nexlifyColors.contentSecondary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ChartRangeSelector(
+    selected: ChartRange,
+    onSelect: (ChartRange) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val items = listOf(
+        ChartRange.ONE_MONTH to "1M",
+        ChartRange.THREE_MONTHS to "3M",
+        ChartRange.SIX_MONTHS to "6M",
+        ChartRange.ONE_YEAR to "1A",
+        ChartRange.ALL to "Todo",
+    )
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        items.forEach { (range, label) ->
+            val isSelected = range == selected
+            FilterChip(
+                selected = isSelected,
+                onClick = { onSelect(range) },
+                label = {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Accent,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.nexlifyColors.contentSecondary,
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = isSelected,
+                    borderColor = MaterialTheme.nexlifyColors.border,
+                    selectedBorderColor = Accent,
+                ),
+                modifier = Modifier.height(28.dp),
+            )
+        }
     }
 }

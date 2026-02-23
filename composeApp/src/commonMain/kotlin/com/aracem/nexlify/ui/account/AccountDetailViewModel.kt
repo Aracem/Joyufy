@@ -8,16 +8,23 @@ import com.aracem.nexlify.domain.model.AccountType
 import com.aracem.nexlify.domain.model.InvestmentSnapshot
 import com.aracem.nexlify.domain.model.Transaction
 import com.aracem.nexlify.domain.model.TransactionType
+import com.aracem.nexlify.ui.dashboard.ChartRange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+
+data class SingleAccountPoint(
+    val weekDate: Long,
+    val balance: Double,
+)
 
 data class AccountDetailUiState(
     val isLoading: Boolean = true,
@@ -26,6 +33,8 @@ data class AccountDetailUiState(
     val transactions: List<Transaction> = emptyList(),
     val snapshots: List<InvestmentSnapshot> = emptyList(),
     val allAccounts: List<Account> = emptyList(),
+    val accountHistory: List<SingleAccountPoint> = emptyList(),
+    val chartRange: ChartRange = ChartRange.ONE_YEAR,
 )
 
 class AccountDetailViewModel(
@@ -38,6 +47,8 @@ class AccountDetailViewModel(
 
     private val _uiState = MutableStateFlow(AccountDetailUiState())
     val uiState: StateFlow<AccountDetailUiState> = _uiState.asStateFlow()
+
+    private val _chartRange = MutableStateFlow(ChartRange.ONE_YEAR)
 
     init {
         load()
@@ -69,23 +80,98 @@ class AccountDetailViewModel(
                 }
             }
 
-            // Investment accounts also observe snapshots
+            // Observe history based on account type
             if (account.type == AccountType.INVESTMENT) {
-                snapshotRepository.observeSnapshotsForAccount(accountId).collect { snapshots ->
-                    // Balance = latest snapshot if exists, otherwise sum of transactions
-                    val balance = snapshots.firstOrNull()?.totalValue
-                        ?: transactionRepository.getAccountBalance(accountId)
-                    _uiState.value = _uiState.value.copy(
-                        balance = balance,
-                        snapshots = snapshots,
-                    )
+                launch {
+                    combine(
+                        snapshotRepository.observeSnapshotsForAccount(accountId),
+                        _chartRange,
+                    ) { snapshots, range ->
+                        val balance = snapshots.firstOrNull()?.totalValue
+                            ?: transactionRepository.getAccountBalance(accountId)
+                        _uiState.value = _uiState.value.copy(
+                            balance = balance,
+                            snapshots = snapshots,
+                        )
+                        buildInvestmentHistory(snapshots, range)
+                    }.collect { history ->
+                        _uiState.value = _uiState.value.copy(accountHistory = history)
+                    }
+                }
+            } else {
+                launch {
+                    combine(
+                        transactionRepository.observeTransactionsForAccount(accountId),
+                        _chartRange,
+                    ) { transactions, range ->
+                        buildBankCashHistory(transactions, range)
+                    }.collect { history ->
+                        _uiState.value = _uiState.value.copy(accountHistory = history)
+                    }
                 }
             }
         }
     }
 
+    private fun buildInvestmentHistory(
+        snapshots: List<InvestmentSnapshot>,
+        range: ChartRange,
+    ): List<SingleAccountPoint> {
+        if (snapshots.isEmpty()) return emptyList()
+        val millisInWeek = 7 * 86_400_000L
+        val now = currentWeekStartMillis()
+        val weekStarts = weekStartsForRange(range, now, millisInWeek)
+
+        val points = weekStarts.map { weekStart ->
+            val weekEnd = weekStart + millisInWeek - 1
+            val balance = snapshots
+                .filter { it.weekDate <= weekEnd }
+                .maxByOrNull { it.weekDate }
+                ?.totalValue ?: 0.0
+            SingleAccountPoint(weekDate = weekStart, balance = balance)
+        }
+
+        val firstNonZero = points.indexOfFirst { it.balance != 0.0 }
+        return if (firstNonZero >= 0) points.drop(firstNonZero) else emptyList()
+    }
+
+    private fun buildBankCashHistory(
+        transactions: List<Transaction>,
+        range: ChartRange,
+    ): List<SingleAccountPoint> {
+        if (transactions.isEmpty()) return emptyList()
+        val millisInWeek = 7 * 86_400_000L
+        val now = currentWeekStartMillis()
+        val weekStarts = weekStartsForRange(range, now, millisInWeek)
+
+        val points = weekStarts.map { weekStart ->
+            val weekEnd = weekStart + millisInWeek - 1
+            val balance = transactions
+                .filter { it.date <= weekEnd }
+                .sumOf { tx ->
+                    if (tx.type == TransactionType.INCOME) tx.amount else -tx.amount
+                }
+            SingleAccountPoint(weekDate = weekStart, balance = balance)
+        }
+
+        val firstNonZero = points.indexOfFirst { it.balance != 0.0 }
+        return if (firstNonZero >= 0) points.drop(firstNonZero) else emptyList()
+    }
+
+    private fun weekStartsForRange(range: ChartRange, now: Long, millisInWeek: Long): List<Long> =
+        if (range.weeks != null) {
+            (range.weeks downTo 0).map { now - it * millisInWeek }
+        } else {
+            (260 downTo 0).map { now - it * millisInWeek }
+        }
+
     private suspend fun calculateBalance(type: AccountType): Double =
         transactionRepository.getAccountBalance(accountId)
+
+    fun setChartRange(range: ChartRange) {
+        _uiState.value = _uiState.value.copy(chartRange = range)
+        _chartRange.value = range
+    }
 
     fun addTransaction(
         type: TransactionType,
