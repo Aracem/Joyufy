@@ -11,7 +11,12 @@ actual class DatabaseDriverFactory actual constructor() {
         val dbFile = File(dbDir, "joyufy.db")
         val isNew = !dbFile.exists()
         val driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}")
-        if (isNew) JoyufyDatabase.Schema.create(driver)
+        if (isNew) {
+            JoyufyDatabase.Schema.create(driver)
+        } else {
+            // Add logo_url column if it doesn't exist yet
+            runCatching { driver.execute(null, "ALTER TABLE Account ADD COLUMN logo_url TEXT", 0) }
+        }
         return driver
     }
 }

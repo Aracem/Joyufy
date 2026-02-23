@@ -9,6 +9,7 @@ data class Account(
     val name: String,
     val type: AccountType,
     val color: Color,
+    val logoUrl: String? = null,
     val position: Int,
     val createdAt: Long,
 )

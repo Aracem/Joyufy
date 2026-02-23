@@ -30,12 +30,14 @@ class AccountRepository(private val db: JoyufyDatabase) {
         name: String,
         type: AccountType,
         colorHex: String,
+        logoUrl: String?,
         position: Int,
     ): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.insertAccount(
             name = name,
             type = type.name,
             color_hex = colorHex,
+            logo_url = logoUrl,
             position = position.toLong(),
             created_at = System.currentTimeMillis(),
         )
@@ -45,6 +47,7 @@ class AccountRepository(private val db: JoyufyDatabase) {
         db.joyufyDatabaseQueries.updateAccount(
             name = account.name,
             color_hex = account.toColorHex(),
+            logo_url = account.logoUrl,
             position = account.position.toLong(),
             id = account.id,
         )

@@ -10,6 +10,7 @@ fun AccountEntity.toDomain(): Account = Account(
     name = name,
     type = AccountType.valueOf(type),
     color = color_hex.toComposeColor(),
+    logoUrl = logo_url,
     position = position.toInt(),
     createdAt = created_at,
 )
