@@ -49,7 +49,7 @@ class CreateAccountViewModel(
         _uiState.value = _uiState.value.copy(
             name = preset.name,
             type = preset.type,
-            logoUrl = preset.logoUrl,
+            logoUrl = preset.logoRes,
             selectedColor = runCatching {
                 preset.defaultColor.toComposeColor()
             }.getOrElse { AccountPalette.first() },

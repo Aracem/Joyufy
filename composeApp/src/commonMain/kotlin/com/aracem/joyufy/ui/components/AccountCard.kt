@@ -32,11 +32,11 @@ fun AccountCard(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AccountLogo(
-            color = account.color,
-            logoUrl = account.logoUrl,
-            size = 36.dp,
-        )
+        if (account.logoUrl != null) {
+            AccountLogo(color = account.color, logoUrl = account.logoUrl, size = 36.dp)
+        } else {
+            AccountLogoInitials(color = account.color, name = account.name, size = 36.dp)
+        }
 
         Spacer(Modifier.width(12.dp))
 

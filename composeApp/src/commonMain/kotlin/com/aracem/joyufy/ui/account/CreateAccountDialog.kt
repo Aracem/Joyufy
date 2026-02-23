@@ -27,6 +27,7 @@ import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.BankPreset
 import com.aracem.joyufy.domain.model.BankPresets
 import com.aracem.joyufy.ui.components.AccountLogo
+import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.theme.AccountPalette
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
@@ -87,7 +88,7 @@ fun CreateAccountDialog(
                     items(BankPresets) { preset ->
                         BankPresetChip(
                             preset = preset,
-                            selected = state.logoUrl == preset.logoUrl,
+                            selected = state.logoUrl == preset.logoRes,
                             onClick = { viewModel.onPresetSelected(preset) },
                         )
                     }
@@ -302,7 +303,11 @@ private fun BankPresetChip(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         val color = runCatching { preset.defaultColor.toComposeColor() }.getOrElse { Color.Gray }
-        AccountLogo(color = color, logoUrl = preset.logoUrl, size = 32.dp)
+        if (preset.logoRes != null) {
+            AccountLogo(color = color, logoUrl = preset.logoRes, size = 32.dp)
+        } else {
+            AccountLogoInitials(color = color, name = preset.name, size = 32.dp)
+        }
         Text(
             text = preset.name,
             style = MaterialTheme.typography.labelSmall,

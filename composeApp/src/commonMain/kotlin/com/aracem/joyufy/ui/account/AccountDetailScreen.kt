@@ -23,6 +23,7 @@ import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.components.AccountLogo
+import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.components.SingleAccountChart
 import com.aracem.joyufy.ui.components.formatCurrency
 import com.aracem.joyufy.ui.dashboard.ChartMode
@@ -79,11 +80,11 @@ fun AccountDetailScreen(
                     )
                 }
                 Spacer(Modifier.width(4.dp))
-                AccountLogo(
-                    color = account.color,
-                    logoUrl = account.logoUrl,
-                    size = 32.dp,
-                )
+                if (account.logoUrl != null) {
+                    AccountLogo(color = account.color, logoUrl = account.logoUrl, size = 32.dp)
+                } else {
+                    AccountLogoInitials(color = account.color, name = account.name, size = 32.dp)
+                }
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
