@@ -65,6 +65,16 @@ fun DashboardScreen(
                     style = MaterialTheme.typography.displayLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+                val change = state.periodChange
+                val changePct = state.periodChangePct
+                if (change != null && changePct != null) {
+                    Spacer(Modifier.height(4.dp))
+                    PeriodChangeBadge(
+                        change = change,
+                        changePct = changePct,
+                        range = state.chartRange,
+                    )
+                }
             }
         }
 
@@ -191,6 +201,38 @@ private fun ChartLegend(accounts: List<AccountSummary>) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PeriodChangeBadge(
+    change: Double,
+    changePct: Double,
+    range: ChartRange,
+) {
+    val isPositive = change >= 0
+    val color = if (isPositive) Positive else Negative
+    val sign = if (isPositive) "+" else ""
+    val rangeLabel = when (range) {
+        ChartRange.ONE_MONTH    -> "en el último mes"
+        ChartRange.THREE_MONTHS -> "en los últimos 3 meses"
+        ChartRange.SIX_MONTHS  -> "en los últimos 6 meses"
+        ChartRange.YTD         -> "en lo que va de año"
+        ChartRange.ONE_YEAR    -> "en el último año"
+        ChartRange.ALL         -> "desde el inicio"
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "$sign${change.formatCurrency()}  ($sign${"%.2f".format(changePct)}%)",
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = rangeLabel,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+        )
     }
 }
 

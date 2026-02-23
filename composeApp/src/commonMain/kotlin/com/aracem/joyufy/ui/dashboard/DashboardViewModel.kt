@@ -61,6 +61,8 @@ data class DashboardUiState(
     val accountsMissingSnapshot: List<Account> = emptyList(),
     val chartMode: ChartMode = ChartMode.AREA,
     val chartRange: ChartRange = ChartRange.ONE_YEAR,
+    val periodChange: Double? = null,       // absolute change over selected range
+    val periodChangePct: Double? = null,    // percentage change over selected range
 )
 
 class DashboardViewModel(
@@ -136,7 +138,15 @@ class DashboardViewModel(
             ) { accounts, transactions, snapshots, range ->
                 buildWealthHistory(accounts, transactions, snapshots, range)
             }.collect { points ->
-                _uiState.value = _uiState.value.copy(wealthHistory = points)
+                val first = points.firstOrNull()?.totalWealth
+                val last = points.lastOrNull()?.totalWealth
+                val change = if (first != null && last != null) last - first else null
+                val changePct = if (first != null && first != 0.0 && change != null) (change / first) * 100.0 else null
+                _uiState.value = _uiState.value.copy(
+                    wealthHistory = points,
+                    periodChange = change,
+                    periodChangePct = changePct,
+                )
             }
         }
     }

@@ -37,6 +37,8 @@ data class AccountDetailUiState(
     val allAccounts: List<Account> = emptyList(),
     val accountHistory: List<SingleAccountPoint> = emptyList(),
     val chartRange: ChartRange = ChartRange.ONE_YEAR,
+    val periodChange: Double? = null,
+    val periodChangePct: Double? = null,
 )
 
 class AccountDetailViewModel(
@@ -97,7 +99,11 @@ class AccountDetailViewModel(
                         )
                         buildInvestmentHistory(snapshots, range)
                     }.collect { history ->
-                        _uiState.value = _uiState.value.copy(accountHistory = history)
+                        _uiState.value = _uiState.value.copy(
+                            accountHistory = history,
+                            periodChange = periodChange(history),
+                            periodChangePct = periodChangePct(history),
+                        )
                     }
                 }
             } else {
@@ -108,7 +114,11 @@ class AccountDetailViewModel(
                     ) { transactions, range ->
                         buildBankCashHistory(transactions, range)
                     }.collect { history ->
-                        _uiState.value = _uiState.value.copy(accountHistory = history)
+                        _uiState.value = _uiState.value.copy(
+                            accountHistory = history,
+                            periodChange = periodChange(history),
+                            periodChangePct = periodChangePct(history),
+                        )
                     }
                 }
             }
@@ -263,6 +273,18 @@ class AccountDetailViewModel(
 
     fun deleteSnapshot(id: Long) {
         scope.launch { snapshotRepository.deleteSnapshot(id) }
+    }
+
+    private fun periodChange(history: List<SingleAccountPoint>): Double? {
+        val first = history.firstOrNull()?.balance ?: return null
+        val last = history.lastOrNull()?.balance ?: return null
+        return last - first
+    }
+
+    private fun periodChangePct(history: List<SingleAccountPoint>): Double? {
+        val first = history.firstOrNull()?.balance?.takeIf { it != 0.0 } ?: return null
+        val change = periodChange(history) ?: return null
+        return (change / first) * 100.0
     }
 
     private fun currentWeekStartMillis(): Long {
