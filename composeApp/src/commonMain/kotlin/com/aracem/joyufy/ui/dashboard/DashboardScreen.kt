@@ -1,7 +1,9 @@
 package com.aracem.joyufy.ui.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -85,8 +87,12 @@ fun DashboardScreen(
                 mode = state.chartMode,
                 range = state.chartRange,
                 accounts = state.accountSummaries,
+                hiddenAccountIds = state.hiddenAccountIds,
+                showTotal = state.showTotal,
                 onToggleMode = viewModel::toggleChartMode,
                 onRangeChange = viewModel::setChartRange,
+                onToggleAccount = viewModel::toggleAccountVisibility,
+                onToggleTotal = viewModel::toggleTotal,
             )
         }
 
@@ -139,8 +145,12 @@ private fun WealthChartCard(
     mode: ChartMode,
     range: ChartRange,
     accounts: List<AccountSummary>,
+    hiddenAccountIds: Set<Long>,
+    showTotal: Boolean,
     onToggleMode: () -> Unit,
     onRangeChange: (ChartRange) -> Unit,
+    onToggleAccount: (Long) -> Unit,
+    onToggleTotal: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -170,37 +180,85 @@ private fun WealthChartCard(
         Spacer(Modifier.height(12.dp))
         ChartRangeSelector(selected = range, onSelect = onRangeChange)
         Spacer(Modifier.height(12.dp))
-        WealthChart(points = points, mode = mode)
+        WealthChart(
+            points = points,
+            mode = mode,
+            hiddenAccountIds = hiddenAccountIds,
+            showTotal = showTotal,
+        )
         if (accounts.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
-            ChartLegend(accounts = accounts)
+            ChartLegendSelector(
+                accounts = accounts,
+                hiddenAccountIds = hiddenAccountIds,
+                showTotal = showTotal,
+                onToggleAccount = onToggleAccount,
+                onToggleTotal = onToggleTotal,
+            )
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChartLegend(accounts: List<AccountSummary>) {
+private fun ChartLegendSelector(
+    accounts: List<AccountSummary>,
+    hiddenAccountIds: Set<Long>,
+    showTotal: Boolean,
+    onToggleAccount: (Long) -> Unit,
+    onToggleTotal: () -> Unit,
+) {
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        // Total chip
+        LegendChip(
+            label = "Total",
+            color = Accent,
+            visible = showTotal,
+            onClick = onToggleTotal,
+        )
+        // Per-account chips
         accounts.forEach { summary ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(summary.account.color)
-                )
-                Spacer(Modifier.width(5.dp))
-                Text(
-                    text = summary.account.name,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.joyufyColors.contentSecondary,
-                )
-            }
+            LegendChip(
+                label = summary.account.name,
+                color = summary.account.color,
+                visible = summary.account.id !in hiddenAccountIds,
+                onClick = { onToggleAccount(summary.account.id) },
+            )
         }
+    }
+}
+
+@Composable
+private fun LegendChip(
+    label: String,
+    color: Color,
+    visible: Boolean,
+    onClick: () -> Unit,
+) {
+    val alpha = if (visible) 1f else 0.35f
+    Row(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(color.copy(alpha = if (visible) 0.12f else 0.06f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = alpha))
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = alpha),
+        )
     }
 }
 

@@ -71,9 +71,21 @@ private fun Double.toShortAmount(): String = when {
 fun WealthChart(
     points: List<WealthPoint>,
     mode: ChartMode,
+    hiddenAccountIds: Set<Long> = emptySet(),
+    showTotal: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    if (points.isEmpty()) {
+    // Filter points according to visibility
+    val filteredPoints = remember(points, hiddenAccountIds, showTotal) {
+        points.map { wp ->
+            val visibleByAccount = wp.byAccount.filter { it.account.id !in hiddenAccountIds }
+            val visibleTotal = if (showTotal) wp.totalWealth
+                else visibleByAccount.sumOf { it.balance }
+            wp.copy(totalWealth = visibleTotal, byAccount = visibleByAccount)
+        }
+    }
+
+    if (filteredPoints.isEmpty()) {
         Box(modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
             Text(
                 "Sin datos aún",
@@ -96,15 +108,15 @@ fun WealthChart(
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
     // Compute the hovered index based on hoverX
-    val hoveredIndex: Int? = remember(hoverX, points, canvasSize) {
+    val hoveredIndex: Int? = remember(hoverX, filteredPoints, canvasSize) {
         val x = hoverX ?: return@remember null
         val w = canvasSize.width.toFloat()
         val chartLeft = leftPadding
         val chartRight = w - rightPadding
         val chartW = chartRight - chartLeft
-        if (points.size <= 1) return@remember if (points.isNotEmpty()) 0 else null
+        if (filteredPoints.size <= 1) return@remember if (filteredPoints.isNotEmpty()) 0 else null
         val relX = (x - chartLeft).coerceIn(0f, chartW)
-        val idx = ((relX / chartW) * (points.size - 1)).toInt().coerceIn(0, points.size - 1)
+        val idx = ((relX / chartW) * (filteredPoints.size - 1)).toInt().coerceIn(0, filteredPoints.size - 1)
         idx
     }
 
@@ -134,14 +146,15 @@ fun WealthChart(
         ) {
             when (mode) {
                 ChartMode.AREA -> drawAreaChart(
-                    points = points,
+                    points = filteredPoints,
                     measurer = textMeasurer,
                     labelColor = labelColor,
                     gridColor = gridColor,
                     hoveredIndex = hoveredIndex,
+                    showTotalLine = showTotal,
                 )
                 ChartMode.BARS -> drawBarChart(
-                    points = points,
+                    points = filteredPoints,
                     measurer = textMeasurer,
                     labelColor = labelColor,
                     gridColor = gridColor,
@@ -152,9 +165,10 @@ fun WealthChart(
 
         // Tooltip overlay
         if (hoveredIndex != null) {
-            val point = points[hoveredIndex]
+            val point = filteredPoints[hoveredIndex]
             WealthTooltip(
                 point = point,
+                showTotal = showTotal,
                 surfaceColor = surfaceColor,
                 onSurfaceColor = onSurfaceColor,
                 secondaryColor = secondaryColor,
@@ -168,6 +182,7 @@ fun WealthChart(
 @Composable
 private fun BoxScope.WealthTooltip(
     point: WealthPoint,
+    showTotal: Boolean,
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
@@ -189,13 +204,15 @@ private fun BoxScope.WealthTooltip(
                 color = secondaryColor,
             )
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = point.totalWealth.formatCurrency(),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                color = onSurfaceColor,
-            )
+            if (showTotal) {
+                Text(
+                    text = point.totalWealth.formatCurrency(),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = onSurfaceColor,
+                )
+            }
             if (point.byAccount.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
+                if (showTotal) Spacer(Modifier.height(6.dp))
                 point.byAccount.forEach { ap ->
                     AccountTooltipRow(ap)
                 }
@@ -364,6 +381,7 @@ private fun DrawScope.drawAreaChart(
     labelColor: Color,
     gridColor: Color,
     hoveredIndex: Int?,
+    showTotalLine: Boolean = true,
 ) {
     val w = size.width
     val h = size.height
@@ -397,24 +415,26 @@ private fun DrawScope.drawAreaChart(
     }
 
     // ── Total area fill ───────────────────────────────────────────────────────
-    val fillPath = Path().apply {
-        moveTo(xOf(0), chartBottom)
-        lineTo(xOf(0), yOf(points[0].totalWealth))
-        for (i in 1 until points.size) {
-            val cx = (xOf(i - 1) + xOf(i)) / 2f
-            cubicTo(cx, yOf(points[i - 1].totalWealth), cx, yOf(points[i].totalWealth), xOf(i), yOf(points[i].totalWealth))
+    if (showTotalLine) {
+        val fillPath = Path().apply {
+            moveTo(xOf(0), chartBottom)
+            lineTo(xOf(0), yOf(points[0].totalWealth))
+            for (i in 1 until points.size) {
+                val cx = (xOf(i - 1) + xOf(i)) / 2f
+                cubicTo(cx, yOf(points[i - 1].totalWealth), cx, yOf(points[i].totalWealth), xOf(i), yOf(points[i].totalWealth))
+            }
+            lineTo(xOf(points.size - 1), chartBottom)
+            close()
         }
-        lineTo(xOf(points.size - 1), chartBottom)
-        close()
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(Accent.copy(alpha = 0.20f), Color.Transparent),
+                startY = chartTop,
+                endY = chartBottom,
+            ),
+        )
     }
-    drawPath(
-        path = fillPath,
-        brush = Brush.verticalGradient(
-            colors = listOf(Accent.copy(alpha = 0.20f), Color.Transparent),
-            startY = chartTop,
-            endY = chartBottom,
-        ),
-    )
 
     // ── Per-account colored lines ─────────────────────────────────────────────
     val accounts = points.first().byAccount.map { it.account }
@@ -444,25 +464,25 @@ private fun DrawScope.drawAreaChart(
     }
 
     // ── Total line ────────────────────────────────────────────────────────────
-    val totalLinePath = Path().apply {
-        moveTo(xOf(0), yOf(points[0].totalWealth))
-        for (i in 1 until points.size) {
-            val cx = (xOf(i - 1) + xOf(i)) / 2f
-            cubicTo(cx, yOf(points[i - 1].totalWealth), cx, yOf(points[i].totalWealth), xOf(i), yOf(points[i].totalWealth))
+    if (showTotalLine) {
+        val totalLinePath = Path().apply {
+            moveTo(xOf(0), yOf(points[0].totalWealth))
+            for (i in 1 until points.size) {
+                val cx = (xOf(i - 1) + xOf(i)) / 2f
+                cubicTo(cx, yOf(points[i - 1].totalWealth), cx, yOf(points[i].totalWealth), xOf(i), yOf(points[i].totalWealth))
+            }
         }
+        drawPath(
+            path = totalLinePath,
+            color = Accent,
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+        drawCircle(
+            color = Accent,
+            radius = 4.dp.toPx(),
+            center = Offset(xOf(points.size - 1), yOf(points.last().totalWealth)),
+        )
     }
-    drawPath(
-        path = totalLinePath,
-        color = Accent,
-        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
-    )
-
-    // ── Last point dot ────────────────────────────────────────────────────────
-    drawCircle(
-        color = Accent,
-        radius = 4.dp.toPx(),
-        center = Offset(xOf(points.size - 1), yOf(points.last().totalWealth)),
-    )
 
     // ── Hover vertical line ───────────────────────────────────────────────────
     if (hoveredIndex != null) {
@@ -474,11 +494,13 @@ private fun DrawScope.drawAreaChart(
             strokeWidth = 1.dp.toPx(),
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f)),
         )
-        drawCircle(
-            color = Accent,
-            radius = 5.dp.toPx(),
-            center = Offset(hx, yOf(points[hoveredIndex].totalWealth)),
-        )
+        if (showTotalLine) {
+            drawCircle(
+                color = Accent,
+                radius = 5.dp.toPx(),
+                center = Offset(hx, yOf(points[hoveredIndex].totalWealth)),
+            )
+        }
     }
 }
 

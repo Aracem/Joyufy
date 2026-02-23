@@ -63,6 +63,8 @@ data class DashboardUiState(
     val chartRange: ChartRange = ChartRange.ONE_YEAR,
     val periodChange: Double? = null,       // absolute change over selected range
     val periodChangePct: Double? = null,    // percentage change over selected range
+    val hiddenAccountIds: Set<Long> = emptySet(),
+    val showTotal: Boolean = true,
 )
 
 class DashboardViewModel(
@@ -238,6 +240,17 @@ class DashboardViewModel(
 
     fun dismissMissingSnapshotBanner() {
         _uiState.value = _uiState.value.copy(accountsMissingSnapshot = emptyList())
+    }
+
+    fun toggleAccountVisibility(accountId: Long) {
+        val current = _uiState.value.hiddenAccountIds
+        _uiState.value = _uiState.value.copy(
+            hiddenAccountIds = if (accountId in current) current - accountId else current + accountId
+        )
+    }
+
+    fun toggleTotal() {
+        _uiState.value = _uiState.value.copy(showTotal = !_uiState.value.showTotal)
     }
 
     private fun currentWeekStartMillis(): Long {
