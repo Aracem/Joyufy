@@ -393,7 +393,8 @@ private fun DrawScope.drawAreaChart(
     val chartH = chartBottom - chartTop
 
     val allValues = points.flatMap { wp ->
-        listOf(wp.totalWealth) + wp.byAccount.map { it.balance }
+        val accountValues = wp.byAccount.map { it.balance }
+        if (showTotalLine) listOf(wp.totalWealth) + accountValues else accountValues
     }
     val minVal = allValues.minOrNull()!!.coerceAtMost(0.0)
     val maxVal = allValues.maxOrNull()!!.coerceAtLeast(minVal + 1.0)
