@@ -191,6 +191,10 @@ class DashboardViewModel(
 
     private fun checkMissingSnapshots() {
         scope.launch {
+            val now = Clock.System.now()
+            val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
+            // Banner only shown on Fridays (dayOfWeek ordinal: Mon=0 … Fri=4)
+            if (local.dayOfWeek.ordinal != 4) return@launch
             val weekDate = currentWeekStartMillis()
             val missing = snapshotRepository.getAccountsMissingThisWeek(weekDate)
             _uiState.value = _uiState.value.copy(accountsMissingSnapshot = missing)
