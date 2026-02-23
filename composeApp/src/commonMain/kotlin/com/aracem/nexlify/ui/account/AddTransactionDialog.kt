@@ -17,6 +17,11 @@ import com.aracem.nexlify.domain.model.TransactionType
 import com.aracem.nexlify.ui.theme.Accent
 import com.aracem.nexlify.ui.theme.nexlifyColors
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +43,14 @@ fun AddTransactionDialog(
     var selectedRelatedAccount by remember { mutableStateOf<Account?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
     var relatedExpanded by remember { mutableStateOf(false) }
+
+    // Date field — default today in dd/MM/yyyy
+    val todayLocal = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    val todayFormatted = "%02d/%02d/%04d".format(
+        todayLocal.dayOfMonth, todayLocal.monthNumber, todayLocal.year
+    )
+    var dateText by remember { mutableStateOf(todayFormatted) }
+    var dateError by remember { mutableStateOf<String?>(null) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -75,9 +88,7 @@ fun AddTransactionDialog(
                             selected = selected,
                             onClick = {
                                 selectedType = type
-                                if (type != TransactionType.TRANSFER) {
-                                    selectedRelatedAccount = null
-                                }
+                                if (type != TransactionType.TRANSFER) selectedRelatedAccount = null
                             },
                             label = { Text(type.label, style = MaterialTheme.typography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
@@ -104,6 +115,22 @@ fun AddTransactionDialog(
                     placeholder = { Text("0,00") },
                     isError = amountError != null,
                     supportingText = amountError?.let { { Text(it) } },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Accent, focusedLabelColor = Accent),
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // Fecha
+                OutlinedTextField(
+                    value = dateText,
+                    onValueChange = { dateText = it; dateError = null },
+                    label = { Text("Fecha (dd/MM/aaaa)") },
+                    placeholder = { Text(todayFormatted) },
+                    isError = dateError != null,
+                    supportingText = dateError?.let { { Text(it) } },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -156,11 +183,9 @@ fun AddTransactionDialog(
                 // Cuenta destino (solo para transferencias)
                 val destinationAccounts = if (selectedType == TransactionType.TRANSFER) {
                     when (accountType) {
-                        // From investment: can only transfer out to bank/cash
                         AccountType.INVESTMENT -> availableAccounts.filter {
                             it.type == AccountType.BANK || it.type == AccountType.CASH
                         }
-                        // From bank/cash: can transfer to any account
                         AccountType.BANK, AccountType.CASH -> availableAccounts
                     }
                 } else emptyList()
@@ -210,13 +235,18 @@ fun AddTransactionDialog(
                                 amountError = "Introduce un importe válido"
                                 return@Button
                             }
+                            val dateMs = parseDateToMillis(dateText)
+                            if (dateMs == null) {
+                                dateError = "Usa el formato dd/MM/aaaa"
+                                return@Button
+                            }
                             onConfirm(
                                 selectedType,
                                 amount,
                                 category.ifBlank { null },
                                 description.ifBlank { null },
                                 selectedRelatedAccount?.id,
-                                Clock.System.now().toEpochMilliseconds(),
+                                dateMs,
                             )
                             onDismiss()
                         },
@@ -228,6 +258,19 @@ fun AddTransactionDialog(
             }
         }
     }
+}
+
+/** Parses "dd/MM/yyyy" → epoch millis at noon local time, or null if invalid. */
+private fun parseDateToMillis(text: String): Long? {
+    val parts = text.trim().split("/")
+    if (parts.size != 3) return null
+    val day = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val year = parts[2].toIntOrNull() ?: return null
+    return runCatching<Long> {
+        val date = LocalDate(year, month, day)
+        date.atStartOfDayIn(TimeZone.currentSystemDefault()).toEpochMilliseconds() + 12 * 3600_000L
+    }.getOrNull()
 }
 
 private val TransactionType.label: String

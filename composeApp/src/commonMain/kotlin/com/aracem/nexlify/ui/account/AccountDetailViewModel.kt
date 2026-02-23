@@ -229,12 +229,12 @@ class AccountDetailViewModel(
         }
     }
 
-    fun addSnapshot(totalValue: Double) {
+    fun addSnapshot(totalValue: Double, weekDate: Long) {
         scope.launch {
             snapshotRepository.insertSnapshot(
                 accountId = accountId,
                 totalValue = totalValue,
-                weekDate = currentWeekStartMillis(),
+                weekDate = weekDate,
             )
         }
     }

@@ -208,7 +208,7 @@ fun AccountDetailScreen(
             accountName = account.name,
             currentValue = state.snapshots.firstOrNull()?.totalValue,
             onDismiss = { showAddSnapshot = false },
-            onConfirm = { viewModel.addSnapshot(it) },
+            onConfirm = { value, weekDate -> viewModel.addSnapshot(value, weekDate) },
         )
     }
 }
