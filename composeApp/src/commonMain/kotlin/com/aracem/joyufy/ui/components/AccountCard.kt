@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
@@ -33,12 +32,10 @@ fun AccountCard(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Color dot
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(MaterialTheme.shapes.extraSmall)
-                .background(account.color)
+        AccountLogo(
+            color = account.color,
+            logoUrl = account.logoUrl,
+            size = 36.dp,
         )
 
         Spacer(Modifier.width(12.dp))

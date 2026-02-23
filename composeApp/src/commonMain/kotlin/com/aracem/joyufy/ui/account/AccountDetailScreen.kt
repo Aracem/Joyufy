@@ -22,6 +22,7 @@ import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.SingleAccountChart
 import com.aracem.joyufy.ui.components.formatCurrency
 import com.aracem.joyufy.ui.dashboard.ChartMode
@@ -47,6 +48,7 @@ fun AccountDetailScreen(
 
     var showAddTransaction by remember { mutableStateOf(false) }
     var showAddSnapshot by remember { mutableStateOf(false) }
+    var showEditAccount by remember { mutableStateOf(false) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
     var editingSnapshot by remember { mutableStateOf<InvestmentSnapshot?>(null) }
 
@@ -77,11 +79,10 @@ fun AccountDetailScreen(
                     )
                 }
                 Spacer(Modifier.width(4.dp))
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(account.color)
+                AccountLogo(
+                    color = account.color,
+                    logoUrl = account.logoUrl,
+                    size = 32.dp,
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -98,6 +99,14 @@ fun AccountDetailScreen(
                 }
                 // Buttons — investment accounts have both actions
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconButton(onClick = { showEditAccount = true }, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Editar cuenta",
+                            tint = MaterialTheme.joyufyColors.contentSecondary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                     if (account.type == AccountType.INVESTMENT) {
                         OutlinedButton(
                             onClick = { showAddSnapshot = true },
@@ -207,6 +216,15 @@ fun AccountDetailScreen(
     }
 
     // ── Dialogs ───────────────────────────────────────────────────────────
+    if (showEditAccount) {
+        CreateAccountDialog(
+            existingCount = 0,
+            editingAccount = account,
+            onDismiss = { showEditAccount = false },
+            onCreated = { showEditAccount = false },
+        )
+    }
+
     if (showAddTransaction || editingTransaction != null) {
         AddTransactionDialog(
             accountType = account.type,

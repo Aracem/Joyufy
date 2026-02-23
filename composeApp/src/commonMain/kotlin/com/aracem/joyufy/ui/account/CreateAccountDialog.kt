@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -20,7 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.aracem.joyufy.data.mapper.toComposeColor
+import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
+import com.aracem.joyufy.domain.model.BankPreset
+import com.aracem.joyufy.domain.model.BankPresets
+import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.theme.AccountPalette
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
@@ -31,12 +37,16 @@ fun CreateAccountDialog(
     existingCount: Int,
     onDismiss: () -> Unit,
     onCreated: () -> Unit,
+    editingAccount: Account? = null,
     viewModel: CreateAccountViewModel = koinInject(),
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    // Reset on first composition
-    LaunchedEffect(Unit) { viewModel.reset() }
+    // Reset / pre-populate on first composition
+    LaunchedEffect(Unit) {
+        if (editingAccount != null) viewModel.resetForEdit(editingAccount)
+        else viewModel.reset()
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -50,7 +60,7 @@ fun CreateAccountDialog(
                 // ── Header ────────────────────────────────────────────────
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Nueva cuenta",
+                        text = if (editingAccount != null) "Editar cuenta" else "Nueva cuenta",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
@@ -65,6 +75,25 @@ fun CreateAccountDialog(
                 }
 
                 Spacer(Modifier.height(20.dp))
+
+                // ── Presets ───────────────────────────────────────────────
+                Text(
+                    text = "Banco o plataforma",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(BankPresets) { preset ->
+                        BankPresetChip(
+                            preset = preset,
+                            selected = state.logoUrl == preset.logoUrl,
+                            onClick = { viewModel.onPresetSelected(preset) },
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
 
                 // ── Nombre ────────────────────────────────────────────────
                 OutlinedTextField(
@@ -190,13 +219,17 @@ fun CreateAccountDialog(
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            viewModel.save(
-                                existingCount = existingCount,
-                                onSuccess = {
-                                    onCreated()
-                                    onDismiss()
-                                },
-                            )
+                            if (editingAccount != null) {
+                                viewModel.saveEdit(
+                                    account = editingAccount,
+                                    onSuccess = { onCreated(); onDismiss() },
+                                )
+                            } else {
+                                viewModel.save(
+                                    existingCount = existingCount,
+                                    onSuccess = { onCreated(); onDismiss() },
+                                )
+                            }
                         },
                         enabled = !state.isSaving,
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
@@ -208,7 +241,7 @@ fun CreateAccountDialog(
                                 color = Color.White,
                             )
                         } else {
-                            Text("Crear cuenta")
+                            Text(if (editingAccount != null) "Guardar cambios" else "Crear cuenta")
                         }
                     }
                 }
@@ -243,6 +276,38 @@ private fun ColorSwatch(
                 modifier = Modifier.size(16.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun BankPresetChip(
+    preset: BankPreset,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(
+                if (selected) Accent.copy(alpha = 0.15f)
+                else MaterialTheme.colorScheme.surfaceVariant
+            )
+            .then(
+                if (selected) Modifier.border(1.dp, Accent, MaterialTheme.shapes.small)
+                else Modifier
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        val color = runCatching { preset.defaultColor.toComposeColor() }.getOrElse { Color.Gray }
+        AccountLogo(color = color, logoUrl = preset.logoUrl, size = 32.dp)
+        Text(
+            text = preset.name,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) Accent else MaterialTheme.joyufyColors.contentSecondary,
+        )
     }
 }
 
