@@ -11,6 +11,7 @@ import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -251,6 +252,23 @@ class DashboardViewModel(
 
     fun toggleTotal() {
         _uiState.value = _uiState.value.copy(showTotal = !_uiState.value.showTotal)
+    }
+
+    fun reorderAccounts(fromIndex: Int, toIndex: Int) {
+        if (fromIndex == toIndex) return
+        val summaries = _uiState.value.accountSummaries.toMutableList()
+        val moved = summaries.removeAt(fromIndex)
+        summaries.add(toIndex, moved)
+        // Optimistic update — UI reflects new order immediately
+        _uiState.value = _uiState.value.copy(accountSummaries = summaries)
+        // Persist new positions
+        scope.launch(Dispatchers.IO) {
+            summaries.forEachIndexed { index, summary ->
+                if (summary.account.position != index) {
+                    accountRepository.updateAccount(summary.account.copy(position = index))
+                }
+            }
+        }
     }
 
     private fun currentWeekStartMillis(): Long {

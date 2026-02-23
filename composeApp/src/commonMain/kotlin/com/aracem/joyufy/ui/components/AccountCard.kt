@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
@@ -22,16 +23,27 @@ fun AccountCard(
     balance: Double,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isDragging: Boolean = false,
+    leadingContent: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.joyufyColors.surfaceRaised)
+            .shadow(if (isDragging) 8.dp else 0.dp, MaterialTheme.shapes.medium)
+            .background(
+                if (isDragging) MaterialTheme.joyufyColors.surfaceRaised.copy(alpha = 0.95f)
+                else MaterialTheme.joyufyColors.surfaceRaised
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (leadingContent != null) {
+            leadingContent()
+            Spacer(Modifier.width(8.dp))
+        }
+
         if (account.logoUrl != null) {
             AccountLogo(color = account.color, logoUrl = account.logoUrl, size = 36.dp)
         } else {
