@@ -17,6 +17,10 @@ insertAccount:
 INSERT INTO Account (name, type, color_hex, logo_url, position, created_at)
 VALUES (?, ?, ?, ?, ?, ?);
 
+insertAccountWithId:
+INSERT INTO Account (id, name, type, color_hex, logo_url, position, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
 getAllAccounts:
 SELECT * FROM Account WHERE is_archived = 0 ORDER BY position ASC, name ASC;
 

@@ -84,14 +84,16 @@ class BackupRepository(
         snapshotRepository.deleteAllSnapshots()
         accountRepository.getAllAccounts().forEach { accountRepository.deleteAccount(it.id) }
 
-        // Restore accounts preserving original IDs via direct insert
+        // Restore accounts preserving original IDs so foreign keys in transactions/snapshots remain valid
         backup.accounts.forEach { a ->
-            accountRepository.insertAccount(
+            accountRepository.insertAccountWithId(
+                id = a.id,
                 name = a.name,
                 type = AccountType.valueOf(a.type),
                 colorHex = a.colorHex,
                 logoUrl = a.logoUrl,
                 position = a.position,
+                createdAt = a.createdAt,
             )
         }
 

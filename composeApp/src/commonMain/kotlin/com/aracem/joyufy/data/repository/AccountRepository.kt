@@ -47,6 +47,26 @@ class AccountRepository(private val db: JoyufyDatabase) {
         )
     }
 
+    suspend fun insertAccountWithId(
+        id: Long,
+        name: String,
+        type: AccountType,
+        colorHex: String,
+        logoUrl: String?,
+        position: Int,
+        createdAt: Long,
+    ): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.insertAccountWithId(
+            id = id,
+            name = name,
+            type = type.name,
+            color_hex = colorHex,
+            logo_url = logoUrl,
+            position = position.toLong(),
+            created_at = createdAt,
+        )
+    }
+
     suspend fun updateAccount(account: Account): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.updateAccount(
             name = account.name,
