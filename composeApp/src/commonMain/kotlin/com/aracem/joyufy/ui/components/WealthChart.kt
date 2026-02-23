@@ -79,8 +79,8 @@ fun WealthChart(
     val filteredPoints = remember(points, hiddenAccountIds, showTotal) {
         points.map { wp ->
             val visibleByAccount = wp.byAccount.filter { it.account.id !in hiddenAccountIds }
-            val visibleTotal = if (showTotal) wp.totalWealth
-                else visibleByAccount.sumOf { it.balance }
+            // Always recompute total from visible accounts so Y-axis rescales automatically
+            val visibleTotal = visibleByAccount.sumOf { it.balance }
             wp.copy(totalWealth = visibleTotal, byAccount = visibleByAccount)
         }
     }
@@ -392,7 +392,9 @@ private fun DrawScope.drawAreaChart(
     val chartW = chartRight - chartLeft
     val chartH = chartBottom - chartTop
 
-    val allValues = points.map { it.totalWealth }
+    val allValues = points.flatMap { wp ->
+        listOf(wp.totalWealth) + wp.byAccount.map { it.balance }
+    }
     val minVal = allValues.minOrNull()!!.coerceAtMost(0.0)
     val maxVal = allValues.maxOrNull()!!.coerceAtLeast(minVal + 1.0)
     val range = maxVal - minVal
@@ -522,8 +524,11 @@ private fun DrawScope.drawBarChart(
     val chartW = chartRight - chartLeft
     val chartH = chartBottom - chartTop
 
-    val minVal = points.minOf { it.totalWealth }.coerceAtMost(0.0)
-    val maxVal = points.maxOf { it.totalWealth }.coerceAtLeast(minVal + 1.0)
+    val allBarValues = points.flatMap { wp ->
+        listOf(wp.totalWealth) + wp.byAccount.map { it.balance }
+    }
+    val minVal = allBarValues.minOrNull()!!.coerceAtMost(0.0)
+    val maxVal = allBarValues.maxOrNull()!!.coerceAtLeast(minVal + 1.0)
     val range = maxVal - minVal
 
     val barCount = points.size
