@@ -2,7 +2,16 @@ package com.aracem.joyufy.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
@@ -23,8 +32,6 @@ import com.aracem.joyufy.ui.theme.joyufyColors
 fun Sidebar(
     currentScreen: Screen,
     onScreenSelected: (Screen) -> Unit,
-    darkMode: Boolean,
-    onToggleTheme: () -> Unit,
     onAddAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -78,30 +85,6 @@ fun Sidebar(
         }
 
         Spacer(Modifier.weight(1f))
-
-        // Theme toggle
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.small)
-                .clickable(onClick = onToggleTheme)
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = if (darkMode) "☀" else "☾",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.joyufyColors.contentSecondary,
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = if (darkMode) "Modo claro" else "Modo oscuro",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.joyufyColors.contentSecondary,
-            )
-        }
-
-        Spacer(Modifier.height(4.dp))
 
         SidebarItem(
             label = "Ajustes",

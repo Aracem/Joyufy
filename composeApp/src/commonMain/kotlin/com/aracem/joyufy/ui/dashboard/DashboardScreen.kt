@@ -23,8 +23,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
-import com.aracem.joyufy.ui.backup.BackupEvent
-import com.aracem.joyufy.ui.backup.BackupViewModel
 import com.aracem.joyufy.ui.components.*
 import com.aracem.joyufy.ui.theme.*
 import kotlinx.coroutines.launch
@@ -35,47 +33,9 @@ fun DashboardScreen(
     onAccountClick: (Account) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
-    backupViewModel: BackupViewModel = koinInject(),
     viewModel: DashboardViewModel = koinInject(),
 ) {
     val state by viewModel.uiState.collectAsState()
-    val backupEvent by backupViewModel.event.collectAsState()
-
-    // Confirm dialog before destructive import
-    var showImportConfirm by remember { mutableStateOf<(() -> Unit)?>(null) }
-    LaunchedEffect(backupEvent) {
-        if (backupEvent is BackupEvent.ImportReady) {
-            showImportConfirm = (backupEvent as BackupEvent.ImportReady).onConfirm
-        }
-    }
-    if (showImportConfirm != null) {
-        AlertDialog(
-            onDismissRequest = { showImportConfirm = null; backupViewModel.reset() },
-            title = { Text("¿Restaurar backup?") },
-            text = { Text("Se borrarán todos los datos actuales y se reemplazarán con los del archivo. Esta acción no se puede deshacer.") },
-            confirmButton = {
-                Button(
-                    onClick = { showImportConfirm?.invoke(); showImportConfirm = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
-                ) { Text("Restaurar") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showImportConfirm = null; backupViewModel.reset() }) {
-                    Text("Cancelar")
-                }
-            },
-        )
-    }
-
-    // Snackbar for success/error
-    val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(backupEvent) {
-        when (val ev = backupEvent) {
-            is BackupEvent.Success -> { snackbarHostState.showSnackbar(ev.message); backupViewModel.reset() }
-            is BackupEvent.Error   -> { snackbarHostState.showSnackbar(ev.message); backupViewModel.reset() }
-            else -> {}
-        }
-    }
 
     // Shared map: accountId -> center Y in window coords, used for drag-to-reorder
     val itemCenterY = remember { mutableStateMapOf<Long, Float>() }
@@ -87,10 +47,6 @@ fun DashboardScreen(
         return
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
-    ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -209,7 +165,6 @@ fun DashboardScreen(
             }
         }
     }
-    } // end Scaffold
 }
 
 @Composable
