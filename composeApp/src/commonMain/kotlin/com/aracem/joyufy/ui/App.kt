@@ -84,6 +84,8 @@ fun App() {
                     currentScreen = currentScreen,
                     onScreenSelected = { currentScreen = it },
                     onAddAccount = { showCreateAccount = true },
+                    darkMode = darkMode,
+                    onToggleTheme = { darkMode = !darkMode; prefsRepo.setDarkMode(darkMode) },
                 )
 
                 VerticalDivider(color = MaterialTheme.joyufyColors.border)

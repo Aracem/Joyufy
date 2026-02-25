@@ -33,6 +33,8 @@ fun Sidebar(
     currentScreen: Screen,
     onScreenSelected: (Screen) -> Unit,
     onAddAccount: () -> Unit,
+    darkMode: Boolean,
+    onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -85,6 +87,30 @@ fun Sidebar(
         }
 
         Spacer(Modifier.weight(1f))
+
+        // Theme toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.small)
+                .clickable(onClick = onToggleTheme)
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (darkMode) "☀" else "🌙",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = if (darkMode) "Modo claro" else "Modo oscuro",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+            )
+        }
+
+        Spacer(Modifier.height(4.dp))
 
         SidebarItem(
             label = "Ajustes",
