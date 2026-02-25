@@ -55,6 +55,8 @@ fun AccountDetailScreen(
     var showEditAccount by remember { mutableStateOf(false) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
     var editingSnapshot by remember { mutableStateOf<InvestmentSnapshot?>(null) }
+    var confirmDeleteTxId by remember { mutableStateOf<Long?>(null) }
+    var confirmDeleteSnapshotId by remember { mutableStateOf<Long?>(null) }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -193,7 +195,7 @@ fun AccountDetailScreen(
                     SnapshotRow(
                         snapshot = snapshot,
                         onEdit = { editingSnapshot = snapshot },
-                        onDelete = { viewModel.deleteSnapshot(snapshot.id) },
+                        onDelete = { confirmDeleteSnapshotId = snapshot.id },
                     )
                 }
             }
@@ -217,7 +219,7 @@ fun AccountDetailScreen(
                     transaction = tx,
                     allAccounts = state.allAccounts,
                     onEdit = { editingTransaction = tx },
-                    onDelete = { viewModel.deleteTransaction(tx.id) },
+                    onDelete = { confirmDeleteTxId = tx.id },
                 )
             }
         }
@@ -247,6 +249,24 @@ fun AccountDetailScreen(
                     viewModel.addTransaction(type, amount, category, desc, relatedId, date)
                 }
             },
+        )
+    }
+
+    confirmDeleteTxId?.let { txId ->
+        DeleteConfirmDialog(
+            title = "¿Eliminar transacción?",
+            text = "Esta acción no se puede deshacer.",
+            onConfirm = { viewModel.deleteTransaction(txId); confirmDeleteTxId = null },
+            onDismiss = { confirmDeleteTxId = null },
+        )
+    }
+
+    confirmDeleteSnapshotId?.let { snapId ->
+        DeleteConfirmDialog(
+            title = "¿Eliminar registro semanal?",
+            text = "Esta acción no se puede deshacer.",
+            onConfirm = { viewModel.deleteSnapshot(snapId); confirmDeleteSnapshotId = null },
+            onDismiss = { confirmDeleteSnapshotId = null },
         )
     }
 
@@ -483,6 +503,29 @@ private fun EmptyListHint(text: String) {
         Text(text, style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.joyufyColors.contentSecondary)
     }
+}
+
+@Composable
+private fun DeleteConfirmDialog(
+    title: String,
+    text: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Negative),
+            ) { Text("Eliminar") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        },
+    )
 }
 
 private val AccountType.label: String
