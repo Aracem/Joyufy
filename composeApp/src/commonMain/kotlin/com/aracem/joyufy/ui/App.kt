@@ -1,5 +1,9 @@
 package com.aracem.joyufy.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
@@ -90,35 +94,53 @@ fun App() {
 
                 VerticalDivider(color = MaterialTheme.joyufyColors.border)
 
-                when (val screen = currentScreen) {
-                    is Screen.Dashboard -> DashboardScreen(
-                        viewModel = dashboardViewModel,
-                        onAccountClick = { account ->
-                            currentScreen = Screen.AccountDetail(account.id)
-                        },
-                        onExport = { backupViewModel.requestExport() },
-                        onImport = {
-                            scope.launch {
-                                val json = withContext(Dispatchers.IO) { showOpenFileDialog() }
-                                if (json != null) backupViewModel.importFromJson(json)
-                            }
-                        },
-                    )
-                    is Screen.AccountDetail -> AccountDetailScreen(
-                        accountId = screen.accountId,
-                        onBack = { currentScreen = Screen.Dashboard },
-                    )
-                    is Screen.Settings -> SettingsScreen(
-                        darkMode = darkMode,
-                        onToggleTheme = { darkMode = !darkMode; prefsRepo.setDarkMode(darkMode) },
-                        onExport = { backupViewModel.requestExport() },
-                        onImport = {
-                            scope.launch {
-                                val json = withContext(Dispatchers.IO) { showOpenFileDialog() }
-                                if (json != null) backupViewModel.importFromJson(json)
-                            }
-                        },
-                    )
+                AnimatedContent(
+                    targetState = currentScreen,
+                    transitionSpec = {
+                        val toDetail = targetState is Screen.AccountDetail
+                        val fromDetail = initialState is Screen.AccountDetail
+                        val toSettings = targetState is Screen.Settings
+                        val direction = when {
+                            toDetail   -> AnimatedContentTransitionScope.SlideDirection.Start
+                            fromDetail -> AnimatedContentTransitionScope.SlideDirection.End
+                            toSettings -> AnimatedContentTransitionScope.SlideDirection.Up
+                            else       -> AnimatedContentTransitionScope.SlideDirection.Down
+                        }
+                        slideIntoContainer(direction, tween(280)) togetherWith
+                            slideOutOfContainer(direction, tween(280))
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                ) { screen ->
+                    when (screen) {
+                        is Screen.Dashboard -> DashboardScreen(
+                            viewModel = dashboardViewModel,
+                            onAccountClick = { account ->
+                                currentScreen = Screen.AccountDetail(account.id)
+                            },
+                            onExport = { backupViewModel.requestExport() },
+                            onImport = {
+                                scope.launch {
+                                    val json = withContext(Dispatchers.IO) { showOpenFileDialog() }
+                                    if (json != null) backupViewModel.importFromJson(json)
+                                }
+                            },
+                        )
+                        is Screen.AccountDetail -> AccountDetailScreen(
+                            accountId = screen.accountId,
+                            onBack = { currentScreen = Screen.Dashboard },
+                        )
+                        is Screen.Settings -> SettingsScreen(
+                            darkMode = darkMode,
+                            onToggleTheme = { darkMode = !darkMode; prefsRepo.setDarkMode(darkMode) },
+                            onExport = { backupViewModel.requestExport() },
+                            onImport = {
+                                scope.launch {
+                                    val json = withContext(Dispatchers.IO) { showOpenFileDialog() }
+                                    if (json != null) backupViewModel.importFromJson(json)
+                                }
+                            },
+                        )
+                    }
                 }
             }
             } // end Scaffold

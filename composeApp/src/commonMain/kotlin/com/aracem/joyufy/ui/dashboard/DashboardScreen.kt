@@ -1,5 +1,9 @@
 package com.aracem.joyufy.ui.dashboard
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -84,8 +88,12 @@ fun DashboardScreen(
                     )
                 }
                 Spacer(Modifier.height(4.dp))
+                val animatedWealth by animateFloatAsState(
+                    targetValue = state.totalWealth.toFloat(),
+                    animationSpec = tween(600, easing = FastOutSlowInEasing),
+                )
                 Text(
-                    text = state.totalWealth.formatCurrency(),
+                    text = animatedWealth.toDouble().formatCurrency(),
                     style = MaterialTheme.typography.displayLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -138,6 +146,7 @@ fun DashboardScreen(
                 itemCenterY = itemCenterY,
                 onAccountClick = onAccountClick,
                 onReorder = viewModel::reorderAccounts,
+                modifier = Modifier.animateItem(),
             )
         }
 
@@ -266,11 +275,18 @@ private fun LegendChip(
     visible: Boolean,
     onClick: () -> Unit,
 ) {
-    val alpha = if (visible) 1f else 0.35f
+    val animatedAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.35f,
+        animationSpec = tween(200),
+    )
+    val animatedBgAlpha by animateFloatAsState(
+        targetValue = if (visible) 0.12f else 0.06f,
+        animationSpec = tween(200),
+    )
     Row(
         modifier = Modifier
             .clip(MaterialTheme.shapes.small)
-            .background(color.copy(alpha = if (visible) 0.12f else 0.06f))
+            .background(color.copy(alpha = animatedBgAlpha))
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -279,13 +295,13 @@ private fun LegendChip(
             modifier = Modifier
                 .size(8.dp)
                 .clip(CircleShape)
-                .background(color.copy(alpha = alpha))
+                .background(color.copy(alpha = animatedAlpha))
         )
         Spacer(Modifier.width(5.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = alpha),
+            color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = animatedAlpha),
         )
     }
 }
@@ -370,6 +386,7 @@ fun ChartRangeSelector(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DraggableAccountCard(
     summary: AccountSummary,
@@ -378,6 +395,7 @@ private fun DraggableAccountCard(
     itemCenterY: androidx.compose.runtime.snapshots.SnapshotStateMap<Long, Float>,
     onAccountClick: (Account) -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var isDragging by remember { mutableStateOf(false) }
     // Absolute Y of cursor in window during drag
@@ -429,7 +447,7 @@ private fun DraggableAccountCard(
                     },
             )
         },
-        modifier = Modifier.onGloballyPositioned { coords ->
+        modifier = modifier.onGloballyPositioned { coords ->
             // Store center Y of this card in window coordinates
             val centerY = coords.positionInWindow().y + coords.size.height / 2f
             itemCenterY[summary.account.id] = centerY

@@ -1,5 +1,8 @@
 package com.aracem.joyufy.ui.account
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -137,8 +140,12 @@ fun AccountDetailScreen(
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
                 Spacer(Modifier.height(2.dp))
+                val animatedBalance by animateFloatAsState(
+                    targetValue = state.balance.toFloat(),
+                    animationSpec = tween(600, easing = FastOutSlowInEasing),
+                )
                 Text(
-                    text = state.balance.formatCurrency(),
+                    text = animatedBalance.toDouble().formatCurrency(),
                     style = MaterialTheme.typography.displayLarge,
                     color = if (state.balance >= 0) Positive else Negative,
                 )
