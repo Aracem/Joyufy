@@ -1,16 +1,12 @@
 package com.aracem.joyufy.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -75,11 +71,9 @@ fun WealthChart(
     showTotal: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    // Filter points according to visibility
     val filteredPoints = remember(points, hiddenAccountIds, showTotal) {
         points.map { wp ->
             val visibleByAccount = wp.byAccount.filter { it.account.id !in hiddenAccountIds }
-            // Always recompute total from visible accounts so Y-axis rescales automatically
             val visibleTotal = visibleByAccount.sumOf { it.balance }
             wp.copy(totalWealth = visibleTotal, byAccount = visibleByAccount)
         }
@@ -103,148 +97,63 @@ fun WealthChart(
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val secondaryColor = MaterialTheme.joyufyColors.contentSecondary
 
-    // Hover state
+    // hoverX drives only Canvas redraws — no Box-level recomposition
     var hoverX by remember { mutableStateOf<Float?>(null) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
-    // Compute the hovered index based on hoverX
-    val hoveredIndex: Int? = remember(hoverX, filteredPoints, canvasSize) {
-        val x = hoverX ?: return@remember null
-        val w = canvasSize.width.toFloat()
-        val chartLeft = leftPadding
-        val chartRight = w - rightPadding
-        val chartW = chartRight - chartLeft
-        if (filteredPoints.size <= 1) return@remember if (filteredPoints.isNotEmpty()) 0 else null
-        val relX = (x - chartLeft).coerceIn(0f, chartW)
-        val idx = ((relX / chartW) * (filteredPoints.size - 1)).toInt().coerceIn(0, filteredPoints.size - 1)
-        idx
-    }
-
-    Box(modifier = modifier.fillMaxWidth()) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .onSizeChanged { canvasSize = it }
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            when (event.type) {
-                                PointerEventType.Move -> {
-                                    val pos = event.changes.firstOrNull()?.position
-                                    hoverX = pos?.x
-                                }
-                                PointerEventType.Exit -> {
-                                    hoverX = null
-                                }
-                                else -> {}
-                            }
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .onSizeChanged { canvasSize = it }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        when (event.type) {
+                            PointerEventType.Move -> hoverX = event.changes.firstOrNull()?.position?.x
+                            PointerEventType.Exit -> hoverX = null
+                            else -> {}
                         }
                     }
                 }
-        ) {
-            when (mode) {
-                ChartMode.AREA -> drawAreaChart(
-                    points = filteredPoints,
-                    measurer = textMeasurer,
-                    labelColor = labelColor,
-                    gridColor = gridColor,
-                    hoveredIndex = hoveredIndex,
-                    showTotalLine = showTotal,
-                )
-                ChartMode.BARS -> drawBarChart(
-                    points = filteredPoints,
-                    measurer = textMeasurer,
-                    labelColor = labelColor,
-                    gridColor = gridColor,
-                    hoveredIndex = hoveredIndex,
-                )
             }
+    ) {
+        val w = size.width
+        val chartLeft = leftPadding
+        val chartRight = w - rightPadding
+        val chartW = chartRight - chartLeft
+
+        val hoveredIndex: Int? = run {
+            val x = hoverX ?: return@run null
+            if (filteredPoints.size <= 1) return@run if (filteredPoints.isNotEmpty()) 0 else null
+            val relX = (x - chartLeft).coerceIn(0f, chartW)
+            ((relX / chartW) * (filteredPoints.size - 1)).toInt().coerceIn(0, filteredPoints.size - 1)
         }
 
-        // Tooltip overlay
-        if (hoveredIndex != null) {
-            val point = filteredPoints[hoveredIndex]
-            WealthTooltip(
-                point = point,
-                showTotal = showTotal,
+        when (mode) {
+            ChartMode.AREA -> drawAreaChart(
+                points = filteredPoints,
+                measurer = textMeasurer,
+                labelColor = labelColor,
+                gridColor = gridColor,
+                hoveredIndex = hoveredIndex,
+                showTotalLine = showTotal,
+                surfaceColor = surfaceColor,
+                onSurfaceColor = onSurfaceColor,
+                secondaryColor = secondaryColor,
+            )
+            ChartMode.BARS -> drawBarChart(
+                points = filteredPoints,
+                measurer = textMeasurer,
+                labelColor = labelColor,
+                gridColor = gridColor,
+                hoveredIndex = hoveredIndex,
                 surfaceColor = surfaceColor,
                 onSurfaceColor = onSurfaceColor,
                 secondaryColor = secondaryColor,
             )
         }
-    }
-}
-
-// ── Tooltip ───────────────────────────────────────────────────────────────────
-
-@Composable
-private fun BoxScope.WealthTooltip(
-    point: WealthPoint,
-    showTotal: Boolean,
-    surfaceColor: Color,
-    onSurfaceColor: Color,
-    secondaryColor: Color,
-) {
-    Surface(
-        modifier = Modifier
-            .align(Alignment.TopStart)
-            .padding(start = 60.dp, top = 4.dp)
-            .widthIn(min = 140.dp, max = 220.dp),
-        color = surfaceColor.copy(alpha = 0.96f),
-        shape = MaterialTheme.shapes.small,
-        shadowElevation = 4.dp,
-        tonalElevation = 2.dp,
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(
-                text = point.weekDate.toLongDate(),
-                style = MaterialTheme.typography.labelSmall,
-                color = secondaryColor,
-            )
-            Spacer(Modifier.height(4.dp))
-            if (showTotal) {
-                Text(
-                    text = point.totalWealth.formatCurrency(),
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = onSurfaceColor,
-                )
-            }
-            if (point.byAccount.isNotEmpty()) {
-                if (showTotal) Spacer(Modifier.height(6.dp))
-                point.byAccount.forEach { ap ->
-                    AccountTooltipRow(ap)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AccountTooltipRow(ap: AccountPoint) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(ap.account.color)
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = ap.account.name,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.joyufyColors.contentSecondary,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = ap.balance.formatCurrency(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
     }
 }
 
@@ -279,98 +188,208 @@ fun SingleAccountChart(
     var hoverX by remember { mutableStateOf<Float?>(null) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
-    val hoveredIndex: Int? = remember(hoverX, points, canvasSize) {
-        val x = hoverX ?: return@remember null
-        val w = canvasSize.width.toFloat()
-        val chartLeft = leftPadding
-        val chartRight = w - rightPadding
-        val chartW = chartRight - chartLeft
-        if (points.size <= 1) return@remember if (points.isNotEmpty()) 0 else null
-        val relX = (x - chartLeft).coerceIn(0f, chartW)
-        ((relX / chartW) * (points.size - 1)).toInt().coerceIn(0, points.size - 1)
-    }
-
-    Box(modifier = modifier.fillMaxWidth()) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-                .onSizeChanged { canvasSize = it }
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            when (event.type) {
-                                PointerEventType.Move -> hoverX = event.changes.firstOrNull()?.position?.x
-                                PointerEventType.Exit -> hoverX = null
-                                else -> {}
-                            }
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(160.dp)
+            .onSizeChanged { canvasSize = it }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        when (event.type) {
+                            PointerEventType.Move -> hoverX = event.changes.firstOrNull()?.position?.x
+                            PointerEventType.Exit -> hoverX = null
+                            else -> {}
                         }
                     }
                 }
-        ) {
-            when (mode) {
-                ChartMode.AREA -> drawSingleAreaChart(points, textMeasurer, labelColor, gridColor, lineColor, hoveredIndex)
-                ChartMode.BARS -> drawSingleBarChart(points, textMeasurer, labelColor, gridColor, lineColor, hoveredIndex)
             }
+    ) {
+        val w = size.width
+        val chartLeft = leftPadding
+        val chartRight = w - rightPadding
+        val chartW = chartRight - chartLeft
+
+        val hoveredIndex: Int? = run {
+            val x = hoverX ?: return@run null
+            if (points.size <= 1) return@run if (points.isNotEmpty()) 0 else null
+            val relX = (x - chartLeft).coerceIn(0f, chartW)
+            ((relX / chartW) * (points.size - 1)).toInt().coerceIn(0, points.size - 1)
         }
 
-        if (hoveredIndex != null) {
-            val point = points[hoveredIndex]
-            SingleAccountTooltip(
-                point = point,
-                accountName = account.name,
-                accountColor = lineColor,
-                surfaceColor = surfaceColor,
-                onSurfaceColor = onSurfaceColor,
-                secondaryColor = secondaryColor,
+        when (mode) {
+            ChartMode.AREA -> drawSingleAreaChart(
+                points, textMeasurer, labelColor, gridColor, lineColor, hoveredIndex,
+                surfaceColor, onSurfaceColor, secondaryColor,
+            )
+            ChartMode.BARS -> drawSingleBarChart(
+                points, textMeasurer, labelColor, gridColor, lineColor, hoveredIndex,
+                surfaceColor, onSurfaceColor, secondaryColor, account.name,
             )
         }
     }
 }
 
-@Composable
-private fun BoxScope.SingleAccountTooltip(
-    point: com.aracem.joyufy.ui.account.SingleAccountPoint,
-    accountName: String,
-    accountColor: Color,
+// ── Canvas tooltip helpers ────────────────────────────────────────────────────
+
+private fun DrawScope.drawTooltipBackground(
+    x: Float,
+    y: Float,
+    width: Float,
+    height: Float,
+    surfaceColor: Color,
+) {
+    drawRoundRect(
+        color = surfaceColor.copy(alpha = 0.96f),
+        topLeft = Offset(x, y),
+        size = Size(width, height),
+        cornerRadius = CornerRadius(6.dp.toPx()),
+    )
+    drawRoundRect(
+        color = Color.White.copy(alpha = 0.06f),
+        topLeft = Offset(x, y),
+        size = Size(width, height),
+        cornerRadius = CornerRadius(6.dp.toPx()),
+        style = Stroke(width = 0.5f.dp.toPx()),
+    )
+}
+
+/**
+ * Draws a multi-account tooltip entirely on canvas.
+ * Returns nothing — pure side effect on DrawScope.
+ */
+private fun DrawScope.drawWealthTooltip(
+    measurer: TextMeasurer,
+    point: WealthPoint,
+    hoverXPx: Float,
+    showTotal: Boolean,
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
 ) {
-    Surface(
-        modifier = Modifier
-            .align(Alignment.TopStart)
-            .padding(start = 60.dp, top = 4.dp)
-            .widthIn(min = 130.dp, max = 200.dp),
-        color = surfaceColor.copy(alpha = 0.96f),
-        shape = MaterialTheme.shapes.small,
-        shadowElevation = 4.dp,
-        tonalElevation = 2.dp,
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(
-                text = point.weekDate.toLongDate(),
-                style = MaterialTheme.typography.labelSmall,
-                color = secondaryColor,
-            )
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(accountColor)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = point.balance.formatCurrency(),
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    color = onSurfaceColor,
-                )
-            }
+    val paddingH = 10.dp.toPx()
+    val paddingV = 7.dp.toPx()
+    val rowHeight = 16.dp.toPx()
+    val dotSize = 7.dp.toPx()
+    val dotTextGap = 5.dp.toPx()
+    val colGap = 6.dp.toPx()
+
+    // Pre-measure everything using an explicit large constraint so the measurer
+    // never sees the canvas height and never crashes with negative maxHeight.
+    val constraints = androidx.compose.ui.unit.Constraints(maxWidth = 600, maxHeight = 400)
+    val dateStyle = TextStyle(color = secondaryColor, fontSize = 10.sp)
+    val totalStyle = TextStyle(color = onSurfaceColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    val rowLabelStyle = TextStyle(color = secondaryColor, fontSize = 10.sp)
+    val rowValueStyle = TextStyle(color = onSurfaceColor, fontSize = 10.sp)
+
+    val dateLr = measurer.measure(point.weekDate.toLongDate(), dateStyle, constraints = constraints)
+    val totalLr = if (showTotal) measurer.measure(point.totalWealth.formatCurrency(), totalStyle, constraints = constraints) else null
+
+    data class RowLr(val color: Color, val nameLr: androidx.compose.ui.text.TextLayoutResult, val valueLr: androidx.compose.ui.text.TextLayoutResult)
+    val rows = point.byAccount.map { ap ->
+        RowLr(
+            ap.account.color,
+            measurer.measure(ap.account.name, rowLabelStyle, constraints = constraints),
+            measurer.measure(ap.balance.formatCurrency(), rowValueStyle, constraints = constraints),
+        )
+    }
+
+    val maxRowContentW = rows.maxOfOrNull { dotSize + dotTextGap + it.nameLr.size.width + colGap + it.valueLr.size.width } ?: 0f
+    val contentW = maxOf(dateLr.size.width.toFloat(), totalLr?.size?.width?.toFloat() ?: 0f, maxRowContentW)
+    val tooltipW = contentW + paddingH * 2
+
+    var tooltipH = paddingV + dateLr.size.height
+    if (totalLr != null) tooltipH += 4.dp.toPx() + totalLr.size.height
+    if (rows.isNotEmpty()) {
+        if (totalLr != null) tooltipH += 5.dp.toPx()
+        tooltipH += rows.size * rowHeight
+    }
+    tooltipH += paddingV
+
+    val gap = 10.dp.toPx()
+    val tooltipX = if (hoverXPx + gap + tooltipW > size.width) {
+        (hoverXPx - gap - tooltipW).coerceAtLeast(0f)
+    } else {
+        (hoverXPx + gap).coerceAtMost(size.width - tooltipW)
+    }
+    val tooltipY = (topPadding + 2.dp.toPx()).coerceAtMost(size.height - tooltipH).coerceAtLeast(0f)
+
+    drawTooltipBackground(tooltipX, tooltipY, tooltipW, tooltipH, surfaceColor)
+
+    var curY = tooltipY + paddingV
+
+    // Use drawText(TextLayoutResult) — does NOT recompute constraints, no crash possible
+    drawText(dateLr, topLeft = Offset(tooltipX + paddingH, curY))
+    curY += dateLr.size.height
+
+    if (totalLr != null) {
+        curY += 4.dp.toPx()
+        drawText(totalLr, topLeft = Offset(tooltipX + paddingH, curY))
+        curY += totalLr.size.height
+    }
+
+    if (rows.isNotEmpty()) {
+        if (totalLr != null) curY += 5.dp.toPx()
+        rows.forEach { row ->
+            val rowMidY = curY + rowHeight / 2f
+            drawCircle(color = row.color, radius = dotSize / 2f, center = Offset(tooltipX + paddingH + dotSize / 2f, rowMidY))
+            drawText(row.nameLr, topLeft = Offset(tooltipX + paddingH + dotSize + dotTextGap, rowMidY - row.nameLr.size.height / 2f))
+            val valX = tooltipX + tooltipW - paddingH - row.valueLr.size.width
+            drawText(row.valueLr, topLeft = Offset(valX, rowMidY - row.valueLr.size.height / 2f))
+            curY += rowHeight
         }
     }
+}
+
+/**
+ * Draws a single-account tooltip entirely on canvas.
+ */
+private fun DrawScope.drawSingleTooltip(
+    measurer: TextMeasurer,
+    weekDate: Long,
+    balance: Double,
+    accountName: String,
+    accountColor: Color,
+    hoverXPx: Float,
+    surfaceColor: Color,
+    onSurfaceColor: Color,
+    secondaryColor: Color,
+) {
+    val paddingH = 10.dp.toPx()
+    val paddingV = 7.dp.toPx()
+    val dotSize = 7.dp.toPx()
+    val dotTextGap = 5.dp.toPx()
+
+    val constraints = androidx.compose.ui.unit.Constraints(maxWidth = 400, maxHeight = 200)
+    val dateStyle = TextStyle(color = secondaryColor, fontSize = 10.sp)
+    val valueStyle = TextStyle(color = onSurfaceColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+    val dateLr = measurer.measure(weekDate.toLongDate(), dateStyle, constraints = constraints)
+    val valueLr = measurer.measure(balance.formatCurrency(), valueStyle, constraints = constraints)
+
+    val valueRowW = dotSize + dotTextGap + valueLr.size.width
+    val contentW = maxOf(dateLr.size.width.toFloat(), valueRowW)
+    val tooltipW = contentW + paddingH * 2
+    val tooltipH = paddingV + dateLr.size.height + 4.dp.toPx() + dotSize + paddingV
+
+    val gap = 10.dp.toPx()
+    val tooltipX = if (hoverXPx + gap + tooltipW > size.width) {
+        (hoverXPx - gap - tooltipW).coerceAtLeast(0f)
+    } else {
+        (hoverXPx + gap).coerceAtMost(size.width - tooltipW)
+    }
+    val tooltipY = (topPadding + 2.dp.toPx()).coerceAtMost(size.height - tooltipH).coerceAtLeast(0f)
+
+    drawTooltipBackground(tooltipX, tooltipY, tooltipW, tooltipH, surfaceColor)
+
+    var curY = tooltipY + paddingV
+    drawText(dateLr, topLeft = Offset(tooltipX + paddingH, curY))
+    curY += dateLr.size.height + 4.dp.toPx()
+
+    val rowMidY = curY + dotSize / 2f
+    drawCircle(color = accountColor, radius = dotSize / 2f, center = Offset(tooltipX + paddingH + dotSize / 2f, rowMidY))
+    drawText(valueLr, topLeft = Offset(tooltipX + paddingH + dotSize + dotTextGap, rowMidY - valueLr.size.height / 2f))
 }
 
 // ── Area chart (multi-account) ────────────────────────────────────────────────
@@ -382,6 +401,9 @@ private fun DrawScope.drawAreaChart(
     gridColor: Color,
     hoveredIndex: Int?,
     showTotalLine: Boolean = true,
+    surfaceColor: Color,
+    onSurfaceColor: Color,
+    secondaryColor: Color,
 ) {
     val w = size.width
     val h = size.height
@@ -405,9 +427,7 @@ private fun DrawScope.drawAreaChart(
     fun yOf(v: Double): Float = chartBottom - ((v - minVal) / range * chartH).toFloat()
 
     drawGridAndLabels(measurer, labelColor, gridColor, chartLeft, chartRight, chartTop, chartBottom,
-        chartW, chartH, minVal, maxVal, range, points.size) { i ->
-        xOf(i)
-    }
+        chartW, chartH, minVal, maxVal, range, points.size) { i -> xOf(i) }
     drawXLabels(measurer, labelColor, chartBottom, chartLeft, points.size) { i ->
         Pair(xOf(i), points[i].weekDate.toShortDate())
     }
@@ -487,7 +507,7 @@ private fun DrawScope.drawAreaChart(
         )
     }
 
-    // ── Hover vertical line ───────────────────────────────────────────────────
+    // ── Hover: vertical line + dots + tooltip ─────────────────────────────────
     if (hoveredIndex != null) {
         val hx = xOf(hoveredIndex)
         drawLine(
@@ -504,6 +524,22 @@ private fun DrawScope.drawAreaChart(
                 center = Offset(hx, yOf(points[hoveredIndex].totalWealth)),
             )
         }
+        points[hoveredIndex].byAccount.forEach { ap ->
+            drawCircle(
+                color = ap.account.color,
+                radius = 3.dp.toPx(),
+                center = Offset(hx, yOf(ap.balance)),
+            )
+        }
+        drawWealthTooltip(
+            measurer = measurer,
+            point = points[hoveredIndex],
+            hoverXPx = hx,
+            showTotal = showTotalLine,
+            surfaceColor = surfaceColor,
+            onSurfaceColor = onSurfaceColor,
+            secondaryColor = secondaryColor,
+        )
     }
 }
 
@@ -515,6 +551,9 @@ private fun DrawScope.drawBarChart(
     labelColor: Color,
     gridColor: Color,
     hoveredIndex: Int?,
+    surfaceColor: Color,
+    onSurfaceColor: Color,
+    secondaryColor: Color,
 ) {
     val w = size.width
     val h = size.height
@@ -541,7 +580,6 @@ private fun DrawScope.drawBarChart(
         chartLeft + i * slotW + slotW / 2f
     }
 
-    // ── Bars (stacked by account) ─────────────────────────────────────────────
     val accounts = if (points.isNotEmpty()) points.first().byAccount.map { it.account } else emptyList()
 
     points.forEachIndexed { i, point ->
@@ -549,7 +587,6 @@ private fun DrawScope.drawBarChart(
         val isHovered = i == hoveredIndex
 
         if (accounts.isEmpty() || point.byAccount.isEmpty()) {
-            // No account breakdown — draw single bar
             val barH = ((point.totalWealth - minVal) / range * chartH).toFloat().coerceAtLeast(2f)
             val y = chartBottom - barH
             drawRoundRect(
@@ -559,15 +596,13 @@ private fun DrawScope.drawBarChart(
                 cornerRadius = CornerRadius(3.dp.toPx()),
             )
         } else {
-            // Stacked bars per account
             var stackBottom = chartBottom
             point.byAccount.forEach { ap ->
                 if (ap.balance > 0) {
                     val segH = ((ap.balance / (maxVal - minVal)) * chartH).toFloat().coerceAtLeast(1f)
                     val segY = stackBottom - segH
-                    val barAlpha = if (isHovered) 1f else 0.85f
                     drawRoundRect(
-                        color = ap.account.color.copy(alpha = barAlpha),
+                        color = ap.account.color.copy(alpha = if (isHovered) 1f else 0.85f),
                         topLeft = Offset(x, segY),
                         size = Size(barW, segH),
                         cornerRadius = CornerRadius(2.dp.toPx()),
@@ -578,7 +613,6 @@ private fun DrawScope.drawBarChart(
         }
 
         if (isHovered) {
-            // Highlight outline
             val totalBarH = ((point.totalWealth - minVal) / range * chartH).toFloat().coerceAtLeast(2f)
             drawRoundRect(
                 color = Accent.copy(alpha = 0.4f),
@@ -590,19 +624,32 @@ private fun DrawScope.drawBarChart(
         }
     }
 
-    // ── X-axis date labels ────────────────────────────────────────────────────
     val labelStyle = TextStyle(color = labelColor, fontSize = 10.sp)
-    val sampleWidth = measurer.measure("00/00", labelStyle).size.width + 8f
+    val safeConstraints = androidx.compose.ui.unit.Constraints(maxWidth = 200, maxHeight = 60)
+    val sampleWidth = measurer.measure("00/00", labelStyle, constraints = safeConstraints).size.width + 8f
     val maxLabels = (chartW / sampleWidth).toInt().coerceAtLeast(2)
     val step = (points.size.toFloat() / maxLabels).coerceAtLeast(1f)
     val xLabelIndices = (0 until points.size).filter { i ->
         i == 0 || i == points.size - 1 || (i % step.toInt() == 0)
     }
     xLabelIndices.forEach { i ->
-        val label = points[i].weekDate.toShortDate()
-        val measured = measurer.measure(label, labelStyle)
-        val x = chartLeft + i * slotW + slotW / 2f - measured.size.width / 2f
-        drawText(measurer, label, topLeft = Offset(x, chartBottom + 4f), style = labelStyle)
+        val lr = measurer.measure(points[i].weekDate.toShortDate(), labelStyle, constraints = safeConstraints)
+        val x = chartLeft + i * slotW + slotW / 2f - lr.size.width / 2f
+        drawText(lr, topLeft = Offset(x, chartBottom + 4f))
+    }
+
+    // Tooltip
+    if (hoveredIndex != null) {
+        val barCenterX = chartLeft + hoveredIndex * slotW + slotW / 2f
+        drawWealthTooltip(
+            measurer = measurer,
+            point = points[hoveredIndex],
+            hoverXPx = barCenterX,
+            showTotal = true,
+            surfaceColor = surfaceColor,
+            onSurfaceColor = onSurfaceColor,
+            secondaryColor = secondaryColor,
+        )
     }
 }
 
@@ -615,6 +662,9 @@ private fun DrawScope.drawSingleAreaChart(
     gridColor: Color,
     lineColor: Color,
     hoveredIndex: Int? = null,
+    surfaceColor: Color,
+    onSurfaceColor: Color,
+    secondaryColor: Color,
 ) {
     val w = size.width
     val h = size.height
@@ -681,7 +731,6 @@ private fun DrawScope.drawSingleAreaChart(
         center = Offset(xOf(points.size - 1), yOf(points.last().balance)),
     )
 
-    // ── Hover vertical line + dot ─────────────────────────────────────────────
     if (hoveredIndex != null) {
         val hx = xOf(hoveredIndex)
         drawLine(
@@ -696,6 +745,17 @@ private fun DrawScope.drawSingleAreaChart(
             radius = 5.dp.toPx(),
             center = Offset(hx, yOf(points[hoveredIndex].balance)),
         )
+        drawSingleTooltip(
+            measurer = measurer,
+            weekDate = points[hoveredIndex].weekDate,
+            balance = points[hoveredIndex].balance,
+            accountName = "",
+            accountColor = lineColor,
+            hoverXPx = hx,
+            surfaceColor = surfaceColor,
+            onSurfaceColor = onSurfaceColor,
+            secondaryColor = secondaryColor,
+        )
     }
 }
 
@@ -708,6 +768,10 @@ private fun DrawScope.drawSingleBarChart(
     gridColor: Color,
     barColor: Color,
     hoveredIndex: Int? = null,
+    surfaceColor: Color,
+    onSurfaceColor: Color,
+    secondaryColor: Color,
+    accountName: String,
 ) {
     val w = size.width
     val h = size.height
@@ -752,17 +816,32 @@ private fun DrawScope.drawSingleBarChart(
     }
 
     val labelStyle = TextStyle(color = labelColor, fontSize = 10.sp)
-    val sampleWidth = measurer.measure("00/00", labelStyle).size.width + 8f
+    val safeConstraints = androidx.compose.ui.unit.Constraints(maxWidth = 200, maxHeight = 60)
+    val sampleWidth = measurer.measure("00/00", labelStyle, constraints = safeConstraints).size.width + 8f
     val maxLabels = (chartW / sampleWidth).toInt().coerceAtLeast(2)
     val step = (points.size.toFloat() / maxLabels).coerceAtLeast(1f)
     val xLabelIndices = (0 until points.size).filter { i ->
         i == 0 || i == points.size - 1 || (i % step.toInt() == 0)
     }
     xLabelIndices.forEach { i ->
-        val label = points[i].weekDate.toShortDate()
-        val measured = measurer.measure(label, labelStyle)
-        val x = chartLeft + i * slotW + slotW / 2f - measured.size.width / 2f
-        drawText(measurer, label, topLeft = Offset(x, chartBottom + 4f), style = labelStyle)
+        val lr = measurer.measure(points[i].weekDate.toShortDate(), labelStyle, constraints = safeConstraints)
+        val x = chartLeft + i * slotW + slotW / 2f - lr.size.width / 2f
+        drawText(lr, topLeft = Offset(x, chartBottom + 4f))
+    }
+
+    if (hoveredIndex != null) {
+        val barCenterX = chartLeft + hoveredIndex * slotW + slotW / 2f
+        drawSingleTooltip(
+            measurer = measurer,
+            weekDate = points[hoveredIndex].weekDate,
+            balance = points[hoveredIndex].balance,
+            accountName = accountName,
+            accountColor = barColor,
+            hoverXPx = barCenterX,
+            surfaceColor = surfaceColor,
+            onSurfaceColor = onSurfaceColor,
+            secondaryColor = secondaryColor,
+        )
     }
 }
 
@@ -785,6 +864,7 @@ private fun DrawScope.drawGridAndLabels(
     xOf: (Int) -> Float,
 ) {
     val labelStyle = TextStyle(color = labelColor, fontSize = 10.sp)
+    val safeConstraints = androidx.compose.ui.unit.Constraints(maxWidth = 200, maxHeight = 60)
     val ySteps = 4
     repeat(ySteps + 1) { step ->
         val fraction = step.toFloat() / ySteps
@@ -797,14 +877,8 @@ private fun DrawScope.drawGridAndLabels(
             strokeWidth = 0.5f,
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f)),
         )
-        val label = value.toShortAmount()
-        val measured = measurer.measure(label, labelStyle)
-        drawText(
-            measurer,
-            label,
-            topLeft = Offset(chartLeft - measured.size.width - 6f, y - measured.size.height / 2f),
-            style = labelStyle,
-        )
+        val lr = measurer.measure(value.toShortAmount(), labelStyle, constraints = safeConstraints)
+        drawText(lr, topLeft = Offset(chartLeft - lr.size.width - 6f, y - lr.size.height / 2f))
     }
 }
 
@@ -817,10 +891,10 @@ private fun DrawScope.drawXLabels(
     labelAt: (Int) -> Pair<Float, String>,
 ) {
     val labelStyle = TextStyle(color = labelColor, fontSize = 10.sp)
-    // Measure a sample label to know how much space each needs
-    val sampleWidth = measurer.measure("00/00", labelStyle).size.width + 8f
+    val safeConstraints = androidx.compose.ui.unit.Constraints(maxWidth = 200, maxHeight = 60)
+    val sampleLr = measurer.measure("00/00", labelStyle, constraints = safeConstraints)
+    val sampleWidth = sampleLr.size.width + 8f
     val chartWidth = size.width - leftPadding - rightPadding
-    // How many labels fit without overlapping
     val maxLabels = (chartWidth / sampleWidth).toInt().coerceAtLeast(2)
     val step = (pointCount.toFloat() / maxLabels).coerceAtLeast(1f)
     val xLabelIndices = (0 until pointCount).filter { i ->
@@ -828,8 +902,8 @@ private fun DrawScope.drawXLabels(
     }
     xLabelIndices.forEach { i ->
         val (x, label) = labelAt(i)
-        val measured = measurer.measure(label, labelStyle)
-        val lx = x - measured.size.width / 2f
-        drawText(measurer, label, topLeft = Offset(lx, chartBottom + 4f), style = labelStyle)
+        val lr = measurer.measure(label, labelStyle, constraints = safeConstraints)
+        val lx = x - lr.size.width / 2f
+        drawText(lr, topLeft = Offset(lx, chartBottom + 4f))
     }
 }
