@@ -36,7 +36,7 @@ class AccountRepository(private val db: JoyufyDatabase) {
         colorHex: String,
         logoUrl: String?,
         position: Int,
-    ): Unit = withContext(Dispatchers.IO) {
+    ): Long = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.insertAccount(
             name = name,
             type = type.name,
@@ -45,6 +45,7 @@ class AccountRepository(private val db: JoyufyDatabase) {
             position = position.toLong(),
             created_at = System.currentTimeMillis(),
         )
+        db.joyufyDatabaseQueries.lastInsertRowId().executeAsOne()
     }
 
     suspend fun insertAccountWithId(

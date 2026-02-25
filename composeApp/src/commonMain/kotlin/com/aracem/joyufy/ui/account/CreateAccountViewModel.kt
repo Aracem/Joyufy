@@ -4,9 +4,11 @@ import androidx.compose.ui.graphics.Color
 import com.aracem.joyufy.data.mapper.toColorHex
 import com.aracem.joyufy.data.mapper.toComposeColor
 import com.aracem.joyufy.data.repository.AccountRepository
+import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.BankPreset
+import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.theme.AccountPalette
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,18 +17,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 
 data class CreateAccountUiState(
     val name: String = "",
     val type: AccountType = AccountType.BANK,
     val selectedColor: Color = AccountPalette.first(),
     val logoUrl: String? = null,
+    val initialBalance: String = "",
+    val initialBalanceError: String? = null,
     val isSaving: Boolean = false,
     val nameError: String? = null,
 )
 
 class CreateAccountViewModel(
     private val accountRepository: AccountRepository,
+    private val transactionRepository: TransactionRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -38,11 +44,15 @@ class CreateAccountViewModel(
     }
 
     fun onTypeChange(value: AccountType) {
-        _uiState.value = _uiState.value.copy(type = value)
+        _uiState.value = _uiState.value.copy(type = value, initialBalance = "", initialBalanceError = null)
     }
 
     fun onColorChange(value: Color) {
         _uiState.value = _uiState.value.copy(selectedColor = value)
+    }
+
+    fun onInitialBalanceChange(value: String) {
+        _uiState.value = _uiState.value.copy(initialBalance = value, initialBalanceError = null)
     }
 
     fun onPresetSelected(preset: BankPreset) {
@@ -69,15 +79,35 @@ class CreateAccountViewModel(
             _uiState.value = state.copy(nameError = "El nombre no puede estar vacío")
             return
         }
+        val initialBalance = if (state.type != AccountType.INVESTMENT && state.initialBalance.isNotBlank()) {
+            val parsed = state.initialBalance.replace(",", ".").toDoubleOrNull()
+            if (parsed == null || parsed < 0) {
+                _uiState.value = state.copy(initialBalanceError = "Introduce un importe válido")
+                return
+            }
+            parsed
+        } else null
+
         _uiState.value = state.copy(isSaving = true)
         scope.launch {
-            accountRepository.insertAccount(
+            val accountId = accountRepository.insertAccount(
                 name = state.name.trim(),
                 type = state.type,
                 colorHex = dummyAccount(state.selectedColor).toColorHex(),
                 logoUrl = state.logoUrl,
                 position = existingCount,
             )
+            if (initialBalance != null && initialBalance > 0.0) {
+                transactionRepository.insertTransaction(
+                    accountId = accountId,
+                    type = TransactionType.INCOME,
+                    amount = initialBalance,
+                    category = "Saldo inicial",
+                    description = null,
+                    relatedAccountId = null,
+                    date = Clock.System.now().toEpochMilliseconds(),
+                )
+            }
             _uiState.value = _uiState.value.copy(isSaving = false)
             onSuccess()
         }

@@ -207,6 +207,25 @@ fun CreateAccountDialog(
                     ),
                 )
 
+                // ── Saldo inicial (solo para BANK/CASH, no en edición) ────
+                if (editingAccount == null && state.type != AccountType.INVESTMENT) {
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = state.initialBalance,
+                        onValueChange = viewModel::onInitialBalanceChange,
+                        label = { Text("Saldo inicial (opcional)") },
+                        placeholder = { Text("0,00") },
+                        isError = state.initialBalanceError != null,
+                        supportingText = state.initialBalanceError?.let { { Text(it) } },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Accent,
+                            focusedLabelColor = Accent,
+                        ),
+                    )
+                }
+
                 Spacer(Modifier.height(24.dp))
 
                 // ── Actions ───────────────────────────────────────────────

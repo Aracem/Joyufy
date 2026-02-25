@@ -36,6 +36,9 @@ UPDATE Account SET is_archived = 1 WHERE id = ?;
 deleteAccount:
 DELETE FROM Account WHERE id = ?;
 
+lastInsertRowId:
+SELECT last_insert_rowid();
+
 
 -- ──────────────────────────────────────────
 -- Transaction
