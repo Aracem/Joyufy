@@ -245,7 +245,7 @@ private fun AccountSettingsRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (account.logoUrl != null) {
-            AccountLogo(color = account.color, logoUrl = account.logoUrl, size = 32.dp)
+            AccountLogo(logoUrl = account.logoUrl, size = 32.dp)
         } else {
             AccountLogoInitials(color = account.color, name = account.name, size = 32.dp)
         }

@@ -2,10 +2,8 @@ package com.aracem.joyufy.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,32 +25,24 @@ import org.jetbrains.compose.resources.painterResource
  */
 @Composable
 fun AccountLogo(
-    color: Color,
     logoUrl: String?,       // stores the drawable resource name e.g. "logo_santander"
     size: Dp = 36.dp,
     modifier: Modifier = Modifier,
 ) {
+    val res = logoUrl?.toDrawableResource()
     Box(
-        modifier = modifier.size(size),
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(Color.White),
         contentAlignment = Alignment.Center,
     ) {
-        // Always show color circle as background
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(CircleShape)
-                .background(color)
-        )
-
-        val res = logoUrl?.toDrawableResource()
         if (res != null) {
-            val logoSize = (size.value * 0.78f).dp
+            val logoSize = (size.value * 0.68f).dp
             androidx.compose.foundation.Image(
                 painter = painterResource(res),
                 contentDescription = null,
-                modifier = Modifier
-                    .size(logoSize)
-                    .clip(RoundedCornerShape(4.dp)),
+                modifier = Modifier.size(logoSize),
                 contentScale = ContentScale.Fit,
             )
         }
@@ -113,5 +103,10 @@ private fun String.toDrawableResource(): DrawableResource? = when (this) {
     "logo_degiro"        -> Res.drawable.logo_degiro
     "logo_etoro"         -> Res.drawable.logo_etoro
     "logo_traderepublic" -> Res.drawable.logo_traderepublic
+    "logo_kraken"        -> Res.drawable.logo_kraken
+    "logo_urbanitae"     -> Res.drawable.logo_urbanitae
+    "logo_wecity"        -> Res.drawable.logo_wecity
+    // "logo_indexacapital" — SVG con DOCTYPE externo, pendiente de reemplazar
+    // "logo_indexacapital" -> Res.drawable.logo_indexacapital
     else                 -> null
 }

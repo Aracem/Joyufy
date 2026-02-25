@@ -22,7 +22,7 @@ val BankPresets: List<BankPreset> = listOf(
     BankPreset("N26",         "logo_n26",         "#00C6A7", AccountType.BANK),
     BankPreset("Revolut",     "logo_revolut",     "#191C1F", AccountType.BANK),
     // ── Inversión ─────────────────────────────────────────────────────────────
-    BankPreset("Indexa Capital",  null,                  "#1A1A2E", AccountType.INVESTMENT),
+    BankPreset("Indexa Capital",  null,                  "#4B3FD4", AccountType.INVESTMENT),
     BankPreset("MyInvestor",      "logo_myinvestor",     "#FF4F00", AccountType.INVESTMENT),
     BankPreset("inbestMe",        null,                  "#00C389", AccountType.INVESTMENT),
     BankPreset("Finizens",        null,                  "#1565C0", AccountType.INVESTMENT),
@@ -31,4 +31,7 @@ val BankPresets: List<BankPreset> = listOf(
     BankPreset("DEGIRO",          "logo_degiro",         "#FF6600", AccountType.INVESTMENT),
     BankPreset("eToro",           "logo_etoro",          "#00C853", AccountType.INVESTMENT),
     BankPreset("Trade Republic",  "logo_traderepublic",  "#C9F135", AccountType.INVESTMENT),
+    BankPreset("Kraken",          "logo_kraken",         "#5741D9", AccountType.INVESTMENT),
+    BankPreset("Urbanitae",       "logo_urbanitae",      "#0B4E96", AccountType.INVESTMENT),
+    BankPreset("Wecity",          "logo_wecity",         "#00C389", AccountType.INVESTMENT),
 )
