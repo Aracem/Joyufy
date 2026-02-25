@@ -4,6 +4,7 @@ import com.aracem.joyufy.data.db.DatabaseDriverFactory
 import com.aracem.joyufy.data.repository.AccountRepository
 import com.aracem.joyufy.data.repository.BackupRepository
 import com.aracem.joyufy.data.repository.InvestmentSnapshotRepository
+import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.data.repository.WealthRepository
 import com.aracem.joyufy.db.JoyufyDatabase
@@ -23,6 +24,7 @@ val dataModule = module {
     single { InvestmentSnapshotRepository(get()) }
     single { WealthRepository(get()) }
     single { BackupRepository(get(), get(), get()) }
+    single { PreferencesRepository() }
 }
 
 val viewModelModule = module {

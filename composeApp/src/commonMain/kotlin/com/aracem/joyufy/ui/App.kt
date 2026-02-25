@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.ui.account.AccountDetailScreen
 import com.aracem.joyufy.ui.account.CreateAccountDialog
 import com.aracem.joyufy.ui.backup.BackupEvent
@@ -24,7 +25,8 @@ import org.koin.compose.koinInject
 
 @Composable
 fun App() {
-    var darkMode by remember { mutableStateOf(true) }
+    val prefsRepo: PreferencesRepository = koinInject()
+    var darkMode by remember { mutableStateOf(prefsRepo.getDarkMode()) }
 
     JoyufyTheme(darkMode = darkMode) {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -106,7 +108,7 @@ fun App() {
                     )
                     is Screen.Settings -> SettingsScreen(
                         darkMode = darkMode,
-                        onToggleTheme = { darkMode = !darkMode },
+                        onToggleTheme = { darkMode = !darkMode; prefsRepo.setDarkMode(darkMode) },
                         onExport = { backupViewModel.requestExport() },
                         onImport = {
                             scope.launch {
