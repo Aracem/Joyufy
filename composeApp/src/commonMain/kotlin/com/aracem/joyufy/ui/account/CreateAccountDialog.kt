@@ -4,11 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -33,6 +33,7 @@ import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
 import org.koin.compose.koinInject
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CreateAccountDialog(
     existingCount: Int,
@@ -84,13 +85,36 @@ fun CreateAccountDialog(
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
                 Spacer(Modifier.height(8.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(BankPresets) { preset ->
-                        BankPresetChip(
-                            preset = preset,
-                            selected = state.logoUrl == preset.logoRes,
-                            onClick = { viewModel.onPresetSelected(preset) },
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    val grouped = BankPresets
+                        .sortedBy { it.name.lowercase() }
+                        .groupBy { it.type }
+                    val order = listOf(AccountType.BANK, AccountType.INVESTMENT, AccountType.CASH)
+                    order.forEach { type ->
+                        val group = grouped[type] ?: return@forEach
+                        Text(
+                            text = type.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.joyufyColors.contentSecondary,
                         )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            group.forEach { preset ->
+                                BankPresetChip(
+                                    preset = preset,
+                                    selected = state.logoUrl == preset.logoRes,
+                                    onClick = { viewModel.onPresetSelected(preset) },
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -323,7 +347,7 @@ private fun BankPresetChip(
     ) {
         val color = runCatching { preset.defaultColor.toComposeColor() }.getOrElse { Color.Gray }
         if (preset.logoRes != null) {
-            AccountLogo(color = color, logoUrl = preset.logoRes, size = 32.dp)
+            AccountLogo(logoUrl = preset.logoRes, size = 32.dp)
         } else {
             AccountLogoInitials(color = color, name = preset.name, size = 32.dp)
         }
