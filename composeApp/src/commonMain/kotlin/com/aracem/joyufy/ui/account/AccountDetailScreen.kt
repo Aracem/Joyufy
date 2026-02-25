@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -86,7 +88,7 @@ fun AccountDetailScreen(
                 }
                 Spacer(Modifier.width(4.dp))
                 if (account.logoUrl != null) {
-                    AccountLogo(color = account.color, logoUrl = account.logoUrl, size = 32.dp)
+                    AccountLogo(logoUrl = account.logoUrl, size = 32.dp)
                 } else {
                     AccountLogoInitials(color = account.color, name = account.name, size = 32.dp)
                 }
@@ -189,7 +191,7 @@ fun AccountDetailScreen(
                 )
             }
             if (state.snapshots.isEmpty()) {
-                item { EmptyListHint("Sin registros semanales — pulsa \"Actualizar valor\" para añadir") }
+                item { EmptyListHint("Sin registros semanales", "Pulsa «Actualizar valor» para añadir el primero", Icons.Default.DateRange) }
             } else {
                 items(state.snapshots, key = { it.id }) { snapshot ->
                     SnapshotRow(
@@ -212,7 +214,7 @@ fun AccountDetailScreen(
             )
         }
         if (state.transactions.isEmpty()) {
-            item { EmptyListHint("Aún no hay transacciones") }
+            item { EmptyListHint("Aún no hay transacciones", "Pulsa «Añadir transacción» para registrar la primera", Icons.AutoMirrored.Filled.List) }
         } else {
             items(state.transactions, key = { it.id }) { tx ->
                 TransactionRow(
@@ -495,13 +497,39 @@ private fun AccountPeriodChangeBadge(
 }
 
 @Composable
-private fun EmptyListHint(text: String) {
+private fun EmptyListHint(title: String, subtitle: String, icon: ImageVector) {
     Box(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.joyufyColors.contentSecondary)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.6f),
+            )
+        }
     }
 }
 

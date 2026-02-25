@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
@@ -154,10 +155,25 @@ fun DashboardScreen(
         if (state.accountSummaries.isEmpty()) {
             item {
                 Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
+                                modifier = Modifier.size(32.dp),
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
                         Text(
                             text = "Sin cuentas todavía",
                             style = MaterialTheme.typography.titleMedium,
@@ -165,7 +181,7 @@ fun DashboardScreen(
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            text = "Añade tu primera cuenta desde Ajustes",
+                            text = "Añade tu primera cuenta desde el botón +",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.6f),
                         )

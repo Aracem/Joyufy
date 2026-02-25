@@ -2,6 +2,9 @@ package com.aracem.joyufy.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -81,11 +84,20 @@ fun WealthChart(
 
     if (filteredPoints.isEmpty()) {
         Box(modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-            Text(
-                "Sin datos aún",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.joyufyColors.contentSecondary,
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = null,
+                    tint = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.3f),
+                    modifier = Modifier.size(36.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Sin datos aún",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
+            }
         }
         return
     }
@@ -168,11 +180,20 @@ fun SingleAccountChart(
 ) {
     if (points.isEmpty()) {
         Box(modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Default.DateRange,
+                contentDescription = null,
+                tint = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.3f),
+                modifier = Modifier.size(32.dp),
+            )
+            Spacer(Modifier.height(8.dp))
             Text(
                 "Sin datos aún",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
+            } // Column
         }
         return
     }
