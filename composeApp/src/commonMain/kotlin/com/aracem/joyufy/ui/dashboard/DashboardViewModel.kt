@@ -98,6 +98,15 @@ class DashboardViewModel(
         observeWealthHistory()
         observeMonthlySummary()
         checkMissingSnapshots()
+        observeChartRange()
+    }
+
+    private fun observeChartRange() {
+        scope.launch {
+            ChartRangePreference.range.collect { range ->
+                _uiState.value = _uiState.value.copy(chartRange = range)
+            }
+        }
     }
 
     private fun observeBalances() {
@@ -300,7 +309,7 @@ class DashboardViewModel(
 
     fun setChartRange(range: ChartRange) {
         ChartRangePreference.set(range)
-        _uiState.value = _uiState.value.copy(chartRange = range)
+        // uiState.chartRange se actualiza reactivamente vía observeChartRange()
     }
 
     fun dismissMissingSnapshotBanner() {

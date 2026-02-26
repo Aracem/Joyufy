@@ -12,10 +12,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -59,6 +60,40 @@ fun AccountDetailScreen(
     var editingSnapshot by remember { mutableStateOf<InvestmentSnapshot?>(null) }
     var confirmDeleteTxId by remember { mutableStateOf<Long?>(null) }
     var confirmDeleteSnapshotId by remember { mutableStateOf<Long?>(null) }
+
+    // ── Filter state ──────────────────────────────────────────────────────
+    var searchQuery by remember { mutableStateOf("") }
+    var filterType by remember { mutableStateOf<TransactionType?>(null) }
+    var filterCategory by remember { mutableStateOf<String?>(null) }
+
+    val availableCategories by remember {
+        derivedStateOf {
+            state.transactions
+                .mapNotNull { it.category?.ifBlank { null } }
+                .distinct()
+                .sorted()
+        }
+    }
+
+    val filteredTransactions by remember {
+        derivedStateOf {
+            state.transactions
+                .let { txs -> if (filterType != null) txs.filter { it.type == filterType } else txs }
+                .let { txs -> if (filterCategory != null) txs.filter { it.category == filterCategory } else txs }
+                .let { txs ->
+                    if (searchQuery.isBlank()) txs
+                    else {
+                        val q = searchQuery.trim().lowercase()
+                        txs.filter {
+                            it.description?.lowercase()?.contains(q) == true ||
+                            it.category?.lowercase()?.contains(q) == true
+                        }
+                    }
+                }
+        }
+    }
+
+    val isFiltered = searchQuery.isNotBlank() || filterType != null || filterCategory != null
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -206,17 +241,46 @@ fun AccountDetailScreen(
 
         // ── Transactions (all account types) ──────────────────────────────
         item {
-            Text(
-                text = "Transacciones",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 4.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Transacciones",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f).padding(start = 4.dp),
+                )
+                if (state.transactions.isNotEmpty() && isFiltered) {
+                    TextButton(
+                        onClick = { searchQuery = ""; filterType = null; filterCategory = null },
+                    ) {
+                        Text("Limpiar", color = MaterialTheme.joyufyColors.contentSecondary)
+                    }
+                }
+            }
         }
+
+        if (state.transactions.isNotEmpty()) {
+            item {
+                TransactionFilterBar(
+                    searchQuery = searchQuery,
+                    onSearchChange = { searchQuery = it },
+                    filterType = filterType,
+                    onTypeChange = { filterType = if (filterType == it) null else it },
+                    filterCategory = filterCategory,
+                    onCategoryChange = { filterCategory = if (filterCategory == it) null else it },
+                    availableCategories = availableCategories,
+                )
+            }
+        }
+
         if (state.transactions.isEmpty()) {
             item { EmptyListHint("Aún no hay transacciones", "Pulsa «Añadir transacción» para registrar la primera", Icons.AutoMirrored.Filled.List) }
+        } else if (filteredTransactions.isEmpty()) {
+            item { EmptyListHint("Sin resultados", "Prueba a cambiar o limpiar los filtros", Icons.Default.Search) }
         } else {
-            items(state.transactions, key = { it.id }) { tx ->
+            items(filteredTransactions, key = { it.id }) { tx ->
                 TransactionRow(
                     transaction = tx,
                     allAccounts = state.allAccounts,
@@ -341,6 +405,100 @@ private fun AccountHistoryCard(
 }
 
 // ── Subcomponents ─────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TransactionFilterBar(
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    filterType: TransactionType?,
+    onTypeChange: (TransactionType) -> Unit,
+    filterCategory: String?,
+    onCategoryChange: (String) -> Unit,
+    availableCategories: List<String>,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Search field
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchChange,
+            placeholder = { Text("Buscar por descripción o categoría…", style = MaterialTheme.typography.bodySmall) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null,
+                    tint = MaterialTheme.joyufyColors.contentSecondary,
+                    modifier = Modifier.size(18.dp))
+            },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Limpiar",
+                            tint = MaterialTheme.joyufyColors.contentSecondary,
+                            modifier = Modifier.size(16.dp))
+                    }
+                }
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Accent,
+                focusedLabelColor = Accent,
+                unfocusedBorderColor = MaterialTheme.joyufyColors.border,
+            ),
+            textStyle = MaterialTheme.typography.bodySmall,
+        )
+
+        // Type chips
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            listOf(TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.TRANSFER).forEach { type ->
+                val selected = filterType == type
+                FilterChip(
+                    selected = selected,
+                    onClick = { onTypeChange(type) },
+                    label = { Text(type.label, style = MaterialTheme.typography.labelSmall) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Accent.copy(alpha = 0.15f),
+                        selectedLabelColor = Accent,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        labelColor = MaterialTheme.joyufyColors.contentSecondary,
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = selected,
+                        selectedBorderColor = Accent,
+                        borderColor = MaterialTheme.joyufyColors.border,
+                    ),
+                    modifier = Modifier.height(28.dp),
+                )
+            }
+
+            // Category chips — only show if there are categories
+            availableCategories.forEach { cat ->
+                val selected = filterCategory == cat
+                FilterChip(
+                    selected = selected,
+                    onClick = { onCategoryChange(cat) },
+                    label = { Text(cat, style = MaterialTheme.typography.labelSmall) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Accent.copy(alpha = 0.15f),
+                        selectedLabelColor = Accent,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        labelColor = MaterialTheme.joyufyColors.contentSecondary,
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = selected,
+                        selectedBorderColor = Accent,
+                        borderColor = MaterialTheme.joyufyColors.border,
+                    ),
+                    modifier = Modifier.height(28.dp),
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun TransactionRow(
