@@ -8,6 +8,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.aracem.joyufy.domain.model.Account
@@ -147,7 +152,29 @@ fun AddTransactionDialog(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Categoría (dropdown con sugerencias)
+                // Categoría — autocomplete con filtrado y soporte Enter
+                val categorySuggestions by remember {
+                    derivedStateOf {
+                        val q = category.trim().lowercase()
+                        if (q.isEmpty()) TransactionCategory.entries.map { it.label }
+                        else TransactionCategory.entries
+                            .map { it.label }
+                            .filter { it.lowercase().contains(q) }
+                    }
+                }
+                // Abre el dropdown en cuanto hay texto y hay sugerencias
+                LaunchedEffect(category) {
+                    categoryExpanded = category.isNotBlank() && categorySuggestions.isNotEmpty()
+                }
+
+                fun acceptFirstSuggestion() {
+                    val first = categorySuggestions.firstOrNull()
+                    if (first != null) {
+                        category = first
+                        categoryExpanded = false
+                    }
+                }
+
                 ExposedDropdownMenuBox(
                     expanded = categoryExpanded,
                     onExpandedChange = { categoryExpanded = it },
@@ -156,21 +183,44 @@ fun AddTransactionDialog(
                         value = category,
                         onValueChange = { category = it },
                         label = { Text("Categoría (opcional)") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
+                        trailingIcon = {
+                            if (category.isNotBlank()) {
+                                IconButton(
+                                    onClick = { category = ""; categoryExpanded = false },
+                                    modifier = Modifier.size(32.dp),
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Limpiar",
+                                        tint = MaterialTheme.joyufyColors.contentSecondary,
+                                        modifier = Modifier.size(16.dp))
+                                }
+                            } else {
+                                ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded)
+                            }
+                        },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryEditable)
+                            .onPreviewKeyEvent { event ->
+                                if (event.key == Key.Enter && event.type == KeyEventType.KeyDown) {
+                                    acceptFirstSuggestion()
+                                    true
+                                } else false
+                            },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Accent, focusedLabelColor = Accent),
                     )
-                    ExposedDropdownMenu(
-                        expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false },
-                    ) {
-                        TransactionCategory.entries.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat.label) },
-                                onClick = { category = cat.label; categoryExpanded = false },
-                            )
+                    if (categorySuggestions.isNotEmpty()) {
+                        ExposedDropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = { categoryExpanded = false },
+                        ) {
+                            categorySuggestions.forEach { label ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = { category = label; categoryExpanded = false },
+                                )
+                            }
                         }
                     }
                 }
