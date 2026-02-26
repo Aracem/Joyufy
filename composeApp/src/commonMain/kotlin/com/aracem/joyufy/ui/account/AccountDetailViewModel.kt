@@ -9,6 +9,7 @@ import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.dashboard.ChartRange
+import com.aracem.joyufy.ui.dashboard.ChartRangePreference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,7 +37,7 @@ data class AccountDetailUiState(
     val snapshots: List<InvestmentSnapshot> = emptyList(),
     val allAccounts: List<Account> = emptyList(),
     val accountHistory: List<SingleAccountPoint> = emptyList(),
-    val chartRange: ChartRange = ChartRange.ONE_YEAR,
+    val chartRange: ChartRange = ChartRangePreference.range.value,
     val periodChange: Double? = null,
     val periodChangePct: Double? = null,
 )
@@ -51,8 +52,6 @@ class AccountDetailViewModel(
 
     private val _uiState = MutableStateFlow(AccountDetailUiState())
     val uiState: StateFlow<AccountDetailUiState> = _uiState.asStateFlow()
-
-    private val _chartRange = MutableStateFlow(ChartRange.ONE_YEAR)
 
     init {
         load()
@@ -94,7 +93,7 @@ class AccountDetailViewModel(
                 launch {
                     combine(
                         snapshotRepository.observeSnapshotsForAccount(accountId),
-                        _chartRange,
+                        ChartRangePreference.range,
                     ) { snapshots, range ->
                         val balance = snapshots.firstOrNull()?.totalValue
                             ?: transactionRepository.getAccountBalance(accountId)
@@ -115,7 +114,7 @@ class AccountDetailViewModel(
                 launch {
                     combine(
                         transactionRepository.observeTransactionsForAccount(accountId),
-                        _chartRange,
+                        ChartRangePreference.range,
                     ) { transactions, range ->
                         buildBankCashHistory(transactions, range)
                     }.collect { history ->
@@ -194,8 +193,8 @@ class AccountDetailViewModel(
         transactionRepository.getAccountBalance(accountId)
 
     fun setChartRange(range: ChartRange) {
+        ChartRangePreference.set(range)
         _uiState.value = _uiState.value.copy(chartRange = range)
-        _chartRange.value = range
     }
 
     fun addTransaction(

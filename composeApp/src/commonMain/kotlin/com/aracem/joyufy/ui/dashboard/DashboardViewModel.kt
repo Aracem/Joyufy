@@ -90,7 +90,7 @@ class DashboardViewModel(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val _uiState = MutableStateFlow(DashboardUiState())
+    private val _uiState = MutableStateFlow(DashboardUiState(chartRange = ChartRangePreference.range.value))
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
@@ -144,15 +144,13 @@ class DashboardViewModel(
         }
     }
 
-    private val _chartRange = MutableStateFlow(ChartRange.ONE_YEAR)
-
     private fun observeWealthHistory() {
         scope.launch {
             combine(
                 accountRepository.observeAccounts(),
                 transactionRepository.observeAllBankCashTransactions(),
                 snapshotRepository.observeAllSnapshots(),
-                _chartRange,
+                ChartRangePreference.range,
             ) { accounts, transactions, snapshots, range ->
                 buildWealthHistory(accounts, transactions, snapshots, range)
             }.collect { points ->
@@ -301,8 +299,8 @@ class DashboardViewModel(
     }
 
     fun setChartRange(range: ChartRange) {
+        ChartRangePreference.set(range)
         _uiState.value = _uiState.value.copy(chartRange = range)
-        _chartRange.value = range
     }
 
     fun dismissMissingSnapshotBanner() {
