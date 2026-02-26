@@ -127,6 +127,13 @@ fun DashboardScreen(
             )
         }
 
+        // Resumen mensual
+        state.monthlySummary?.let { summary ->
+            item {
+                MonthlySummaryCard(summary = summary)
+            }
+        }
+
         // Sección cuentas
         item {
             Text(
@@ -469,6 +476,121 @@ private fun DraggableAccountCard(
             itemCenterY[summary.account.id] = centerY
         },
     )
+}
+
+@Composable
+private fun MonthlySummaryCard(summary: MonthlySummary) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+            .padding(20.dp),
+    ) {
+        Text(
+            text = "Este mes",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(16.dp))
+
+        // Income / Expenses / Net row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            MonthlyStat(
+                label = "Ingresos",
+                amount = summary.income,
+                color = Positive,
+                modifier = Modifier.weight(1f),
+            )
+            MonthlyStat(
+                label = "Gastos",
+                amount = summary.expenses,
+                color = Negative,
+                modifier = Modifier.weight(1f),
+            )
+            MonthlyStat(
+                label = "Balance",
+                amount = summary.net,
+                color = if (summary.net >= 0) Positive else Negative,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        if (summary.topCategories.isNotEmpty()) {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = "Top gastos",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+            )
+            Spacer(Modifier.height(10.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                summary.topCategories.forEach { cat ->
+                    CategoryBar(cat)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlyStat(
+    label: String,
+    amount: Double,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+        )
+        Spacer(Modifier.height(2.dp))
+        val sign = if (label == "Ingresos") "+" else if (label == "Gastos") "-" else if (amount >= 0) "+" else ""
+        Text(
+            text = "$sign${amount.formatCurrency()}",
+            style = MaterialTheme.typography.titleSmall,
+            color = color,
+        )
+    }
+}
+
+@Composable
+private fun CategoryBar(cat: CategoryBreakdown) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = cat.label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+            )
+            Text(
+                text = cat.amount.formatCurrency(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(cat.fraction)
+                    .fillMaxHeight()
+                    .clip(MaterialTheme.shapes.small)
+                    .background(Negative.copy(alpha = 0.7f)),
+            )
+        }
+    }
 }
 
 @Composable

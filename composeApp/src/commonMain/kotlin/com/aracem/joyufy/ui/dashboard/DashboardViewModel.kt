@@ -31,6 +31,19 @@ data class AccountSummary(
     val balance: Double,
 )
 
+data class CategoryBreakdown(
+    val label: String,
+    val amount: Double,
+    val fraction: Float,   // 0..1 relative to the largest category
+)
+
+data class MonthlySummary(
+    val income: Double,
+    val expenses: Double,
+    val net: Double,
+    val topCategories: List<CategoryBreakdown>,   // top expense categories, max 4
+)
+
 data class AccountPoint(
     val account: Account,
     val weekDate: Long,
@@ -66,6 +79,7 @@ data class DashboardUiState(
     val periodChangePct: Double? = null,    // percentage change over selected range
     val hiddenAccountIds: Set<Long> = emptySet(),
     val showTotal: Boolean = true,
+    val monthlySummary: MonthlySummary? = null,
 )
 
 class DashboardViewModel(
@@ -82,6 +96,7 @@ class DashboardViewModel(
     init {
         observeBalances()
         observeWealthHistory()
+        observeMonthlySummary()
         checkMissingSnapshots()
     }
 
@@ -215,6 +230,57 @@ class DashboardViewModel(
 
         val firstNonZero = points.indexOfFirst { it.totalWealth != 0.0 }
         return if (firstNonZero >= 0) points.drop(firstNonZero) else emptyList()
+    }
+
+    private fun observeMonthlySummary() {
+        scope.launch {
+            transactionRepository.observeAllBankCashTransactions().collect { transactions ->
+                val summary = buildMonthlySummary(transactions)
+                _uiState.value = _uiState.value.copy(monthlySummary = summary)
+            }
+        }
+    }
+
+    private fun buildMonthlySummary(transactions: List<Transaction>): MonthlySummary? {
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val monthStart = LocalDate(now.year, now.monthNumber, 1)
+            .atStartOfDayIn(TimeZone.currentSystemDefault())
+            .toEpochMilliseconds()
+
+        val thisMonth = transactions.filter { it.date >= monthStart }
+        if (thisMonth.isEmpty()) return null
+
+        val income = thisMonth
+            .filter { it.type == TransactionType.INCOME }
+            .sumOf { it.amount }
+        val expenses = thisMonth
+            .filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }
+            .sumOf { it.amount }
+
+        val topCategories = thisMonth
+            .filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }
+            .groupBy { it.category?.ifBlank { null } ?: "Otros" }
+            .mapValues { (_, txs) -> txs.sumOf { it.amount } }
+            .entries
+            .sortedByDescending { it.value }
+            .take(4)
+            .let { entries ->
+                val max = entries.firstOrNull()?.value ?: 1.0
+                entries.map { (label, amount) ->
+                    CategoryBreakdown(
+                        label = label,
+                        amount = amount,
+                        fraction = (amount / max).toFloat().coerceIn(0f, 1f),
+                    )
+                }
+            }
+
+        return MonthlySummary(
+            income = income,
+            expenses = expenses,
+            net = income - expenses,
+            topCategories = topCategories,
+        )
     }
 
     private fun checkMissingSnapshots() {
