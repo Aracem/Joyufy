@@ -1,6 +1,7 @@
 package com.aracem.joyufy.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,11 +12,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
+import com.aracem.joyufy.AppVersion
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
+import com.aracem.joyufy.ui.components.ConfettiBurst
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.joyufyColors
@@ -33,6 +39,9 @@ fun SettingsScreen(
 
     var accountToDelete by remember { mutableStateOf<Account?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
+    var versionClickCount by remember { mutableStateOf(0) }
+    var burstOrigin by remember { mutableStateOf<Offset?>(null) }
+    var burstKey by remember { mutableStateOf(0) }
 
     // Confirm delete single account
     if (accountToDelete != null) {
@@ -74,6 +83,7 @@ fun SettingsScreen(
         )
     }
 
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -156,7 +166,48 @@ fun SettingsScreen(
                 )
             }
         }
+
+        // ── Versión ───────────────────────────────────────────────────────
+        item {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Joyufy v${AppVersion.NAME}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .onGloballyPositioned { coords ->
+                            val pos = coords.positionInWindow()
+                            burstOrigin = Offset(
+                                x = pos.x + coords.size.width / 2f,
+                                y = pos.y + coords.size.height / 2f,
+                            )
+                        }
+                        .clickable {
+                            versionClickCount++
+                            if (versionClickCount >= 10) {
+                                burstKey++
+                                versionClickCount = 0
+                            }
+                        },
+                )
+            }
+        }
     }
+
+    burstOrigin?.let { origin ->
+        key(burstKey) {
+            if (burstKey > 0) {
+                ConfettiBurst(
+                    origin = origin,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
+    } // end Box
 }
 
 // ── Section container ──────────────────────────────────────────────────────
