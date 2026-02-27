@@ -18,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
@@ -61,6 +62,7 @@ data class WealthPoint(
 enum class ChartMode { AREA, BARS }
 
 enum class ChartRange(val weeks: Int?) {
+    ONE_WEEK(1),
     ONE_MONTH(4),
     THREE_MONTHS(13),
     SIX_MONTHS(26),
@@ -146,6 +148,7 @@ class DashboardViewModel(
                         combine(balanceFlows) { it.toList() }
                     }
                 }
+                .catch { _uiState.value = _uiState.value.copy(isLoading = false) }
                 .collect { summaries ->
                     val totalWealth = summaries.sumOf { it.balance }
                     _uiState.value = _uiState.value.copy(
