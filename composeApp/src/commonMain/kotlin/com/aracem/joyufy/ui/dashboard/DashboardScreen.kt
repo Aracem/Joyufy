@@ -351,6 +351,7 @@ private fun PeriodChangeBadge(
     val color = if (isPositive) Positive else Negative
     val sign = if (isPositive) "+" else ""
     val rangeLabel = when (range) {
+        ChartRange.ONE_WEEK     -> "en la última semana"
         ChartRange.ONE_MONTH    -> "en el último mes"
         ChartRange.THREE_MONTHS -> "en los últimos 3 meses"
         ChartRange.SIX_MONTHS  -> "en los últimos 6 meses"
@@ -380,6 +381,7 @@ fun ChartRangeSelector(
     modifier: Modifier = Modifier,
 ) {
     val items = listOf(
+        ChartRange.ONE_WEEK to "1S",
         ChartRange.ONE_MONTH to "1M",
         ChartRange.THREE_MONTHS to "3M",
         ChartRange.SIX_MONTHS to "6M",
