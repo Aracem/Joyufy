@@ -1,6 +1,8 @@
 package com.aracem.joyufy.ui.dashboard
 
 import com.aracem.joyufy.data.repository.AccountRepository
+import com.aracem.joyufy.update.UpdateInfo
+import com.aracem.joyufy.update.checkForUpdate
 import com.aracem.joyufy.data.repository.InvestmentSnapshotRepository
 import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.data.repository.WealthRepository
@@ -75,11 +77,12 @@ data class DashboardUiState(
     val accountsMissingSnapshot: List<Account> = emptyList(),
     val chartMode: ChartMode = ChartMode.AREA,
     val chartRange: ChartRange = ChartRange.ONE_YEAR,
-    val periodChange: Double? = null,       // absolute change over selected range
-    val periodChangePct: Double? = null,    // percentage change over selected range
+    val periodChange: Double? = null,
+    val periodChangePct: Double? = null,
     val hiddenAccountIds: Set<Long> = emptySet(),
     val showTotal: Boolean = true,
     val monthlySummary: MonthlySummary? = null,
+    val updateInfo: UpdateInfo? = null,
 )
 
 class DashboardViewModel(
@@ -99,6 +102,7 @@ class DashboardViewModel(
         observeMonthlySummary()
         checkMissingSnapshots()
         observeChartRange()
+        checkForUpdates()
     }
 
     private fun observeChartRange() {
@@ -288,6 +292,17 @@ class DashboardViewModel(
             net = income - expenses,
             topCategories = topCategories,
         )
+    }
+
+    private fun checkForUpdates() {
+        scope.launch {
+            val info = checkForUpdate()
+            if (info != null) _uiState.value = _uiState.value.copy(updateInfo = info)
+        }
+    }
+
+    fun dismissUpdateBanner() {
+        _uiState.value = _uiState.value.copy(updateInfo = null)
     }
 
     private fun checkMissingSnapshots() {

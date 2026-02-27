@@ -28,6 +28,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
+import com.aracem.joyufy.ui.openUrl
 import com.aracem.joyufy.ui.components.*
 import com.aracem.joyufy.ui.theme.*
 import kotlinx.coroutines.launch
@@ -59,6 +60,17 @@ fun DashboardScreen(
         contentPadding = PaddingValues(horizontal = 28.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        // Banner de actualización disponible
+        state.updateInfo?.let { info ->
+            item {
+                UpdateBanner(
+                    version = info.latestVersion,
+                    onOpenRelease = { openUrl(info.releaseUrl) },
+                    onDismiss = viewModel::dismissUpdateBanner,
+                )
+            }
+        }
+
         // Banner de snapshots pendientes
         if (state.accountsMissingSnapshot.isNotEmpty()) {
             item {

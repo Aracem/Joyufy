@@ -1,9 +1,11 @@
 package com.aracem.joyufy.ui
 
+import java.awt.Desktop
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
 import java.io.FilenameFilter
+import java.net.URI
 
 /** Shows a native save dialog and returns the chosen file path, or null if cancelled. */
 actual fun showSaveFileDialog(suggestedName: String): String? {
@@ -16,6 +18,12 @@ actual fun showSaveFileDialog(suggestedName: String): String? {
     val file = dialog.file ?: return null
     val path = if (file.endsWith(".json")) "$dir$file" else "$dir$file.json"
     return path
+}
+
+actual fun openUrl(url: String) {
+    if (Desktop.isDesktopSupported()) {
+        runCatching { Desktop.getDesktop().browse(URI(url)) }
+    }
 }
 
 /** Shows a native open dialog and returns the content of the chosen file, or null if cancelled. */

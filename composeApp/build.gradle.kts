@@ -70,15 +70,23 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Joyufy"
             packageVersion = "1.0.0"
+            description = "Control personal de finanzas"
+            copyright = "© 2026 Aracem"
+            vendor = "Aracem"
 
             macOS {
+                bundleID = "com.aracem.joyufy"
                 iconFile.set(project.file("src/desktopMain/resources/icon.icns"))
             }
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icon.ico"))
+                upgradeUuid = "a3f1e2d4-7b8c-4f5a-9e6d-1c2b3a4d5e6f"
+                menuGroup = "Joyufy"
+                perUserInstall = true
             }
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icon.png"))
+                packageName = "joyufy"
             }
         }
     }
