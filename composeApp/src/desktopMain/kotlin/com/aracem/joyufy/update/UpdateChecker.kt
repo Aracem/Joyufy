@@ -13,7 +13,7 @@ actual suspend fun checkForUpdate(): UpdateInfo? = UpdateChecker.check()
 
 private object UpdateChecker {
     private const val API_URL =
-        "https://api.github.com/repos/Aracem/nexlify/releases/latest"
+        "https://api.github.com/repos/Aracem/jojufy/releases/latest"
 
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
         runCatching {
