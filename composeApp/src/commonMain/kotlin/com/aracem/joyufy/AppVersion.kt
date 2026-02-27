@@ -1,5 +1,5 @@
 package com.aracem.joyufy
 
 object AppVersion {
-    const val NAME = "1.0.2"
+    const val NAME = "1.0.3"
 }
