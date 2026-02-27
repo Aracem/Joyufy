@@ -31,6 +31,22 @@ Diseñado para quien quiere ver su patrimonio total de un vistazo, sin bancos co
 
 ---
 
+## Instalación en macOS
+
+Al abrir la app por primera vez macOS mostrará un aviso de seguridad porque la app no está firmada con un certificado de Apple. Para abrirla:
+
+1. Click derecho sobre `Joyufy.app` → **Abrir**
+2. En el diálogo, click **Abrir igualmente**
+
+O desde Terminal:
+```bash
+xattr -cr /Applications/Joyufy.app
+```
+
+Solo es necesario hacerlo una vez.
+
+---
+
 ## Stack
 
 Kotlin · Compose Multiplatform · SQLDelight · Koin
