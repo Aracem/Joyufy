@@ -4,6 +4,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -187,6 +188,9 @@ fun AccountDetailScreen(
                     text = animatedBalance.toDouble().formatCurrency(),
                     style = MaterialTheme.typography.displayLarge,
                     color = if (state.balance >= 0) Positive else Negative,
+                    modifier = if (account.type == AccountType.INVESTMENT)
+                        Modifier.clickable { showAddSnapshot = true }
+                    else Modifier,
                 )
                 val change = state.periodChange
                 val changePct = state.periodChangePct
