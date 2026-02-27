@@ -1,7 +1,10 @@
 package com.aracem.joyufy.ui.dashboard
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -23,6 +26,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -31,6 +36,7 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.ui.openUrl
 import com.aracem.joyufy.ui.components.*
 import com.aracem.joyufy.ui.theme.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -53,6 +59,12 @@ fun DashboardScreen(
         return
     }
 
+    var wealthClickCount by remember { mutableStateOf(0) }
+    var showConfetti by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val wealthScale = remember { Animatable(1f) }
+
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -105,10 +117,45 @@ fun DashboardScreen(
                     targetValue = state.totalWealth.toFloat(),
                     animationSpec = tween(600, easing = FastOutSlowInEasing),
                 )
+                val easterEggFraction = (wealthClickCount / 20f).coerceIn(0f, 1f)
+                val wealthColor = lerp(
+                    start = MaterialTheme.colorScheme.onSurface,
+                    stop = Positive,
+                    fraction = easterEggFraction,
+                )
                 Text(
                     text = animatedWealth.toDouble().formatCurrency(),
                     style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = wealthColor,
+                    modifier = Modifier
+                        .scale(wealthScale.value)
+                        .clickable {
+                            wealthClickCount++
+                            scope.launch {
+                                wealthScale.animateTo(
+                                    targetValue = 1.05f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessHigh,
+                                    ),
+                                )
+                                wealthScale.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium,
+                                    ),
+                                )
+                            }
+                            if (wealthClickCount >= 20) {
+                                showConfetti = true
+                                scope.launch {
+                                    delay(4000)
+                                    showConfetti = false
+                                    wealthClickCount = 0
+                                }
+                            }
+                        },
                 )
                 val change = state.periodChange
                 val changePct = state.periodChangePct
@@ -209,6 +256,11 @@ fun DashboardScreen(
             }
         }
     }
+
+    if (showConfetti) {
+        ConfettiOverlay(modifier = Modifier.matchParentSize())
+    }
+    } // end Box
 }
 
 @Composable
@@ -637,3 +689,4 @@ private fun DashboardMenu(
         }
     }
 }
+
