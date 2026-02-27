@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.ui.theme.Positive
 
@@ -37,17 +38,21 @@ fun UpdateBanner(
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).widthIn(min = 0.dp)) {
             Text(
-                text = "Nueva versión disponible — v$version",
+                text = "Nueva versión — v$version",
                 style = MaterialTheme.typography.labelLarge,
                 color = Positive,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "Descarga la actualización desde GitHub",
+                text = "Actualización disponible",
                 style = MaterialTheme.typography.bodySmall,
                 color = Positive.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         Spacer(Modifier.width(8.dp))
