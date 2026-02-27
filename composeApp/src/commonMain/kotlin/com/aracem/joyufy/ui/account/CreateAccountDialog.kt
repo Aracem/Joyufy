@@ -78,6 +78,13 @@ fun CreateAccountDialog(
 
                 Spacer(Modifier.height(20.dp))
 
+                // ── Scrollable body ───────────────────────────────────────
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+
                 // ── Presets ───────────────────────────────────────────────
                 Text(
                     text = "Banco o plataforma",
@@ -251,6 +258,8 @@ fun CreateAccountDialog(
                 }
 
                 Spacer(Modifier.height(24.dp))
+
+                } // end scrollable body
 
                 // ── Actions ───────────────────────────────────────────────
                 Row(
