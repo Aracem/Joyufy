@@ -1,6 +1,7 @@
 package com.aracem.joyufy.ui.dashboard
 
 import com.aracem.joyufy.data.repository.AccountRepository
+import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.update.UpdateInfo
 import com.aracem.joyufy.update.checkForUpdate
 import com.aracem.joyufy.data.repository.InvestmentSnapshotRepository
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
@@ -51,6 +53,9 @@ data class MonthBreakdown(
     val monthNumber: Int,   // 1..12
     val income: Double,
     val expenses: Double,
+    val investmentDelta: Double,  // change in investment value (positive = gain, negative = loss)
+    val net: Double,              // income - expenses + investmentDelta
+    val topCategories: List<CategoryBreakdown>,
 )
 
 data class AnnualSummary(
@@ -58,6 +63,8 @@ data class AnnualSummary(
     val months: List<MonthBreakdown>,   // 12 entries, Jan..Dec
     val totalIncome: Double,
     val totalExpenses: Double,
+    val totalInvestmentDelta: Double,
+    val totalNet: Double,
 )
 
 data class AccountPoint(
@@ -98,6 +105,8 @@ data class DashboardUiState(
     val showTotal: Boolean = true,
     val monthlySummary: MonthlySummary? = null,
     val annualSummary: AnnualSummary? = null,
+    val selectedAnalysisYear: Int = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year,
+    val analysisExpanded: Boolean = false,
     val updateInfo: UpdateInfo? = null,
 )
 
@@ -106,10 +115,19 @@ class DashboardViewModel(
     private val transactionRepository: TransactionRepository,
     private val snapshotRepository: InvestmentSnapshotRepository,
     private val wealthRepository: WealthRepository,
+    private val preferencesRepository: PreferencesRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val _uiState = MutableStateFlow(DashboardUiState(chartRange = ChartRangePreference.range.value))
+    private val currentYear = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
+
+    private val _uiState = MutableStateFlow(
+        DashboardUiState(
+            chartRange = ChartRangePreference.range.value,
+            selectedAnalysisYear = currentYear,
+            analysisExpanded = preferencesRepository.getAnalysisExpanded(),
+        )
+    )
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
@@ -272,53 +290,85 @@ class DashboardViewModel(
 
     private fun observeAnnualSummary() {
         scope.launch {
-            transactionRepository.observeAllBankCashTransactions().collect { transactions ->
-                val summary = buildAnnualSummary(transactions)
+            combine(
+                transactionRepository.observeAllBankCashTransactions(),
+                snapshotRepository.observeAllSnapshots(),
+                _uiState.map { it.selectedAnalysisYear },
+            ) { transactions, snapshots, year ->
+                buildAnnualSummary(transactions, snapshots, year)
+            }.collect { summary ->
                 _uiState.value = _uiState.value.copy(annualSummary = summary)
             }
         }
     }
 
-    private fun buildAnnualSummary(transactions: List<Transaction>): AnnualSummary? {
-        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        val year = now.year
-        val yearStart = LocalDate(year, 1, 1)
-            .atStartOfDayIn(TimeZone.currentSystemDefault())
-            .toEpochMilliseconds()
-        val yearEnd = LocalDate(year, 12, 31)
-            .atStartOfDayIn(TimeZone.currentSystemDefault())
-            .toEpochMilliseconds() + 86_400_000L - 1
+    private fun buildAnnualSummary(
+        transactions: List<Transaction>,
+        snapshots: List<InvestmentSnapshot>,
+        year: Int,
+    ): AnnualSummary? {
+        val tz = TimeZone.currentSystemDefault()
+        val yearStart = LocalDate(year, 1, 1).atStartOfDayIn(tz).toEpochMilliseconds()
+        val yearEnd = LocalDate(year, 12, 31).atStartOfDayIn(tz).toEpochMilliseconds() + 86_400_000L - 1
 
         val thisYear = transactions.filter { it.date in yearStart..yearEnd }
-        if (thisYear.isEmpty()) return null
+
+        // Group snapshots by accountId for investment delta calculation
+        val snapshotsByAccount = snapshots.groupBy { it.accountId }
 
         val months = (1..12).map { month ->
-            val monthStart = LocalDate(year, month, 1)
-                .atStartOfDayIn(TimeZone.currentSystemDefault())
-                .toEpochMilliseconds()
+            val monthStart = LocalDate(year, month, 1).atStartOfDayIn(tz).toEpochMilliseconds()
             val lastDay = when (month) {
                 1, 3, 5, 7, 8, 10, 12 -> 31
                 4, 6, 9, 11 -> 30
                 2 -> if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) 29 else 28
                 else -> 30
             }
-            val monthEnd = LocalDate(year, month, lastDay)
-                .atStartOfDayIn(TimeZone.currentSystemDefault())
-                .toEpochMilliseconds() + 86_400_000L - 1
+            val monthEnd = LocalDate(year, month, lastDay).atStartOfDayIn(tz).toEpochMilliseconds() + 86_400_000L - 1
 
             val monthTxs = thisYear.filter { it.date in monthStart..monthEnd }
+
+            val income = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+            val expenses = monthTxs.filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }.sumOf { it.amount }
+
+            // Investment delta: latest snapshot this month minus latest snapshot before this month, per account
+            val investmentDelta = snapshotsByAccount.values.sumOf { accountSnapshots ->
+                val endValue = accountSnapshots.filter { it.weekDate <= monthEnd }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
+                val startValue = accountSnapshots.filter { it.weekDate < monthStart }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
+                endValue - startValue
+            }
+
+            val topCategories = monthTxs
+                .filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }
+                .groupBy { it.category?.ifBlank { null } ?: "Otros" }
+                .mapValues { (_, txs) -> txs.sumOf { it.amount } }
+                .entries.sortedByDescending { it.value }.take(4)
+                .let { entries ->
+                    val max = entries.firstOrNull()?.value ?: 1.0
+                    entries.map { (label, amount) ->
+                        CategoryBreakdown(label, amount, (amount / max).toFloat().coerceIn(0f, 1f))
+                    }
+                }
+
             MonthBreakdown(
                 monthNumber = month,
-                income = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
-                expenses = monthTxs.filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }.sumOf { it.amount },
+                income = income,
+                expenses = expenses,
+                investmentDelta = investmentDelta,
+                net = income - expenses + investmentDelta,
+                topCategories = topCategories,
             )
         }
+
+        if (months.all { it.income == 0.0 && it.expenses == 0.0 && it.investmentDelta == 0.0 }) return null
 
         return AnnualSummary(
             year = year,
             months = months,
             totalIncome = months.sumOf { it.income },
             totalExpenses = months.sumOf { it.expenses },
+            totalInvestmentDelta = months.sumOf { it.investmentDelta },
+            totalNet = months.sumOf { it.net },
         )
     }
 
@@ -373,6 +423,16 @@ class DashboardViewModel(
 
     fun dismissUpdateBanner() {
         _uiState.value = _uiState.value.copy(updateInfo = null)
+    }
+
+    fun setAnalysisExpanded(expanded: Boolean) {
+        _uiState.value = _uiState.value.copy(analysisExpanded = expanded)
+        preferencesRepository.setAnalysisExpanded(expanded)
+    }
+
+    fun navigateAnalysisYear(delta: Int) {
+        val newYear = (_uiState.value.selectedAnalysisYear + delta).coerceAtMost(currentYear)
+        _uiState.value = _uiState.value.copy(selectedAnalysisYear = newYear)
     }
 
     private fun checkMissingSnapshots() {

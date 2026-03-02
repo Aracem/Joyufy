@@ -10,4 +10,10 @@ class PreferencesRepository {
     fun setDarkMode(value: Boolean) {
         prefs.putBoolean("dark_mode", value)
     }
+
+    fun getAnalysisExpanded(): Boolean = prefs.getBoolean("analysis_expanded", false)
+
+    fun setAnalysisExpanded(value: Boolean) {
+        prefs.putBoolean("analysis_expanded", value)
+    }
 }

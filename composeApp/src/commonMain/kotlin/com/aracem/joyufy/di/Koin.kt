@@ -28,7 +28,7 @@ val dataModule = module {
 }
 
 val viewModelModule = module {
-    factory { DashboardViewModel(get(), get(), get(), get()) }
+    factory { DashboardViewModel(get(), get(), get(), get(), get()) }
     factory { CreateAccountViewModel(get(), get()) }
     factory { (accountId: Long) -> AccountDetailViewModel(accountId, get(), get(), get()) }
     factory { BackupViewModel(get()) }
