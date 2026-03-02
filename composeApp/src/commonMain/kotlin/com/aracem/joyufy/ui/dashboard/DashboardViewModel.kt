@@ -329,7 +329,7 @@ class DashboardViewModel(
             val monthTxs = thisYear.filter { it.date in monthStart..monthEnd }
 
             val income = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-            val expenses = monthTxs.filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }.sumOf { it.amount }
+            val expenses = monthTxs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
             // Investment delta: latest snapshot this month minus latest snapshot before this month, per account
             val investmentDelta = snapshotsByAccount.values.sumOf { accountSnapshots ->
@@ -339,7 +339,7 @@ class DashboardViewModel(
             }
 
             val topCategories = monthTxs
-                .filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }
+                .filter { it.type == TransactionType.EXPENSE }
                 .groupBy { it.category?.ifBlank { null } ?: "Otros" }
                 .mapValues { (_, txs) -> txs.sumOf { it.amount } }
                 .entries.sortedByDescending { it.value }.take(4)
@@ -385,11 +385,11 @@ class DashboardViewModel(
             .filter { it.type == TransactionType.INCOME }
             .sumOf { it.amount }
         val expenses = thisMonth
-            .filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }
+            .filter { it.type == TransactionType.EXPENSE }
             .sumOf { it.amount }
 
         val topCategories = thisMonth
-            .filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }
+            .filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.category?.ifBlank { null } ?: "Otros" }
             .mapValues { (_, txs) -> txs.sumOf { it.amount } }
             .entries

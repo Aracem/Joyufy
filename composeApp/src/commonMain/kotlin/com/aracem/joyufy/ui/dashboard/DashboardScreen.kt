@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
@@ -620,13 +621,32 @@ private fun AnalysisCard(
         ) {
             Column(modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 20.dp)) {
 
-                // ── Resumen mensual ───────────────────────────────────────
-                if (monthlySummary != null) {
-                    MonthlySection(monthlySummary)
+                // ── Resumen mensual — muestra el mes seleccionado o el actual ──
+                val displayMonth: MonthBreakdown? = selectedMonth
+                    ?: monthlySummary?.let { ms ->
+                        // Construir un MonthBreakdown del mes actual a partir de MonthlySummary
+                        val nowMonth = Clock.System.now()
+                            .toLocalDateTime(TimeZone.currentSystemDefault()).monthNumber
+                        MonthBreakdown(
+                            monthNumber = nowMonth,
+                            income = ms.income,
+                            expenses = ms.expenses,
+                            investmentDelta = 0.0,
+                            net = ms.net,
+                            topCategories = ms.topCategories,
+                        )
+                    }
+
+                if (displayMonth != null) {
+                    MonthlySection(
+                        month = displayMonth,
+                        isCurrentMonth = selectedMonth == null,
+                        onClearSelection = { selectedMonth = null },
+                    )
                 }
 
                 // ── Divider entre secciones ───────────────────────────────
-                if (monthlySummary != null && annualSummary != null) {
+                if (displayMonth != null && annualSummary != null) {
                     Spacer(Modifier.height(20.dp))
                     HorizontalDivider(color = MaterialTheme.joyufyColors.border)
                     Spacer(Modifier.height(16.dp))
@@ -653,69 +673,88 @@ private fun AnalysisCard(
 
 // ── Sección mensual ────────────────────────────────────────────────────────────
 
-@Composable
-private fun MonthlySection(summary: MonthlySummary) {
-    val monthName = remember {
-        val m = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).monthNumber
-        listOf("","Enero","Febrero","Marzo","Abril","Mayo","Junio",
-            "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")[m]
-    }
+private val monthFullNames = listOf(
+    "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+)
 
-    // Header row: "Este mes" label + month name
+@Composable
+private fun MonthlySection(
+    month: MonthBreakdown,
+    isCurrentMonth: Boolean,
+    onClearSelection: () -> Unit,
+) {
+    val monthName = monthFullNames[month.monthNumber]
+
+    // Header: mes + neto + botón volver si es seleccionado
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = "Este mes",
+            text = if (isCurrentMonth) "Este mes" else monthName,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
-        Text(
-            text = monthName,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.joyufyColors.contentSecondary,
-        )
+        if (isCurrentMonth) {
+            Text(
+                text = monthName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+            )
+        } else {
+            // Neto del mes en el header
+            val netColor = if (month.net >= 0) Positive else Negative
+            val netSign = if (month.net >= 0) "+" else ""
+            Text(
+                text = "$netSign${month.net.formatCurrency()}",
+                style = MaterialTheme.typography.titleSmall,
+                color = netColor,
+            )
+            Spacer(Modifier.width(8.dp))
+            IconButton(onClick = onClearSelection, modifier = Modifier.size(20.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Volver al mes actual",
+                    tint = MaterialTheme.joyufyColors.contentSecondary,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
     }
     Spacer(Modifier.height(12.dp))
 
     // Stats row
     Row(modifier = Modifier.fillMaxWidth()) {
-        MonthlyStat("Ingresos", summary.income, Positive, Modifier.weight(1f))
-        MonthlyStat("Gastos", summary.expenses, Negative, Modifier.weight(1f))
+        MonthlyStat("Ingresos", month.income, Positive, Modifier.weight(1f))
+        MonthlyStat("Gastos", month.expenses, Negative, Modifier.weight(1f))
+        if (month.investmentDelta != 0.0) {
+            val d = month.investmentDelta
+            MonthlyStat(
+                label = "Inversión",
+                amount = kotlin.math.abs(d),
+                color = if (d >= 0) Positive else Negative,
+                modifier = Modifier.weight(1f),
+                prefix = if (d >= 0) "+" else "-",
+            )
+        }
         MonthlyStat(
             label = "Neto",
-            amount = summary.net,
-            color = if (summary.net >= 0) Positive else Negative,
+            amount = month.net,
+            color = if (month.net >= 0) Positive else Negative,
             modifier = Modifier.weight(1f),
         )
     }
 
-    // Top categories as compact chips
-    if (summary.topCategories.isNotEmpty()) {
-        Spacer(Modifier.height(12.dp))
+    // Top categories
+    if (month.topCategories.isNotEmpty()) {
+        Spacer(Modifier.height(14.dp))
         Text(
             text = "Top gastos",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.joyufyColors.contentSecondary,
         )
-        Spacer(Modifier.height(6.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            summary.topCategories.take(4).forEach { cat ->
-                Box(
-                    modifier = Modifier
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        text = "${cat.label}  ${cat.amount.formatCurrency()}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.joyufyColors.contentSecondary,
-                    )
-                }
-            }
+        Spacer(Modifier.height(8.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            month.topCategories.forEach { CategoryBar(it) }
         }
     }
 }
@@ -873,64 +912,6 @@ private fun AnnualSection(
         }
     }
 
-    // ── Detalle del mes seleccionado ──────────────────────────────────────
-    AnimatedVisibility(
-        visible = selectedMonth != null,
-        enter = expandVertically(),
-        exit = shrinkVertically(),
-    ) {
-        selectedMonth?.let { month ->
-            val mName = listOf("","Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")[month.monthNumber]
-            Column {
-                Spacer(Modifier.height(16.dp))
-                HorizontalDivider(color = MaterialTheme.joyufyColors.border)
-                Spacer(Modifier.height(12.dp))
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = mName,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f),
-                    )
-                    val netColor = if (month.net >= 0) Positive else Negative
-                    val netSign = if (month.net >= 0) "+" else ""
-                    Text(
-                        text = "$netSign${month.net.formatCurrency()}",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = netColor,
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    MonthlyStat("Ingresos", month.income, Positive, Modifier.weight(1f))
-                    MonthlyStat("Gastos", month.expenses, Negative, Modifier.weight(1f))
-                    if (month.investmentDelta != 0.0) {
-                        val d = month.investmentDelta
-                        MonthlyStat(
-                            label = "Inversión",
-                            amount = kotlin.math.abs(d),
-                            color = if (d >= 0) Positive else Negative,
-                            modifier = Modifier.weight(1f),
-                            prefix = if (d >= 0) "+" else "-",
-                        )
-                    }
-                }
-                if (month.topCategories.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = "Top gastos",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.joyufyColors.contentSecondary,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        month.topCategories.forEach { CategoryBar(it) }
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
