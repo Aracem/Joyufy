@@ -34,7 +34,7 @@ fun AccountLogo(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(Color.White),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         if (res != null) {

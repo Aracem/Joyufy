@@ -276,6 +276,7 @@ private fun DrawScope.drawTooltipBackground(
     width: Float,
     height: Float,
     surfaceColor: Color,
+    borderColor: Color,
 ) {
     drawRoundRect(
         color = surfaceColor.copy(alpha = 0.96f),
@@ -284,7 +285,7 @@ private fun DrawScope.drawTooltipBackground(
         cornerRadius = CornerRadius(6.dp.toPx()),
     )
     drawRoundRect(
-        color = Color.White.copy(alpha = 0.06f),
+        color = borderColor.copy(alpha = 0.15f),
         topLeft = Offset(x, y),
         size = Size(width, height),
         cornerRadius = CornerRadius(6.dp.toPx()),
@@ -352,7 +353,7 @@ private fun DrawScope.drawWealthTooltip(
     }
     val tooltipY = (topPadding + 2.dp.toPx()).coerceAtMost(size.height - tooltipH).coerceAtLeast(0f)
 
-    drawTooltipBackground(tooltipX, tooltipY, tooltipW, tooltipH, surfaceColor)
+    drawTooltipBackground(tooltipX, tooltipY, tooltipW, tooltipH, surfaceColor, onSurfaceColor)
 
     var curY = tooltipY + paddingV
 
@@ -418,7 +419,7 @@ private fun DrawScope.drawSingleTooltip(
     }
     val tooltipY = (topPadding + 2.dp.toPx()).coerceAtMost(size.height - tooltipH).coerceAtLeast(0f)
 
-    drawTooltipBackground(tooltipX, tooltipY, tooltipW, tooltipH, surfaceColor)
+    drawTooltipBackground(tooltipX, tooltipY, tooltipW, tooltipH, surfaceColor, onSurfaceColor)
 
     var curY = tooltipY + paddingV
     drawText(dateLr, topLeft = Offset(tooltipX + paddingH, curY))
