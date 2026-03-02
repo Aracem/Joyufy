@@ -44,3 +44,4 @@ local.properties
 # Keystores
 *.keystore
 *.jks
+/.claude/settings.local.json
