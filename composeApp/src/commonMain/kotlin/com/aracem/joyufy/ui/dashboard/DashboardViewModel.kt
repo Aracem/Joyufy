@@ -47,6 +47,19 @@ data class MonthlySummary(
     val topCategories: List<CategoryBreakdown>,   // top expense categories, max 4
 )
 
+data class MonthBreakdown(
+    val monthNumber: Int,   // 1..12
+    val income: Double,
+    val expenses: Double,
+)
+
+data class AnnualSummary(
+    val year: Int,
+    val months: List<MonthBreakdown>,   // 12 entries, Jan..Dec
+    val totalIncome: Double,
+    val totalExpenses: Double,
+)
+
 data class AccountPoint(
     val account: Account,
     val weekDate: Long,
@@ -84,6 +97,7 @@ data class DashboardUiState(
     val hiddenAccountIds: Set<Long> = emptySet(),
     val showTotal: Boolean = true,
     val monthlySummary: MonthlySummary? = null,
+    val annualSummary: AnnualSummary? = null,
     val updateInfo: UpdateInfo? = null,
 )
 
@@ -102,6 +116,7 @@ class DashboardViewModel(
         observeBalances()
         observeWealthHistory()
         observeMonthlySummary()
+        observeAnnualSummary()
         checkMissingSnapshots()
         observeChartRange()
         checkForUpdates()
@@ -253,6 +268,58 @@ class DashboardViewModel(
                 _uiState.value = _uiState.value.copy(monthlySummary = summary)
             }
         }
+    }
+
+    private fun observeAnnualSummary() {
+        scope.launch {
+            transactionRepository.observeAllBankCashTransactions().collect { transactions ->
+                val summary = buildAnnualSummary(transactions)
+                _uiState.value = _uiState.value.copy(annualSummary = summary)
+            }
+        }
+    }
+
+    private fun buildAnnualSummary(transactions: List<Transaction>): AnnualSummary? {
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val year = now.year
+        val yearStart = LocalDate(year, 1, 1)
+            .atStartOfDayIn(TimeZone.currentSystemDefault())
+            .toEpochMilliseconds()
+        val yearEnd = LocalDate(year, 12, 31)
+            .atStartOfDayIn(TimeZone.currentSystemDefault())
+            .toEpochMilliseconds() + 86_400_000L - 1
+
+        val thisYear = transactions.filter { it.date in yearStart..yearEnd }
+        if (thisYear.isEmpty()) return null
+
+        val months = (1..12).map { month ->
+            val monthStart = LocalDate(year, month, 1)
+                .atStartOfDayIn(TimeZone.currentSystemDefault())
+                .toEpochMilliseconds()
+            val lastDay = when (month) {
+                1, 3, 5, 7, 8, 10, 12 -> 31
+                4, 6, 9, 11 -> 30
+                2 -> if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) 29 else 28
+                else -> 30
+            }
+            val monthEnd = LocalDate(year, month, lastDay)
+                .atStartOfDayIn(TimeZone.currentSystemDefault())
+                .toEpochMilliseconds() + 86_400_000L - 1
+
+            val monthTxs = thisYear.filter { it.date in monthStart..monthEnd }
+            MonthBreakdown(
+                monthNumber = month,
+                income = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount },
+                expenses = monthTxs.filter { it.type == TransactionType.EXPENSE || it.type == TransactionType.TRANSFER }.sumOf { it.amount },
+            )
+        }
+
+        return AnnualSummary(
+            year = year,
+            months = months,
+            totalIncome = months.sumOf { it.income },
+            totalExpenses = months.sumOf { it.expenses },
+        )
     }
 
     private fun buildMonthlySummary(transactions: List<Transaction>): MonthlySummary? {

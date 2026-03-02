@@ -193,6 +193,13 @@ fun DashboardScreen(
             }
         }
 
+        // Resumen anual
+        state.annualSummary?.let { summary ->
+            item {
+                AnnualSummaryCard(summary = summary)
+            }
+        }
+
         // Sección cuentas
         item {
             Text(
@@ -655,6 +662,146 @@ private fun CategoryBar(cat: CategoryBreakdown) {
                     .clip(MaterialTheme.shapes.small)
                     .background(Negative.copy(alpha = 0.7f)),
             )
+        }
+    }
+}
+
+@Composable
+private fun AnnualSummaryCard(summary: AnnualSummary) {
+    val monthNames = listOf("E", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D")
+    val maxBar = summary.months.maxOf { maxOf(it.income, it.expenses) }.coerceAtLeast(1.0)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+            .padding(20.dp),
+    ) {
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Año ${summary.year}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+
+        // Totals row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            MonthlyStat(
+                label = "Ingresos",
+                amount = summary.totalIncome,
+                color = Positive,
+                modifier = Modifier.weight(1f),
+            )
+            MonthlyStat(
+                label = "Gastos",
+                amount = summary.totalExpenses,
+                color = Negative,
+                modifier = Modifier.weight(1f),
+            )
+            MonthlyStat(
+                label = "Balance",
+                amount = summary.totalIncome - summary.totalExpenses,
+                color = if (summary.totalIncome >= summary.totalExpenses) Positive else Negative,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        // Bar chart: income (green) + expenses (red) per month
+        Row(
+            modifier = Modifier.fillMaxWidth().height(80.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            summary.months.forEachIndexed { index, month ->
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom,
+                ) {
+                    // Bars stacked side by side inside the column weight
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(1.dp),
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        // Income bar
+                        if (month.income > 0) {
+                            val fraction = (month.income / maxBar).toFloat()
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(fraction)
+                                    .clip(MaterialTheme.shapes.extraSmall)
+                                    .background(Positive.copy(alpha = 0.7f)),
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                        // Expense bar
+                        if (month.expenses > 0) {
+                            val fraction = (month.expenses / maxBar).toFloat()
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(fraction)
+                                    .clip(MaterialTheme.shapes.extraSmall)
+                                    .background(Negative.copy(alpha = 0.7f)),
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = monthNames[index],
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.7f),
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Legend
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Positive.copy(alpha = 0.7f))
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    text = "Ingresos",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Negative.copy(alpha = 0.7f))
+                )
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    text = "Gastos",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
+            }
         }
     }
 }
