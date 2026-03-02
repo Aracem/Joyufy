@@ -37,6 +37,22 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+// ── Y-axis range ─────────────────────────────────────────────────────────────
+//
+// If the series never touches values near 0 (min > 15% of max), we use a
+// smart baseline so movements are visually meaningful. Otherwise we anchor to 0
+// so the chart is not misleading.
+//
+// Returns Pair(yMin, yMax) ready to use as chart bounds.
+private fun smartYRange(rawMin: Double, rawMax: Double): Pair<Double, Double> {
+    val safeMax = rawMax.coerceAtLeast(rawMin + 1.0)
+    // Only lift the baseline when min is meaningfully above zero
+    val liftBaseline = rawMin > 0 && rawMin > safeMax * 0.15
+    val yMin = if (liftBaseline) (rawMin * 0.90).coerceAtLeast(0.0) else rawMin.coerceAtMost(0.0)
+    val yMax = safeMax * 1.05
+    return Pair(yMin, yMax)
+}
+
 // ── Layout constants ──────────────────────────────────────────────────────────
 
 private val leftPadding = 56f
@@ -439,8 +455,7 @@ private fun DrawScope.drawAreaChart(
         val accountValues = wp.byAccount.map { it.balance }
         if (showTotalLine) listOf(wp.totalWealth) + accountValues else accountValues
     }
-    val minVal = allValues.minOrNull()!!.coerceAtMost(0.0)
-    val maxVal = allValues.maxOrNull()!!.coerceAtLeast(minVal + 1.0)
+    val (minVal, maxVal) = smartYRange(allValues.minOrNull()!!, allValues.maxOrNull()!!)
     val range = maxVal - minVal
 
     fun xOf(i: Int): Float = if (points.size == 1) chartLeft + chartW / 2f
@@ -588,8 +603,7 @@ private fun DrawScope.drawBarChart(
     val allBarValues = points.flatMap { wp ->
         listOf(wp.totalWealth) + wp.byAccount.map { it.balance }
     }
-    val minVal = allBarValues.minOrNull()!!.coerceAtMost(0.0)
-    val maxVal = allBarValues.maxOrNull()!!.coerceAtLeast(minVal + 1.0)
+    val (minVal, maxVal) = smartYRange(allBarValues.minOrNull()!!, allBarValues.maxOrNull()!!)
     val range = maxVal - minVal
 
     val barCount = points.size
@@ -619,8 +633,8 @@ private fun DrawScope.drawBarChart(
         } else {
             var stackBottom = chartBottom
             point.byAccount.forEach { ap ->
-                if (ap.balance > 0) {
-                    val segH = ((ap.balance / (maxVal - minVal)) * chartH).toFloat().coerceAtLeast(1f)
+                if (ap.balance > minVal) {
+                    val segH = (((ap.balance - minVal) / range) * chartH).toFloat().coerceAtLeast(1f)
                     val segY = stackBottom - segH
                     drawRoundRect(
                         color = ap.account.color.copy(alpha = if (isHovered) 1f else 0.85f),
@@ -696,8 +710,7 @@ private fun DrawScope.drawSingleAreaChart(
     val chartW = chartRight - chartLeft
     val chartH = chartBottom - chartTop
 
-    val minVal = points.minOf { it.balance }.coerceAtMost(0.0)
-    val maxVal = points.maxOf { it.balance }.coerceAtLeast(minVal + 1.0)
+    val (minVal, maxVal) = smartYRange(points.minOf { it.balance }, points.maxOf { it.balance })
     val range = maxVal - minVal
 
     fun xOf(i: Int): Float = if (points.size == 1) chartLeft + chartW / 2f
@@ -803,8 +816,7 @@ private fun DrawScope.drawSingleBarChart(
     val chartW = chartRight - chartLeft
     val chartH = chartBottom - chartTop
 
-    val minVal = points.minOf { it.balance }.coerceAtMost(0.0)
-    val maxVal = points.maxOf { it.balance }.coerceAtLeast(minVal + 1.0)
+    val (minVal, maxVal) = smartYRange(points.minOf { it.balance }, points.maxOf { it.balance })
     val range = maxVal - minVal
 
     val barCount = points.size
