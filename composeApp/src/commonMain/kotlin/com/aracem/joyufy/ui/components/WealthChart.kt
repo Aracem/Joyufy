@@ -99,7 +99,7 @@ fun WealthChart(
     }
 
     if (filteredPoints.isEmpty()) {
-        Box(modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+        Box(modifier.fillMaxWidth().height(260.dp), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     imageVector = Icons.Default.DateRange,
@@ -132,7 +132,7 @@ fun WealthChart(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(200.dp)
+            .height(260.dp)
             .onSizeChanged { canvasSize = it }
             .pointerInput(Unit) {
                 awaitPointerEventScope {

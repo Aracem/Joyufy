@@ -8,7 +8,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -273,7 +277,7 @@ private fun WealthChartCard(
         ) {
             Text(
                 text = "Evolución",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
@@ -496,10 +500,44 @@ private fun AnalysisCard(
         ) {
             Text(
                 text = "Análisis",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
+            // Botón "Mes actual" — solo visible cuando hay un mes seleccionado
+            val showBackButton = selectedMonth != null
+            val backButtonScale by animateFloatAsState(
+                targetValue = if (showBackButton) 1f else 0f,
+                animationSpec = tween(200),
+            )
+            if (showBackButton || backButtonScale > 0f) {
+                OutlinedButton(
+                    onClick = { selectedMonth = null },
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Accent),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                    modifier = Modifier
+                        .height(32.dp)
+                        .graphicsLayer {
+                            scaleX = backButtonScale
+                            scaleY = backButtonScale
+                            alpha = backButtonScale
+                        },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Mes actual",
+                        tint = Accent,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Mes actual",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Accent,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+            }
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = if (expanded) "Colapsar" else "Expandir",
@@ -583,40 +621,27 @@ private fun MonthlySection(
 ) {
     val monthName = monthFullNames[month.monthNumber]
 
-    // Header: mes + neto + botón volver si es seleccionado
+    // Header: título sección + mes actual bien visible
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = if (isCurrentMonth) "Este mes" else monthName,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        if (isCurrentMonth) {
-            Text(
-                text = monthName,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.joyufyColors.contentSecondary,
-            )
-        } else {
-            // Neto del mes en el header
-            val netColor = if (month.net >= 0) Positive else Negative
-            val netSign = if (month.net >= 0) "+" else ""
-            Text(
-                text = "$netSign${month.net.formatCurrency()}",
-                style = MaterialTheme.typography.titleSmall,
-                color = netColor,
-            )
-            Spacer(Modifier.width(8.dp))
-            TextButton(
-                onClick = onClearSelection,
-                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                modifier = Modifier.height(24.dp),
-            ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Mes actual",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.joyufyColors.contentSecondary,
+                    text = "Este mes",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                Box(
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.small)
+                        .background(Accent.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        text = monthName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Accent,
+                    )
+                }
             }
         }
     }
@@ -680,35 +705,54 @@ private fun AnnualSection(
 
     // Year navigation header
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onPreviousYear, modifier = Modifier.size(28.dp)) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Año anterior",
-                tint = MaterialTheme.joyufyColors.contentSecondary,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-        Text(
-            text = "${summary.year}",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-        IconButton(
-            onClick = onNextYear,
-            enabled = selectedYear < currentYear,
-            modifier = Modifier.size(28.dp),
-        ) {
-            Icon(
-                Icons.Default.ArrowForward,
-                contentDescription = "Año siguiente",
-                tint = if (selectedYear < currentYear)
-                    MaterialTheme.joyufyColors.contentSecondary
-                else
-                    MaterialTheme.joyufyColors.contentDisabled,
-                modifier = Modifier.size(16.dp),
-            )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Este año",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                // Pill de año — acento si es el actual, gris+navegable si es otro
+                Row(
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.small)
+                        .background(
+                            if (selectedYear == currentYear) Accent.copy(alpha = 0.12f)
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onPreviousYear, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Año anterior",
+                            tint = if (selectedYear == currentYear) Accent
+                                   else MaterialTheme.joyufyColors.contentSecondary,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
+                    Text(
+                        text = "${summary.year}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (selectedYear == currentYear) Accent
+                                else MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                    IconButton(
+                        onClick = onNextYear,
+                        enabled = selectedYear < currentYear,
+                        modifier = Modifier.size(24.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.ArrowForward,
+                            contentDescription = "Año siguiente",
+                            tint = if (selectedYear < currentYear)
+                                (if (selectedYear == currentYear - 1) Accent else MaterialTheme.joyufyColors.contentSecondary)
+                            else MaterialTheme.joyufyColors.contentDisabled,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
+                }
+            }
         }
     }
     Spacer(Modifier.height(8.dp))
@@ -892,7 +936,7 @@ private fun CategoryBar(cat: CategoryBreakdown) {
                     .fillMaxWidth(cat.fraction)
                     .fillMaxHeight()
                     .clip(MaterialTheme.shapes.small)
-                    .background(Negative.copy(alpha = 0.7f)),
+                    .background(Accent.copy(alpha = 0.7f)),
             )
         }
     }
