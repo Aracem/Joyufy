@@ -28,13 +28,14 @@ fun AccountLogo(
     logoUrl: String?,       // stores the drawable resource name e.g. "logo_santander"
     size: Dp = 36.dp,
     modifier: Modifier = Modifier,
+    bgColor: Color? = null,
 ) {
     val res = logoUrl?.toDrawableResource()
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .background(bgColor ?: MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         if (res != null) {

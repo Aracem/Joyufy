@@ -124,7 +124,7 @@ fun AccountDetailScreen(
                 }
                 Spacer(Modifier.width(4.dp))
                 if (account.logoUrl != null) {
-                    AccountLogo(logoUrl = account.logoUrl, size = 32.dp)
+                    AccountLogo(logoUrl = account.logoUrl, size = 32.dp, bgColor = account.color.copy(alpha = 0.25f))
                 } else {
                     AccountLogoInitials(color = account.color, name = account.name, size = 32.dp)
                 }

@@ -120,6 +120,27 @@ fun Sidebar(
         )
         Spacer(Modifier.height(8.dp))
 
+        // ── Account list ──────────────────────────────────────────────────
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            itemsIndexed(accounts, key = { _, s -> s.account.id }) { index, summary ->
+                SidebarAccountItem(
+                    summary = summary,
+                    expanded = expanded,
+                    reorderMode = reorderMode,
+                    index = index,
+                    itemCenterY = itemCenterY,
+                    isSelected = currentScreen is Screen.AccountDetail &&
+                        currentScreen.accountId == summary.account.id,
+                    onClick = { onAccountClick(summary.account) },
+                    onReorder = onReorderAccounts,
+                )
+            }
+        }
+
         // ── "Nueva cuenta" + reorder toggle ──────────────────────────────
         if (expanded) {
             Row(
@@ -172,7 +193,6 @@ fun Sidebar(
                 }
             }
         } else {
-            // Collapsed: just show add icon
             IconButton(
                 onClick = onAddAccount,
                 modifier = Modifier.size(40.dp),
@@ -182,29 +202,6 @@ fun Sidebar(
                     contentDescription = "Nueva cuenta",
                     tint = Accent,
                     modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-
-        Spacer(Modifier.height(4.dp))
-
-        // ── Account list ──────────────────────────────────────────────────
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            itemsIndexed(accounts, key = { _, s -> s.account.id }) { index, summary ->
-                SidebarAccountItem(
-                    summary = summary,
-                    expanded = expanded,
-                    reorderMode = reorderMode,
-                    index = index,
-                    itemCenterY = itemCenterY,
-                    isSelected = currentScreen is Screen.AccountDetail &&
-                        currentScreen.accountId == summary.account.id,
-                    onClick = { onAccountClick(summary.account) },
-                    onReorder = onReorderAccounts,
                 )
             }
         }
@@ -287,12 +284,22 @@ private fun SidebarAccountItem(
                 }
             )
             .then(if (!reorderMode) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = if (expanded) 8.dp else 4.dp, vertical = 6.dp)
             .onGloballyPositioned { coords ->
                 itemCenterY[account.id] = coords.positionInWindow().y + coords.size.height / 2f
             },
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Color bar
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(40.dp)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
+                .background(account.color),
+        )
+
+        Spacer(Modifier.width(if (expanded) 8.dp else 4.dp))
+
         if (reorderMode && expanded) {
             Icon(
                 imageVector = Icons.Default.Menu,
@@ -327,17 +334,21 @@ private fun SidebarAccountItem(
             Spacer(Modifier.width(6.dp))
         }
 
-        // Account logo / icon
-        val logoSize = if (expanded) 28.dp else 30.dp
+        // Account logo — fondo con el color de la cuenta para que los logos sean visibles
+        val logoSize = 34.dp
         when {
-            account.logoUrl != null -> AccountLogo(logoUrl = account.logoUrl, size = logoSize)
+            account.logoUrl != null -> AccountLogo(
+                logoUrl = account.logoUrl,
+                size = logoSize,
+                bgColor = account.color.copy(alpha = 0.25f),
+            )
             account.type == AccountType.CASH -> SidebarCashIcon(color = account.color, size = logoSize)
             else -> AccountLogoInitials(color = account.color, name = account.name, size = logoSize)
         }
 
         if (expanded) {
             Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).padding(vertical = 6.dp)) {
                 Text(
                     text = account.name,
                     style = MaterialTheme.typography.bodyMedium,
@@ -354,6 +365,8 @@ private fun SidebarAccountItem(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        } else {
+            Spacer(Modifier.width(4.dp))
         }
     }
 }
