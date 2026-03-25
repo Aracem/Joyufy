@@ -24,7 +24,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
@@ -710,12 +709,15 @@ private fun MonthlySection(
                 color = netColor,
             )
             Spacer(Modifier.width(8.dp))
-            IconButton(onClick = onClearSelection, modifier = Modifier.size(20.dp)) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Volver al mes actual",
-                    tint = MaterialTheme.joyufyColors.contentSecondary,
-                    modifier = Modifier.size(14.dp),
+            TextButton(
+                onClick = onClearSelection,
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                modifier = Modifier.height(24.dp),
+            ) {
+                Text(
+                    text = "Mes actual",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
                 )
             }
         }

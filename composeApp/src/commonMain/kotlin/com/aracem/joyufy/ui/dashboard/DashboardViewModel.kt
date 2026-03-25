@@ -311,7 +311,8 @@ class DashboardViewModel(
         val yearStart = LocalDate(year, 1, 1).atStartOfDayIn(tz).toEpochMilliseconds()
         val yearEnd = LocalDate(year, 12, 31).atStartOfDayIn(tz).toEpochMilliseconds() + 86_400_000L - 1
 
-        val thisYear = transactions.filter { it.date in yearStart..yearEnd }
+        // Exclude transfer legs (both sides have relatedAccountId != null)
+        val thisYear = transactions.filter { it.date in yearStart..yearEnd && it.relatedAccountId == null }
 
         // Group snapshots by accountId for investment delta calculation
         val snapshotsByAccount = snapshots.groupBy { it.accountId }
@@ -377,8 +378,22 @@ class DashboardViewModel(
         val monthStart = LocalDate(now.year, now.monthNumber, 1)
             .atStartOfDayIn(TimeZone.currentSystemDefault())
             .toEpochMilliseconds()
+        val monthEnd = run {
+            val lastDay = when (now.monthNumber) {
+                1, 3, 5, 7, 8, 10, 12 -> 31
+                4, 6, 9, 11 -> 30
+                2 -> if (now.year % 4 == 0 && (now.year % 100 != 0 || now.year % 400 == 0)) 29 else 28
+                else -> 30
+            }
+            LocalDate(now.year, now.monthNumber, lastDay)
+                .atStartOfDayIn(TimeZone.currentSystemDefault())
+                .toEpochMilliseconds() + 86_400_000L - 1
+        }
 
-        val thisMonth = transactions.filter { it.date >= monthStart }
+        // Exclude transfer legs (both sides have relatedAccountId != null)
+        val thisMonth = transactions.filter {
+            it.date in monthStart..monthEnd && it.relatedAccountId == null
+        }
         if (thisMonth.isEmpty()) return null
 
         val income = thisMonth
