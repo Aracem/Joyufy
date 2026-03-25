@@ -79,15 +79,21 @@ fun App() {
                 )
             }
 
+            val dashboardState by dashboardViewModel.uiState.collectAsState()
+
             Scaffold(
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 containerColor = MaterialTheme.colorScheme.background,
             ) {
+
             Row(modifier = Modifier.fillMaxSize()) {
                 Sidebar(
                     currentScreen = currentScreen,
+                    accounts = dashboardState.accountSummaries,
                     onScreenSelected = { currentScreen = it },
                     onAddAccount = { showCreateAccount = true },
+                    onAccountClick = { account -> currentScreen = Screen.AccountDetail(account.id) },
+                    onReorderAccounts = dashboardViewModel::reorderAccounts,
                     darkMode = darkMode,
                     onToggleTheme = { darkMode = !darkMode; prefsRepo.setDarkMode(darkMode) },
                 )
@@ -146,9 +152,8 @@ fun App() {
             } // end Scaffold
 
             if (showCreateAccount) {
-                val state by dashboardViewModel.uiState.collectAsState()
                 CreateAccountDialog(
-                    existingCount = state.accountSummaries.size,
+                    existingCount = dashboardState.accountSummaries.size,
                     onDismiss = { showCreateAccount = false },
                     onCreated = { showCreateAccount = false },
                 )

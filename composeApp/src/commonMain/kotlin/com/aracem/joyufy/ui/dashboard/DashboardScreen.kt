@@ -1,24 +1,20 @@
 package com.aracem.joyufy.ui.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
@@ -26,7 +22,6 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,11 +29,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.ui.openUrl
@@ -59,9 +52,6 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = koinInject(),
 ) {
     val state by viewModel.uiState.collectAsState()
-
-    // Shared map: accountId -> center Y in window coords, used for drag-to-reorder
-    val itemCenterY = remember { mutableStateMapOf<Long, Float>() }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -212,31 +202,7 @@ fun DashboardScreen(
             }
         }
 
-        // Sección cuentas
-        item {
-            Text(
-                text = "Cuentas",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-
-        itemsIndexed(
-            items = state.accountSummaries,
-            key = { _, summary -> summary.account.id },
-        ) { index, summary ->
-            DraggableAccountCard(
-                summary = summary,
-                index = index,
-                totalCount = state.accountSummaries.size,
-                itemCenterY = itemCenterY,
-                onAccountClick = onAccountClick,
-                onReorder = viewModel::reorderAccounts,
-                modifier = Modifier.animateItem(),
-            )
-        }
-
-        // Empty state
+        // Empty state — solo cuando no hay cuentas
         if (state.accountSummaries.isEmpty()) {
             item {
                 Box(
@@ -266,7 +232,7 @@ fun DashboardScreen(
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            text = "Añade tu primera cuenta desde el botón +",
+                            text = "Añade tu primera cuenta desde el panel izquierdo",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.6f),
                         )
@@ -494,74 +460,6 @@ fun ChartRangeSelector(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun DraggableAccountCard(
-    summary: AccountSummary,
-    index: Int,
-    totalCount: Int,
-    itemCenterY: androidx.compose.runtime.snapshots.SnapshotStateMap<Long, Float>,
-    onAccountClick: (Account) -> Unit,
-    onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var isDragging by remember { mutableStateOf(false) }
-    // Absolute Y of cursor in window during drag
-    var cursorY by remember { mutableStateOf(0f) }
-
-    AccountCard(
-        account = summary.account,
-        balance = summary.balance,
-        onClick = { onAccountClick(summary.account) },
-        isDragging = isDragging,
-        leadingContent = {
-            Icon(
-                imageVector = Icons.Default.Menu,
-                contentDescription = "Reordenar",
-                tint = if (isDragging)
-                    MaterialTheme.joyufyColors.contentSecondary
-                else
-                    MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.45f),
-                modifier = Modifier
-                    .size(20.dp)
-                    .pointerInput(summary.account.id) {
-                        detectDragGestures(
-                            onDragStart = { startOffset ->
-                                isDragging = true
-                                // startOffset is relative to the handle; convert to window Y
-                                cursorY = (itemCenterY[summary.account.id] ?: 0f)
-                            },
-                            onDragEnd = { isDragging = false },
-                            onDragCancel = { isDragging = false },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                cursorY += dragAmount.y
-                                // Find which item's center is closest to the cursor
-                                val targetId = itemCenterY.minByOrNull { (_, cy) ->
-                                    kotlin.math.abs(cy - cursorY)
-                                }?.key ?: return@detectDragGestures
-                                // Map targetId back to index in current list
-                                // We need the current order — use itemCenterY sorted by Y
-                                val sortedIds = itemCenterY.entries
-                                    .sortedBy { it.value }
-                                    .map { it.key }
-                                val currentIndex = sortedIds.indexOf(summary.account.id)
-                                val targetIndex = sortedIds.indexOf(targetId)
-                                if (targetIndex != -1 && currentIndex != -1 && targetIndex != currentIndex) {
-                                    onReorder(currentIndex, targetIndex)
-                                }
-                            },
-                        )
-                    },
-            )
-        },
-        modifier = modifier.onGloballyPositioned { coords ->
-            // Store center Y of this card in window coordinates
-            val centerY = coords.positionInWindow().y + coords.size.height / 2f
-            itemCenterY[summary.account.id] = centerY
-        },
-    )
-}
 
 @Composable
 private fun AnalysisCard(
