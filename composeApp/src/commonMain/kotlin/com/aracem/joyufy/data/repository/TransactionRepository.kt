@@ -102,6 +102,18 @@ class TransactionRepository(private val db: JoyufyDatabase) {
         )
     }
 
+    suspend fun getTransactionById(id: Long): Transaction? = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.getTransactionById(id).executeAsOneOrNull()?.toDomain()
+    }
+
+    suspend fun getRelatedTransfer(relatedAccountId: Long, originAccountId: Long, date: Long): Transaction? =
+        withContext(Dispatchers.IO) {
+            db.joyufyDatabaseQueries
+                .getRelatedTransfer(relatedAccountId, originAccountId, date)
+                .executeAsOneOrNull()
+                ?.toDomain()
+        }
+
     suspend fun deleteTransaction(id: Long): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.deleteTransaction(id)
     }

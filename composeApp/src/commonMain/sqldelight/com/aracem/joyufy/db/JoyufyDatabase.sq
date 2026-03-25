@@ -72,6 +72,17 @@ UPDATE `Transaction`
 SET type = ?, amount = ?, category = ?, description = ?, related_account_id = ?, date = ?
 WHERE id = ?;
 
+getTransactionById:
+SELECT * FROM `Transaction` WHERE id = ?;
+
+-- Encuentra la transacción "hermana" de una transferencia:
+-- la que tiene account_id = relatedAccountId Y related_account_id = originAccountId
+getRelatedTransfer:
+SELECT * FROM `Transaction`
+WHERE account_id = ? AND related_account_id = ?
+ORDER BY ABS(date - ?) ASC
+LIMIT 1;
+
 deleteTransaction:
 DELETE FROM `Transaction` WHERE id = ?;
 

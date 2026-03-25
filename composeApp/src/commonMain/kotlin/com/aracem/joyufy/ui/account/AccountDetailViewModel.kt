@@ -263,7 +263,76 @@ class AccountDetailViewModel(
         date: Long,
     ) {
         scope.launch {
-            transactionRepository.updateTransaction(id, type, amount, category, description, relatedAccountId, date)
+            val original = transactionRepository.getTransactionById(id)
+            val originalRelatedId = original?.relatedAccountId
+
+            if (originalRelatedId != null) {
+                // Original was a transfer — delete both legs and recreate
+                val sister = transactionRepository.getRelatedTransfer(
+                    relatedAccountId = accountId,
+                    originAccountId = originalRelatedId,
+                    date = original.date,
+                )
+                transactionRepository.deleteTransaction(id)
+                if (sister != null) transactionRepository.deleteTransaction(sister.id)
+
+                if (type == TransactionType.TRANSFER && relatedAccountId != null) {
+                    // Still a transfer — recreate both legs
+                    transactionRepository.insertTransaction(
+                        accountId = accountId,
+                        type = TransactionType.EXPENSE,
+                        amount = amount,
+                        category = category,
+                        description = description,
+                        relatedAccountId = relatedAccountId,
+                        date = date,
+                    )
+                    transactionRepository.insertTransaction(
+                        accountId = relatedAccountId,
+                        type = TransactionType.INCOME,
+                        amount = amount,
+                        category = category,
+                        description = description,
+                        relatedAccountId = accountId,
+                        date = date,
+                    )
+                } else {
+                    // Changed from transfer to income/expense — single transaction
+                    transactionRepository.insertTransaction(
+                        accountId = accountId,
+                        type = type,
+                        amount = amount,
+                        category = category,
+                        description = description,
+                        relatedAccountId = null,
+                        date = date,
+                    )
+                }
+            } else if (type == TransactionType.TRANSFER && relatedAccountId != null) {
+                // Changed from income/expense to transfer — delete original, create two legs
+                transactionRepository.deleteTransaction(id)
+                transactionRepository.insertTransaction(
+                    accountId = accountId,
+                    type = TransactionType.EXPENSE,
+                    amount = amount,
+                    category = category,
+                    description = description,
+                    relatedAccountId = relatedAccountId,
+                    date = date,
+                )
+                transactionRepository.insertTransaction(
+                    accountId = relatedAccountId,
+                    type = TransactionType.INCOME,
+                    amount = amount,
+                    category = category,
+                    description = description,
+                    relatedAccountId = accountId,
+                    date = date,
+                )
+            } else {
+                // Simple income/expense update
+                transactionRepository.updateTransaction(id, type, amount, category, description, null, date)
+            }
         }
     }
 
@@ -272,7 +341,18 @@ class AccountDetailViewModel(
     }
 
     fun deleteTransaction(id: Long) {
-        scope.launch { transactionRepository.deleteTransaction(id) }
+        scope.launch {
+            val tx = transactionRepository.getTransactionById(id)
+            transactionRepository.deleteTransaction(id)
+            if (tx?.relatedAccountId != null) {
+                val sister = transactionRepository.getRelatedTransfer(
+                    relatedAccountId = accountId,
+                    originAccountId = tx.relatedAccountId,
+                    date = tx.date,
+                )
+                if (sister != null) transactionRepository.deleteTransaction(sister.id)
+            }
+        }
     }
 
     fun deleteSnapshot(id: Long) {
