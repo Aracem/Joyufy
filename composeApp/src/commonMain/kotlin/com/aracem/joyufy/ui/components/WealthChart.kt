@@ -497,7 +497,8 @@ private fun DrawScope.drawAreaChart(
     }
 
     // ── Per-account colored lines ─────────────────────────────────────────────
-    val accounts = points.first().byAccount.map { it.account }
+    val accounts = points.flatMap { it.byAccount.map { ap -> ap.account } }
+        .distinctBy { it.id }
     accounts.forEach { account ->
         val accountColor = account.color
         val linePath = Path().apply {

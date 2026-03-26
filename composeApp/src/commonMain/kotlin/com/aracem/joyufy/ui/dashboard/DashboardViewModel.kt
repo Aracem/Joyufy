@@ -164,7 +164,7 @@ class DashboardViewModel(
                                         snapshotRepository.observeSnapshotsForAccount(account.id),
                                         transactionRepository.observeTransactionsForAccount(account.id),
                                     ) { snapshots, _ ->
-                                        val balance = snapshots.firstOrNull()?.totalValue
+                                        val balance = snapshots.maxByOrNull { it.weekDate }?.totalValue
                                             ?: transactionRepository.getAccountBalance(account.id)
                                         AccountSummary(account, balance)
                                     }
@@ -252,7 +252,9 @@ class DashboardViewModel(
         val points = weekStarts.map { weekStart ->
             val weekEnd = weekStart + millisInWeek - 1
 
-            val byAccount = accounts.map { account ->
+            val byAccount = accounts
+                .filter { account -> account.createdAt <= weekEnd }
+                .map { account ->
                 val balance = when (account.type) {
                     AccountType.INVESTMENT -> {
                         snapshotsByAccount[account.id]
