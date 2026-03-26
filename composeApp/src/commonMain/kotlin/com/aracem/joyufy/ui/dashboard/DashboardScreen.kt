@@ -7,12 +7,15 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -647,7 +650,7 @@ private fun MonthlySection(
     }
     Spacer(Modifier.height(12.dp))
 
-    // Stats row
+    // Stats row — cifras animadas individualmente
     Row(modifier = Modifier.fillMaxWidth()) {
         MonthlyStat("Ingresos", month.income, Positive, Modifier.weight(1f))
         MonthlyStat("Gastos", month.expenses, Negative, Modifier.weight(1f))
@@ -669,7 +672,7 @@ private fun MonthlySection(
         )
     }
 
-    // Top categories
+    // Top categories — cada barra anima su fracción, aparece/desaparece con AnimatedVisibility
     if (month.topCategories.isNotEmpty()) {
         Spacer(Modifier.height(14.dp))
         Text(
@@ -679,7 +682,20 @@ private fun MonthlySection(
         )
         Spacer(Modifier.height(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            month.topCategories.forEach { CategoryBar(it) }
+            // Máximo 4 slots fijos — así Compose reutiliza el composable por posición
+            // y solo anima la fracción/importe. Si el slot no tiene categoría, se colapsa.
+            (0 until 4).forEach { index ->
+                key(index) {
+                    val cat = month.topCategories.getOrNull(index)
+                    AnimatedVisibility(
+                        visible = cat != null,
+                        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                        exit = shrinkVertically(tween(200)) + fadeOut(tween(200)),
+                    ) {
+                        if (cat != null) AnimatedCategoryBar(cat)
+                    }
+                }
+            }
         }
     }
 }
@@ -866,6 +882,10 @@ private fun MonthlyStat(
     modifier: Modifier = Modifier,
     prefix: String? = null,
 ) {
+    val animatedAmount by animateFloatAsState(
+        targetValue = amount.toFloat(),
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+    )
     Column(modifier = modifier) {
         Text(
             text = label,
@@ -879,7 +899,7 @@ private fun MonthlyStat(
             else -> if (amount >= 0) "+" else ""
         }
         Text(
-            text = "$sign${amount.formatCurrency()}",
+            text = "$sign${animatedAmount.toDouble().formatCurrency()}",
             style = MaterialTheme.typography.titleSmall,
             color = color,
         )
@@ -906,6 +926,19 @@ private fun LegendDot(label: String, color: Color) {
 
 @Composable
 private fun CategoryBar(cat: CategoryBreakdown) {
+    AnimatedCategoryBar(cat)
+}
+
+@Composable
+private fun AnimatedCategoryBar(cat: CategoryBreakdown) {
+    val animatedFraction by animateFloatAsState(
+        targetValue = cat.fraction,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+    )
+    val animatedAmount by animateFloatAsState(
+        targetValue = cat.amount.toFloat(),
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+    )
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -918,7 +951,7 @@ private fun CategoryBar(cat: CategoryBreakdown) {
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
             Text(
-                text = cat.amount.formatCurrency(),
+                text = animatedAmount.toDouble().formatCurrency(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -933,7 +966,7 @@ private fun CategoryBar(cat: CategoryBreakdown) {
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(cat.fraction)
+                    .fillMaxWidth(animatedFraction)
                     .fillMaxHeight()
                     .clip(MaterialTheme.shapes.small)
                     .background(Accent.copy(alpha = 0.7f)),
