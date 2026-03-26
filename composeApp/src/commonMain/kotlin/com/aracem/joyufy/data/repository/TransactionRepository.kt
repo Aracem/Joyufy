@@ -45,6 +45,13 @@ class TransactionRepository(private val db: JoyufyDatabase) {
             .map { it.toDomain() }
     }
 
+    fun observeAllTransactions(): Flow<List<Transaction>> =
+        db.joyufyDatabaseQueries
+            .getAllTransactions()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { list -> list.map { it.toDomain() } }
+
     suspend fun getAllTransactions(): List<Transaction> = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries
             .getAllTransactions()

@@ -197,7 +197,7 @@ class DashboardViewModel(
         scope.launch {
             combine(
                 accountRepository.observeAccounts(),
-                transactionRepository.observeAllBankCashTransactions(),
+                transactionRepository.observeAllTransactions(),
                 snapshotRepository.observeAllSnapshots(),
                 ChartRangePreference.range,
             ) { accounts, transactions, snapshots, range ->
@@ -260,7 +260,13 @@ class DashboardViewModel(
                         snapshotsByAccount[account.id]
                             ?.filter { it.weekDate <= weekEnd }
                             ?.maxByOrNull { it.weekDate }
-                            ?.totalValue ?: 0.0
+                            ?.totalValue
+                            ?: transactionsByAccount[account.id]
+                                ?.filter { it.date <= weekEnd }
+                                ?.sumOf { tx ->
+                                    if (tx.type == TransactionType.INCOME) tx.amount else -tx.amount
+                                }
+                            ?: 0.0
                     }
                     AccountType.BANK, AccountType.CASH -> {
                         transactionsByAccount[account.id]
