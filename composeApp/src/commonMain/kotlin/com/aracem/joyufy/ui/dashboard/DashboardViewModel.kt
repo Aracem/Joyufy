@@ -46,6 +46,7 @@ data class MonthlySummary(
     val income: Double,
     val expenses: Double,
     val net: Double,
+    val investmentDelta: Double,
     val topCategories: List<CategoryBreakdown>,   // top expense categories, max 4
 )
 
@@ -289,8 +290,14 @@ class DashboardViewModel(
 
     private fun observeMonthlySummary() {
         scope.launch {
-            transactionRepository.observeAllBankCashTransactions().collect { transactions ->
-                val summary = buildMonthlySummary(transactions)
+            combine(
+                transactionRepository.observeAllBankCashTransactions(),
+                snapshotRepository.observeAllSnapshots(),
+                accountRepository.observeAccounts(),
+            ) { transactions, snapshots, accounts ->
+                val investmentAccountIds = accounts.filter { it.type == AccountType.INVESTMENT }.map { it.id }.toSet()
+                buildMonthlySummary(transactions, snapshots, investmentAccountIds)
+            }.collect { summary ->
                 _uiState.value = _uiState.value.copy(monthlySummary = summary)
             }
         }
@@ -301,9 +308,11 @@ class DashboardViewModel(
             combine(
                 transactionRepository.observeAllBankCashTransactions(),
                 snapshotRepository.observeAllSnapshots(),
+                accountRepository.observeAccounts(),
                 _uiState.map { it.selectedAnalysisYear },
-            ) { transactions, snapshots, year ->
-                buildAnnualSummary(transactions, snapshots, year)
+            ) { transactions, snapshots, accounts, year ->
+                val investmentAccountIds = accounts.filter { it.type == AccountType.INVESTMENT }.map { it.id }.toSet()
+                buildAnnualSummary(transactions, snapshots, investmentAccountIds, year)
             }.collect { summary ->
                 _uiState.value = _uiState.value.copy(annualSummary = summary)
             }
@@ -313,6 +322,7 @@ class DashboardViewModel(
     private fun buildAnnualSummary(
         transactions: List<Transaction>,
         snapshots: List<InvestmentSnapshot>,
+        investmentAccountIds: Set<Long>,
         year: Int,
     ): AnnualSummary? {
         val tz = TimeZone.currentSystemDefault()
@@ -321,6 +331,9 @@ class DashboardViewModel(
 
         // Exclude transfer legs (both sides have relatedAccountId != null)
         val thisYear = transactions.filter { it.date in yearStart..yearEnd && it.relatedAccountId == null }
+
+        // All BANK/CASH transactions (including transfers) needed to compute capital flows
+        val thisYearAll = transactions.filter { it.date in yearStart..yearEnd }
 
         // Group snapshots by accountId for investment delta calculation
         val snapshotsByAccount = snapshots.groupBy { it.accountId }
@@ -336,16 +349,29 @@ class DashboardViewModel(
             val monthEnd = LocalDate(year, month, lastDay).atStartOfDayIn(tz).toEpochMilliseconds() + 86_400_000L - 1
 
             val monthTxs = thisYear.filter { it.date in monthStart..monthEnd }
+            val monthTxsAll = thisYearAll.filter { it.date in monthStart..monthEnd }
 
             val income = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
             val expenses = monthTxs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
 
             // Investment delta: latest snapshot this month minus latest snapshot before this month, per account
-            val investmentDelta = snapshotsByAccount.values.sumOf { accountSnapshots ->
+            val rawInvestmentDelta = snapshotsByAccount.values.sumOf { accountSnapshots ->
                 val endValue = accountSnapshots.filter { it.weekDate <= monthEnd }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
                 val startValue = accountSnapshots.filter { it.weekDate < monthStart }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
                 endValue - startValue
             }
+
+            // Capital flows: transfers from BANK/CASH to INVESTMENT inflate delta without being a gain.
+            // From BANK/CASH perspective: EXPENSE tx with relatedAccountId in investmentAccountIds = capital sent in.
+            // INCOME tx with relatedAccountId in investmentAccountIds = capital withdrawn.
+            val capitalIn = monthTxsAll
+                .filter { it.type == TransactionType.EXPENSE && it.relatedAccountId in investmentAccountIds }
+                .sumOf { it.amount }
+            val capitalOut = monthTxsAll
+                .filter { it.type == TransactionType.INCOME && it.relatedAccountId in investmentAccountIds }
+                .sumOf { it.amount }
+
+            val investmentDelta = rawInvestmentDelta - capitalIn + capitalOut
 
             val topCategories = monthTxs
                 .filter { it.type == TransactionType.EXPENSE }
@@ -381,10 +407,15 @@ class DashboardViewModel(
         )
     }
 
-    private fun buildMonthlySummary(transactions: List<Transaction>): MonthlySummary? {
+    private fun buildMonthlySummary(
+        transactions: List<Transaction>,
+        snapshots: List<InvestmentSnapshot>,
+        investmentAccountIds: Set<Long>,
+    ): MonthlySummary? {
         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val tz = TimeZone.currentSystemDefault()
         val monthStart = LocalDate(now.year, now.monthNumber, 1)
-            .atStartOfDayIn(TimeZone.currentSystemDefault())
+            .atStartOfDayIn(tz)
             .toEpochMilliseconds()
         val monthEnd = run {
             val lastDay = when (now.monthNumber) {
@@ -394,22 +425,31 @@ class DashboardViewModel(
                 else -> 30
             }
             LocalDate(now.year, now.monthNumber, lastDay)
-                .atStartOfDayIn(TimeZone.currentSystemDefault())
+                .atStartOfDayIn(tz)
                 .toEpochMilliseconds() + 86_400_000L - 1
         }
 
-        // Exclude transfer legs (both sides have relatedAccountId != null)
-        val thisMonth = transactions.filter {
-            it.date in monthStart..monthEnd && it.relatedAccountId == null
-        }
-        if (thisMonth.isEmpty()) return null
+        val thisMonthAll = transactions.filter { it.date in monthStart..monthEnd }
+        // Exclude transfer legs for income/expense counts
+        val thisMonth = thisMonthAll.filter { it.relatedAccountId == null }
+        if (thisMonth.isEmpty() && snapshots.none { it.weekDate in monthStart..monthEnd }) return null
 
-        val income = thisMonth
-            .filter { it.type == TransactionType.INCOME }
+        val income = thisMonth.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+        val expenses = thisMonth.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+
+        val snapshotsByAccount = snapshots.groupBy { it.accountId }
+        val rawInvestmentDelta = snapshotsByAccount.values.sumOf { accountSnapshots ->
+            val endValue = accountSnapshots.filter { it.weekDate <= monthEnd }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
+            val startValue = accountSnapshots.filter { it.weekDate < monthStart }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
+            endValue - startValue
+        }
+        val capitalIn = thisMonthAll
+            .filter { it.type == TransactionType.EXPENSE && it.relatedAccountId in investmentAccountIds }
             .sumOf { it.amount }
-        val expenses = thisMonth
-            .filter { it.type == TransactionType.EXPENSE }
+        val capitalOut = thisMonthAll
+            .filter { it.type == TransactionType.INCOME && it.relatedAccountId in investmentAccountIds }
             .sumOf { it.amount }
+        val investmentDelta = rawInvestmentDelta - capitalIn + capitalOut
 
         val topCategories = thisMonth
             .filter { it.type == TransactionType.EXPENSE }
@@ -433,6 +473,7 @@ class DashboardViewModel(
             income = income,
             expenses = expenses,
             net = income - expenses,
+            investmentDelta = investmentDelta,
             topCategories = topCategories,
         )
     }

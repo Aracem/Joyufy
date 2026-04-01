@@ -569,8 +569,8 @@ private fun AnalysisCard(
                             monthNumber = nowMonth,
                             income = ms.income,
                             expenses = ms.expenses,
-                            investmentDelta = 0.0,
-                            net = ms.net,
+                            investmentDelta = ms.investmentDelta,
+                            net = ms.net + ms.investmentDelta,
                             topCategories = ms.topCategories,
                         )
                     }
