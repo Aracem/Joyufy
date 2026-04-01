@@ -21,7 +21,10 @@ import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
+import joyufy.composeapp.generated.resources.*
 import kotlinx.datetime.Clock
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -77,13 +80,13 @@ fun AddTransactionDialog(
                 // Header
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (editingTransaction != null) "Editar transacción" else "Nueva transacción",
+                        text = if (editingTransaction != null) stringResource(Res.string.edit_transaction) else stringResource(Res.string.new_transaction),
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Cerrar",
+                        Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.close),
                             tint = MaterialTheme.joyufyColors.contentSecondary)
                     }
                 }
@@ -91,7 +94,7 @@ fun AddTransactionDialog(
                 Spacer(Modifier.height(20.dp))
 
                 // Tipo
-                Text("Tipo", style = MaterialTheme.typography.labelLarge,
+                Text(stringResource(Res.string.transaction_type), style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.joyufyColors.contentSecondary)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -103,7 +106,7 @@ fun AddTransactionDialog(
                                 selectedType = type
                                 if (type != TransactionType.TRANSFER) selectedRelatedAccount = null
                             },
-                            label = { Text(type.label, style = MaterialTheme.typography.labelSmall) },
+                            label = { Text(stringResource(type.stringRes), style = MaterialTheme.typography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Accent.copy(alpha = 0.15f),
                                 selectedLabelColor = Accent,
@@ -124,8 +127,8 @@ fun AddTransactionDialog(
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it; amountError = null },
-                    label = { Text("Importe (€)") },
-                    placeholder = { Text("0,00") },
+                    label = { Text(stringResource(Res.string.amount_eur)) },
+                    placeholder = { Text(stringResource(Res.string.placeholder_amount)) },
                     isError = amountError != null,
                     supportingText = amountError?.let { { Text(it) } },
                     singleLine = true,
@@ -140,7 +143,7 @@ fun AddTransactionDialog(
                 OutlinedTextField(
                     value = dateText,
                     onValueChange = { dateText = it; dateError = null },
-                    label = { Text("Fecha (dd/MM/aaaa)") },
+                    label = { Text(stringResource(Res.string.date_format)) },
                     placeholder = { Text(todayFormatted) },
                     isError = dateError != null,
                     supportingText = dateError?.let { { Text(it) } },
@@ -182,14 +185,14 @@ fun AddTransactionDialog(
                     OutlinedTextField(
                         value = category,
                         onValueChange = { category = it },
-                        label = { Text("Categoría (opcional)") },
+                        label = { Text(stringResource(Res.string.category_optional)) },
                         trailingIcon = {
                             if (category.isNotBlank()) {
                                 IconButton(
                                     onClick = { category = ""; categoryExpanded = false },
                                     modifier = Modifier.size(32.dp),
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Limpiar",
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.clear_filters),
                                         tint = MaterialTheme.joyufyColors.contentSecondary,
                                         modifier = Modifier.size(16.dp))
                                 }
@@ -231,7 +234,7 @@ fun AddTransactionDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Descripción (opcional)") },
+                    label = { Text(stringResource(Res.string.description_optional)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -258,7 +261,7 @@ fun AddTransactionDialog(
                             value = selectedRelatedAccount?.name ?: "",
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Cuenta destino") },
+                            label = { Text(stringResource(Res.string.destination_account)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(relatedExpanded) },
                             modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -282,20 +285,22 @@ fun AddTransactionDialog(
 
                 // Actions
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    val amountErrorStr = stringResource(Res.string.amount_error)
+                    val dateErrorStr = stringResource(Res.string.date_error)
                     TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = MaterialTheme.joyufyColors.contentSecondary)
+                        Text(stringResource(Res.string.cancel), color = MaterialTheme.joyufyColors.contentSecondary)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
                             val amount = amountText.replace(",", ".").toDoubleOrNull()
                             if (amount == null || amount <= 0) {
-                                amountError = "Introduce un importe válido"
+                                amountError = amountErrorStr
                                 return@Button
                             }
                             val dateMs = parseDateToMillis(dateText)
                             if (dateMs == null) {
-                                dateError = "Usa el formato dd/MM/aaaa"
+                                dateError = dateErrorStr
                                 return@Button
                             }
                             onConfirm(
@@ -310,11 +315,11 @@ fun AddTransactionDialog(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     ) {
-                        Text(when {
-                            editingTransaction != null -> "Guardar"
-                            selectedType == TransactionType.TRANSFER -> "Transferir"
-                            else -> "Añadir"
-                        })
+                        Text(stringResource(when {
+                            editingTransaction != null -> Res.string.save_current_month
+                            selectedType == TransactionType.TRANSFER -> Res.string.button_transfer
+                            else -> Res.string.button_add
+                        }))
                     }
                 }
             }
@@ -335,9 +340,9 @@ private fun parseDateToMillis(text: String): Long? {
     }.getOrNull()
 }
 
-private val TransactionType.label: String
+private val TransactionType.stringRes: StringResource
     get() = when (this) {
-        TransactionType.INCOME -> "Ingreso"
-        TransactionType.EXPENSE -> "Gasto"
-        TransactionType.TRANSFER -> "Transferencia"
+        TransactionType.INCOME -> Res.string.transaction_income
+        TransactionType.EXPENSE -> Res.string.transaction_expense
+        TransactionType.TRANSFER -> Res.string.transaction_transfer
     }

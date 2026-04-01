@@ -1,19 +1,19 @@
 # Joyufy
 
-**Control personal de finanzas para escritorio.**
-Diseñado para quien quiere ver su patrimonio total de un vistazo, sin bancos conectados, sin suscripciones, sin datos en la nube.
+**Personal finance tracker for desktop.**
+Built for anyone who wants a clear view of their total wealth — no bank connections, no subscriptions, no data in the cloud.
 
-[![Release](https://img.shields.io/github/v/release/Aracem/Joyufy?style=flat-square&color=7B6EF6&label=última%20versión)](https://github.com/Aracem/Joyufy/releases/latest)
-[![Platform](https://img.shields.io/badge/plataforma-macOS%20·%20Windows%20·%20Linux-lightgrey?style=flat-square)](https://github.com/Aracem/Joyufy/releases/latest)
+[![Release](https://img.shields.io/github/v/release/Aracem/Joyufy?style=flat-square&color=7B6EF6&label=latest)](https://github.com/Aracem/Joyufy/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-macOS%20·%20Windows%20·%20Linux-lightgrey?style=flat-square)](https://github.com/Aracem/Joyufy/releases/latest)
 [![License](https://img.shields.io/github/license/Aracem/Joyufy?style=flat-square)](LICENSE)
 
 ---
 
-## Descarga
+## Download
 
-→ **[Descarga la última versión](https://github.com/Aracem/Joyufy/releases/latest)**
+→ **[Download the latest release](https://github.com/Aracem/Joyufy/releases/latest)**
 
-| Sistema | Formato |
+| Platform | Format |
 |---|---|
 | macOS | `.dmg` |
 | Windows | `.msi` |
@@ -21,29 +21,30 @@ Diseñado para quien quiere ver su patrimonio total de un vistazo, sin bancos co
 
 ---
 
-## Qué hace
+## Features
 
-- **Patrimonio total** — suma de todas tus cuentas en tiempo real con gráfica de evolución
-- **Cuentas bancarias y efectivo** — registro de transacciones con categorías
-- **Inversiones** — seguimiento semanal de valor de mercado (Indexa, DeGiro, Trade Republic…)
-- **Resumen mensual** — ingresos, gastos y top categorías de gasto del mes actual
-- **Backup local** — exporta e importa todos tus datos en JSON
+- **Total wealth** — sum of all accounts in real time with an evolution chart
+- **Bank & cash accounts** — transaction tracking with categories
+- **Investments** — weekly market value tracking (Indexa, DeGiro, Trade Republic…)
+- **Monthly summary** — income, expenses and top spending categories for the current month
+- **Annual analysis** — monthly net bar chart with year navigation and drill-down
+- **Local backup** — export and import all your data as JSON
 
 ---
 
-## Instalación en macOS
+## macOS installation
 
-Al abrir la app por primera vez macOS mostrará un aviso de seguridad porque la app no está firmada con un certificado de Apple. Para abrirla:
+On first launch, macOS will show a security warning because the app is not signed with an Apple certificate. To open it:
 
-1. Click derecho sobre `Joyufy.app` → **Abrir**
-2. En el diálogo, click **Abrir igualmente**
+1. Right-click `Joyufy.app` → **Open**
+2. In the dialog, click **Open Anyway**
 
-O desde Terminal:
+Or from Terminal:
 ```bash
 xattr -cr /Applications/Joyufy.app
 ```
 
-Solo es necesario hacerlo una vez.
+This only needs to be done once.
 
 ---
 
@@ -51,15 +52,15 @@ Solo es necesario hacerlo una vez.
 
 Kotlin · Compose Multiplatform · SQLDelight · Koin
 
-Aplicación de escritorio nativa (macOS / Windows / Linux). Todos los datos se guardan localmente.
+Native desktop app (macOS / Windows / Linux). All data is stored locally.
 
 ---
 
-## Desarrollo
+## Development
 
 ```bash
-./gradlew run                 # ejecutar en desarrollo
-./gradlew packageDmg          # generar instalador macOS
-./gradlew packageMsi          # generar instalador Windows
-./gradlew packageDeb          # generar instalador Linux
+./gradlew run                 # run in development
+./gradlew packageDmg          # build macOS installer
+./gradlew packageMsi          # build Windows installer
+./gradlew packageDeb          # build Linux installer
 ```

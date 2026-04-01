@@ -11,7 +11,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
+import joyufy.composeapp.generated.resources.*
 import kotlinx.datetime.Clock
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -34,7 +36,9 @@ fun AddSnapshotDialog(
     var valueError by remember { mutableStateOf<String?>(null) }
 
     // Build last 12 weeks (including current) as options
-    val weeks = remember { buildRecentWeeks(12) }
+    val weekCurrentStr = stringResource(Res.string.week_current)
+    val weekStr = stringResource(Res.string.week)
+    val weeks = remember(weekCurrentStr, weekStr) { buildRecentWeeks(12, weekCurrentStr, weekStr) }
     // Pre-select the week matching the snapshot being edited, or current week
     var selectedWeek by remember {
         mutableStateOf(
@@ -59,7 +63,7 @@ fun AddSnapshotDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (editingSnapshot != null) "Editar valor" else "Actualizar valor",
+                            text = if (editingSnapshot != null) stringResource(Res.string.edit_value) else stringResource(Res.string.update_value),
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -70,7 +74,7 @@ fun AddSnapshotDialog(
                         )
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Cerrar",
+                        Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.close),
                             tint = MaterialTheme.joyufyColors.contentSecondary)
                     }
                 }
@@ -86,7 +90,7 @@ fun AddSnapshotDialog(
                         value = selectedWeek.label,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Semana") },
+                        label = { Text(stringResource(Res.string.week)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(weekExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -111,8 +115,8 @@ fun AddSnapshotDialog(
                 OutlinedTextField(
                     value = valueText,
                     onValueChange = { valueText = it; valueError = null },
-                    label = { Text("Valor total (€)") },
-                    placeholder = { Text("0,00") },
+                    label = { Text(stringResource(Res.string.total_value_eur)) },
+                    placeholder = { Text(stringResource(Res.string.placeholder_amount)) },
                     isError = valueError != null,
                     supportingText = valueError?.let { { Text(it) } },
                     singleLine = true,
@@ -125,16 +129,17 @@ fun AddSnapshotDialog(
 
                 Spacer(Modifier.height(24.dp))
 
+                val valueErrorStr = stringResource(Res.string.value_error)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = MaterialTheme.joyufyColors.contentSecondary)
+                        Text(stringResource(Res.string.cancel), color = MaterialTheme.joyufyColors.contentSecondary)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
                             val value = valueText.replace(",", ".").toDoubleOrNull()
                             if (value == null || value < 0) {
-                                valueError = "Introduce un valor válido"
+                                valueError = valueErrorStr
                                 return@Button
                             }
                             onConfirm(value, selectedWeek.mondayMs)
@@ -142,7 +147,7 @@ fun AddSnapshotDialog(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     ) {
-                        Text(if (editingSnapshot != null) "Guardar cambios" else "Guardar")
+                        Text(if (editingSnapshot != null) stringResource(Res.string.save_changes) else stringResource(Res.string.save_current_month))
                     }
                 }
             }
@@ -152,7 +157,7 @@ fun AddSnapshotDialog(
 
 private data class WeekOption(val label: String, val mondayMs: Long)
 
-private fun buildRecentWeeks(count: Int): List<WeekOption> {
+private fun buildRecentWeeks(count: Int, weekCurrentLabel: String, weekLabel: String): List<WeekOption> {
     val millisInWeek = 7 * 86_400_000L
     val now = Clock.System.now()
     val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -166,9 +171,9 @@ private fun buildRecentWeeks(count: Int): List<WeekOption> {
             .toLocalDateTime(TimeZone.currentSystemDefault())
         val iso = isoWeekLabel(mondayMs)
         val label = if (weeksAgo == 0) {
-            "Semana actual — $iso"
+            "$weekCurrentLabel$iso"
         } else {
-            "Semana $iso  (${"%02d/%02d".format(mondayLocal.dayOfMonth, mondayLocal.monthNumber)})"
+            "$weekLabel $iso  (${"%02d/%02d".format(mondayLocal.dayOfMonth, mondayLocal.monthNumber)})"
         }
         WeekOption(label = label, mondayMs = mondayMs)
     }

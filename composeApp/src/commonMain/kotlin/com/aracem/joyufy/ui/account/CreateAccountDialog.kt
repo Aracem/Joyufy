@@ -31,6 +31,9 @@ import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.theme.AccountPalette
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
+import joyufy.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -62,7 +65,7 @@ fun CreateAccountDialog(
                 // ── Header ────────────────────────────────────────────────
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (editingAccount != null) "Editar cuenta" else "Nueva cuenta",
+                        text = if (editingAccount != null) stringResource(Res.string.edit_account) else stringResource(Res.string.new_account),
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
@@ -70,7 +73,7 @@ fun CreateAccountDialog(
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Cerrar",
+                            contentDescription = stringResource(Res.string.close),
                             tint = MaterialTheme.joyufyColors.contentSecondary,
                         )
                     }
@@ -87,7 +90,7 @@ fun CreateAccountDialog(
 
                 // ── Presets ───────────────────────────────────────────────
                 Text(
-                    text = "Banco o plataforma",
+                    text = stringResource(Res.string.bank_or_platform),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -106,7 +109,7 @@ fun CreateAccountDialog(
                     order.forEach { type ->
                         val group = grouped[type] ?: return@forEach
                         Text(
-                            text = type.label,
+                            text = stringResource(type.stringRes),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.joyufyColors.contentSecondary,
                         )
@@ -131,8 +134,8 @@ fun CreateAccountDialog(
                 OutlinedTextField(
                     value = state.name,
                     onValueChange = viewModel::onNameChange,
-                    label = { Text("Nombre") },
-                    placeholder = { Text("Ej: Banco Santander") },
+                    label = { Text(stringResource(Res.string.name)) },
+                    placeholder = { Text(stringResource(Res.string.placeholder_name)) },
                     isError = state.nameError != null,
                     supportingText = state.nameError?.let { { Text(it) } },
                     singleLine = true,
@@ -147,7 +150,7 @@ fun CreateAccountDialog(
 
                 // ── Tipo ──────────────────────────────────────────────────
                 Text(
-                    text = "Tipo",
+                    text = stringResource(Res.string.type_label),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -158,7 +161,7 @@ fun CreateAccountDialog(
                         FilterChip(
                             selected = selected,
                             onClick = { viewModel.onTypeChange(type) },
-                            label = { Text(type.label) },
+                            label = { Text(stringResource(type.stringRes)) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Accent.copy(alpha = 0.15f),
                                 selectedLabelColor = Accent,
@@ -177,7 +180,7 @@ fun CreateAccountDialog(
 
                 // ── Color ─────────────────────────────────────────────────
                 Text(
-                    text = "Color",
+                    text = stringResource(Res.string.color),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -219,8 +222,8 @@ fun CreateAccountDialog(
                                 .onFailure { hexError = true }
                         }
                     },
-                    label = { Text("Color personalizado") },
-                    placeholder = { Text("#7B6EF6") },
+                    label = { Text(stringResource(Res.string.custom_color)) },
+                    placeholder = { Text(stringResource(Res.string.placeholder_color)) },
                     isError = hexError,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -244,8 +247,8 @@ fun CreateAccountDialog(
                     OutlinedTextField(
                         value = state.initialBalance,
                         onValueChange = viewModel::onInitialBalanceChange,
-                        label = { Text("Saldo inicial (opcional)") },
-                        placeholder = { Text("0,00") },
+                        label = { Text(stringResource(Res.string.initial_balance_optional)) },
+                        placeholder = { Text(stringResource(Res.string.placeholder_amount)) },
                         isError = state.initialBalanceError != null,
                         supportingText = state.initialBalanceError?.let { { Text(it) } },
                         singleLine = true,
@@ -267,7 +270,7 @@ fun CreateAccountDialog(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = MaterialTheme.joyufyColors.contentSecondary)
+                        Text(stringResource(Res.string.cancel), color = MaterialTheme.joyufyColors.contentSecondary)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
@@ -294,7 +297,7 @@ fun CreateAccountDialog(
                                 color = Color.White,
                             )
                         } else {
-                            Text(if (editingAccount != null) "Guardar cambios" else "Crear cuenta")
+                            Text(if (editingAccount != null) stringResource(Res.string.save_changes) else stringResource(Res.string.create_account))
                         }
                     }
                 }
@@ -368,9 +371,9 @@ private fun BankPresetChip(
     }
 }
 
-private val AccountType.label: String
+private val AccountType.stringRes: StringResource
     get() = when (this) {
-        AccountType.BANK -> "Banco"
-        AccountType.INVESTMENT -> "Inversión"
-        AccountType.CASH -> "Efectivo"
+        AccountType.BANK -> Res.string.account_type_bank
+        AccountType.INVESTMENT -> Res.string.account_type_investment
+        AccountType.CASH -> Res.string.account_type_cash
     }

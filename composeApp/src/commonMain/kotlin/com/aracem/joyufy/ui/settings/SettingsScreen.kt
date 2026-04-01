@@ -25,6 +25,9 @@ import com.aracem.joyufy.ui.components.ConfettiBurst
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.joyufyColors
+import joyufy.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 @Composable
@@ -48,16 +51,16 @@ fun SettingsScreen(
         val account = accountToDelete!!
         AlertDialog(
             onDismissRequest = { accountToDelete = null },
-            title = { Text("¿Eliminar cuenta?") },
-            text = { Text("Se eliminarán permanentemente la cuenta \"${account.name}\" y todas sus transacciones y snapshots. Esta acción no se puede deshacer.") },
+            title = { Text(stringResource(Res.string.confirm_delete_account)) },
+            text = { Text(stringResource(Res.string.confirm_delete_account_text)) },
             confirmButton = {
                 Button(
                     onClick = { viewModel.deleteAccount(account.id); accountToDelete = null },
                     colors = ButtonDefaults.buttonColors(containerColor = Negative),
-                ) { Text("Eliminar") }
+                ) { Text(stringResource(Res.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { accountToDelete = null }) { Text("Cancelar") }
+                TextButton(onClick = { accountToDelete = null }) { Text(stringResource(Res.string.cancel)) }
             },
         )
     }
@@ -66,8 +69,8 @@ fun SettingsScreen(
     if (showDeleteAllConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteAllConfirm = false },
-            title = { Text("¿Borrar todos los datos?") },
-            text = { Text("Se eliminarán todas las cuentas, transacciones y snapshots. La aplicación quedará vacía. Esta acción no se puede deshacer.") },
+            title = { Text(stringResource(Res.string.confirm_delete_all)) },
+            text = { Text(stringResource(Res.string.confirm_delete_all_text)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -75,10 +78,10 @@ fun SettingsScreen(
                         viewModel.deleteAllData {}
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Negative),
-                ) { Text("Borrar todo") }
+                ) { Text(stringResource(Res.string.delete_all)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteAllConfirm = false }) { Text("Cancelar") }
+                TextButton(onClick = { showDeleteAllConfirm = false }) { Text(stringResource(Res.string.cancel)) }
             },
         )
     }
@@ -94,7 +97,7 @@ fun SettingsScreen(
         // ── Title ─────────────────────────────────────────────────────────
         item {
             Text(
-                text = "Ajustes",
+                text = stringResource(Res.string.settings),
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -102,10 +105,10 @@ fun SettingsScreen(
 
         // ── Apariencia ────────────────────────────────────────────────────
         item {
-            SettingsSection(title = "Apariencia") {
+            SettingsSection(title = stringResource(Res.string.appearance)) {
                 SettingsRow(
-                    label = if (darkMode) "Modo oscuro" else "Modo claro",
-                    description = "Cambia entre tema oscuro y claro",
+                    label = if (darkMode) stringResource(Res.string.dark_mode) else stringResource(Res.string.light_mode),
+                    description = stringResource(Res.string.theme_description),
                 ) {
                     Switch(
                         checked = darkMode,
@@ -118,23 +121,23 @@ fun SettingsScreen(
 
         // ── Datos ─────────────────────────────────────────────────────────
         item {
-            SettingsSection(title = "Datos") {
-                SettingsButton(label = "Exportar backup", onClick = onExport)
+            SettingsSection(title = stringResource(Res.string.data)) {
+                SettingsButton(label = stringResource(Res.string.export_backup), onClick = onExport)
                 HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsButton(label = "Importar backup", onClick = onImport)
+                SettingsButton(label = stringResource(Res.string.import_backup), onClick = onImport)
             }
         }
 
         // ── Cuentas ───────────────────────────────────────────────────────
         item {
-            SettingsSection(title = "Cuentas") {
+            SettingsSection(title = stringResource(Res.string.accounts)) {
                 if (state.accounts.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            "Sin cuentas",
+                            stringResource(Res.string.no_accounts),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.joyufyColors.contentSecondary,
                         )
@@ -158,9 +161,9 @@ fun SettingsScreen(
 
         // ── Zona de peligro ───────────────────────────────────────────────
         item {
-            SettingsSection(title = "Zona de peligro") {
+            SettingsSection(title = stringResource(Res.string.danger_zone)) {
                 SettingsButton(
-                    label = "Borrar todos los datos",
+                    label = stringResource(Res.string.delete_all_data),
                     labelColor = Negative,
                     onClick = { showDeleteAllConfirm = true },
                 )
@@ -308,7 +311,7 @@ private fun AccountSettingsRow(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = account.type.label,
+                text = stringResource(account.type.stringRes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
@@ -316,7 +319,7 @@ private fun AccountSettingsRow(
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
             Icon(
                 Icons.Default.Delete,
-                contentDescription = "Eliminar cuenta",
+                contentDescription = stringResource(Res.string.delete),
                 tint = MaterialTheme.joyufyColors.contentDisabled,
                 modifier = Modifier.size(16.dp),
             )
@@ -324,9 +327,9 @@ private fun AccountSettingsRow(
     }
 }
 
-private val AccountType.label: String
+private val AccountType.stringRes: StringResource
     get() = when (this) {
-        AccountType.BANK -> "Banco"
-        AccountType.INVESTMENT -> "Inversión"
-        AccountType.CASH -> "Efectivo"
+        AccountType.BANK -> Res.string.account_type_bank
+        AccountType.INVESTMENT -> Res.string.account_type_investment
+        AccountType.CASH -> Res.string.account_type_cash
     }

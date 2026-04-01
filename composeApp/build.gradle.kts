@@ -69,7 +69,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Joyufy"
-            packageVersion = "1.0.3"
+            packageVersion = "1.1.0"
             modules("java.sql", "java.naming")
             description = "Control personal de finanzas"
             copyright = "© 2026 Aracem"

@@ -40,9 +40,11 @@ import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.Positive
 import com.aracem.joyufy.ui.theme.joyufyColors
+import joyufy.composeapp.generated.resources.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
@@ -118,7 +120,7 @@ fun AccountDetailScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Volver",
+                        contentDescription = stringResource(Res.string.go_back),
                         tint = MaterialTheme.joyufyColors.contentSecondary,
                     )
                 }
@@ -136,7 +138,7 @@ fun AccountDetailScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = account.type.label,
+                        text = stringResource(account.type.stringRes),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.joyufyColors.contentSecondary,
                     )
@@ -146,7 +148,7 @@ fun AccountDetailScreen(
                     IconButton(onClick = { showEditAccount = true }, modifier = Modifier.size(32.dp)) {
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = "Editar cuenta",
+                            contentDescription = stringResource(Res.string.edit_account),
                             tint = MaterialTheme.joyufyColors.contentSecondary,
                             modifier = Modifier.size(18.dp),
                         )
@@ -156,7 +158,7 @@ fun AccountDetailScreen(
                             onClick = { showAddSnapshot = true },
                             border = androidx.compose.foundation.BorderStroke(1.dp, Accent),
                         ) {
-                            Text("Actualizar valor", color = Accent)
+                            Text(stringResource(Res.string.update_value), color = Accent)
                         }
                     }
                     Button(
@@ -165,7 +167,7 @@ fun AccountDetailScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Añadir transacción")
+                        Text(stringResource(Res.string.add_transaction))
                     }
                 }
             }
@@ -175,7 +177,7 @@ fun AccountDetailScreen(
         item {
             Column(modifier = Modifier.padding(start = 48.dp)) {
                 Text(
-                    text = "Balance actual",
+                    text = stringResource(Res.string.current_balance),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -223,14 +225,14 @@ fun AccountDetailScreen(
         if (account.type == AccountType.INVESTMENT) {
             item {
                 Text(
-                    text = "Valor de mercado semanal",
+                    text = stringResource(Res.string.weekly_value),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(start = 4.dp),
                 )
             }
             if (state.snapshots.isEmpty()) {
-                item { EmptyListHint("Sin registros semanales", "Pulsa «Actualizar valor» para añadir el primero", Icons.Default.DateRange) }
+                item { EmptyListHint(stringResource(Res.string.no_weekly_records), stringResource(Res.string.no_weekly_records_hint), Icons.Default.DateRange) }
             } else {
                 items(state.snapshots, key = { it.id }) { snapshot ->
                     SnapshotRow(
@@ -250,7 +252,7 @@ fun AccountDetailScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Transacciones",
+                    text = stringResource(Res.string.transactions),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f).padding(start = 4.dp),
@@ -259,7 +261,7 @@ fun AccountDetailScreen(
                     TextButton(
                         onClick = { searchQuery = ""; filterType = null; filterCategory = null },
                     ) {
-                        Text("Limpiar", color = MaterialTheme.joyufyColors.contentSecondary)
+                        Text(stringResource(Res.string.clear_filters), color = MaterialTheme.joyufyColors.contentSecondary)
                     }
                 }
             }
@@ -280,9 +282,9 @@ fun AccountDetailScreen(
         }
 
         if (state.transactions.isEmpty()) {
-            item { EmptyListHint("Aún no hay transacciones", "Pulsa «Añadir transacción» para registrar la primera", Icons.AutoMirrored.Filled.List) }
+            item { EmptyListHint(stringResource(Res.string.no_transactions), stringResource(Res.string.no_transactions_hint), Icons.AutoMirrored.Filled.List) }
         } else if (filteredTransactions.isEmpty()) {
-            item { EmptyListHint("Sin resultados", "Prueba a cambiar o limpiar los filtros", Icons.Default.Search) }
+            item { EmptyListHint(stringResource(Res.string.no_search_results), stringResource(Res.string.no_search_results_hint), Icons.Default.Search) }
         } else {
             items(filteredTransactions, key = { it.id }) { tx ->
                 TransactionRow(
@@ -324,8 +326,8 @@ fun AccountDetailScreen(
 
     confirmDeleteTxId?.let { txId ->
         DeleteConfirmDialog(
-            title = "¿Eliminar transacción?",
-            text = "Esta acción no se puede deshacer.",
+            title = stringResource(Res.string.confirm_delete_transaction),
+            text = stringResource(Res.string.confirm_delete_transaction_text),
             onConfirm = { viewModel.deleteTransaction(txId); confirmDeleteTxId = null },
             onDismiss = { confirmDeleteTxId = null },
         )
@@ -333,8 +335,8 @@ fun AccountDetailScreen(
 
     confirmDeleteSnapshotId?.let { snapId ->
         DeleteConfirmDialog(
-            title = "¿Eliminar registro semanal?",
-            text = "Esta acción no se puede deshacer.",
+            title = stringResource(Res.string.confirm_delete_snapshot),
+            text = stringResource(Res.string.confirm_delete_snapshot_text),
             onConfirm = { viewModel.deleteSnapshot(snapId); confirmDeleteSnapshotId = null },
             onDismiss = { confirmDeleteSnapshotId = null },
         )
@@ -380,7 +382,7 @@ private fun AccountHistoryCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Evolución",
+                text = stringResource(Res.string.evolution),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
@@ -391,7 +393,7 @@ private fun AccountHistoryCard(
             ) {
                 Icon(
                     imageVector = if (chartMode == ChartMode.AREA) Icons.AutoMirrored.Filled.List else Icons.Default.DateRange,
-                    contentDescription = "Cambiar vista",
+                    contentDescription = stringResource(Res.string.change_view),
                     tint = MaterialTheme.joyufyColors.contentSecondary,
                     modifier = Modifier.size(18.dp),
                 )
@@ -426,7 +428,7 @@ private fun TransactionFilterBar(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchChange,
-            placeholder = { Text("Buscar por descripción o categoría…", style = MaterialTheme.typography.bodySmall) },
+            placeholder = { Text(stringResource(Res.string.search_description_category), style = MaterialTheme.typography.bodySmall) },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null,
                     tint = MaterialTheme.joyufyColors.contentSecondary,
@@ -435,7 +437,7 @@ private fun TransactionFilterBar(
             trailingIcon = {
                 if (searchQuery.isNotBlank()) {
                     IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Limpiar",
+                        Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.clear_filters),
                             tint = MaterialTheme.joyufyColors.contentSecondary,
                             modifier = Modifier.size(16.dp))
                     }
@@ -461,7 +463,7 @@ private fun TransactionFilterBar(
                 FilterChip(
                     selected = selected,
                     onClick = { onTypeChange(type) },
-                    label = { Text(type.label, style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(stringResource(type.stringRes), style = MaterialTheme.typography.labelSmall) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Accent.copy(alpha = 0.15f),
                         selectedLabelColor = Accent,
@@ -520,9 +522,9 @@ private fun TransactionRow(
     val amountColor = if (isPositive) Positive else Negative
     val prefix = if (isPositive) "+" else "-"
     val displayLabel = when {
-        isTransferOut -> "Transferencia →"
-        isTransferIn  -> "Transferencia ←"
-        else          -> transaction.type.label
+        isTransferOut -> stringResource(Res.string.transfer_out)
+        isTransferIn  -> stringResource(Res.string.transfer_in)
+        else          -> stringResource(transaction.type.stringRes)
     }
 
     Row(
@@ -574,12 +576,12 @@ private fun TransactionRow(
         )
         Spacer(Modifier.width(4.dp))
         IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Edit, contentDescription = "Editar",
+            Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.edit),
                 tint = MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier.size(16.dp))
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Eliminar",
+            Icon(Icons.Default.Delete, contentDescription = stringResource(Res.string.delete),
                 tint = MaterialTheme.joyufyColors.contentDisabled,
                 modifier = Modifier.size(16.dp))
         }
@@ -602,7 +604,7 @@ private fun SnapshotRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Semana del ${snapshot.weekDate.formatDate()}",
+                text = "${stringResource(Res.string.week)} ${snapshot.weekDate.formatDate()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
@@ -614,12 +616,12 @@ private fun SnapshotRow(
         )
         Spacer(Modifier.width(4.dp))
         IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Edit, contentDescription = "Editar",
+            Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.edit),
                 tint = MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier.size(16.dp))
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Eliminar",
+            Icon(Icons.Default.Delete, contentDescription = stringResource(Res.string.delete),
                 tint = MaterialTheme.joyufyColors.contentDisabled,
                 modifier = Modifier.size(16.dp))
         }
@@ -636,13 +638,13 @@ private fun AccountPeriodChangeBadge(
     val color = if (isPositive) Positive else Negative
     val sign = if (isPositive) "+" else ""
     val rangeLabel = when (range) {
-        ChartRange.ONE_WEEK     -> "en la última semana"
-        ChartRange.ONE_MONTH    -> "en el último mes"
-        ChartRange.THREE_MONTHS -> "en los últimos 3 meses"
-        ChartRange.SIX_MONTHS  -> "en los últimos 6 meses"
-        ChartRange.YTD         -> "en lo que va de año"
-        ChartRange.ONE_YEAR    -> "en el último año"
-        ChartRange.ALL         -> "desde el inicio"
+        ChartRange.ONE_WEEK     -> stringResource(Res.string.range_one_week)
+        ChartRange.ONE_MONTH    -> stringResource(Res.string.range_one_month)
+        ChartRange.THREE_MONTHS -> stringResource(Res.string.range_three_months)
+        ChartRange.SIX_MONTHS  -> stringResource(Res.string.range_six_months)
+        ChartRange.YTD         -> stringResource(Res.string.range_ytd)
+        ChartRange.ONE_YEAR    -> stringResource(Res.string.range_one_year)
+        ChartRange.ALL         -> stringResource(Res.string.range_all)
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -719,18 +721,18 @@ private fun DeleteConfirmDialog(
     )
 }
 
-private val AccountType.label: String
+private val AccountType.stringRes: org.jetbrains.compose.resources.StringResource
     get() = when (this) {
-        AccountType.BANK -> "Banco"
-        AccountType.INVESTMENT -> "Inversión"
-        AccountType.CASH -> "Efectivo"
+        AccountType.BANK -> Res.string.account_type_bank
+        AccountType.INVESTMENT -> Res.string.account_type_investment
+        AccountType.CASH -> Res.string.account_type_cash
     }
 
-private val TransactionType.label: String
+private val TransactionType.stringRes: org.jetbrains.compose.resources.StringResource
     get() = when (this) {
-        TransactionType.INCOME -> "Ingreso"
-        TransactionType.EXPENSE -> "Gasto"
-        TransactionType.TRANSFER -> "Transferencia"
+        TransactionType.INCOME -> Res.string.transaction_income
+        TransactionType.EXPENSE -> Res.string.transaction_expense
+        TransactionType.TRANSFER -> Res.string.transaction_transfer
     }
 
 private fun Long.formatDate(): String {
