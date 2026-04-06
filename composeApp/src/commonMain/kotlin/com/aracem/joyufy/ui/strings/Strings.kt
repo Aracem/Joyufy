@@ -1,0 +1,165 @@
+package com.aracem.joyufy.ui.strings
+
+import androidx.compose.runtime.compositionLocalOf
+
+data class Strings(
+    // Navigation
+    val goBack: String,
+    val sidebarDashboard: String,
+    val sidebarSettings: String,
+    val sidebarCollapse: String,
+    val sidebarExpand: String,
+    val sidebarReorderEnter: String,
+    val sidebarReorderExit: String,
+    val sidebarReorder: String,
+    val sidebarNewAccount: String,
+    val sidebarDarkMode: String,
+    val sidebarLightMode: String,
+
+    // Common actions
+    val cancel: String,
+    val delete: String,
+    val edit: String,
+    val saveChanges: String,
+    val close: String,
+    val download: String,
+
+    // Dashboard
+    val totalWealth: String,
+    val noAccountsYet: String,
+    val addFirstAccount: String,
+    val evolution: String,
+    val changeView: String,
+    val analysis: String,
+    val collapse: String,
+    val expand: String,
+
+    // Monthly summary
+    val currentMonth: String,
+    val income: String,
+    val expenses: String,
+    val investment: String,
+    val net: String,
+    val topExpenses: String,
+    val monthCurrent: String,
+
+    // Annual summary
+    val currentYear: String,
+    val yearAll: String,
+    val yearPrevious: String,
+    val yearNext: String,
+
+    // Chart ranges
+    val chartWeek: String,
+    val chartMonth: String,
+    val chartThreeMonths: String,
+    val chartSixMonths: String,
+    val chartYtd: String,
+    val chartYear: String,
+    val rangeOneWeek: String,
+    val rangeOneMonth: String,
+    val rangeThreeMonths: String,
+    val rangeSixMonths: String,
+    val rangeYtd: String,
+    val rangeOneYear: String,
+    val rangeAll: String,
+
+    // Account detail
+    val editAccount: String,
+    val updateValue: String,
+    val addTransaction: String,
+    val currentBalance: String,
+    val transactions: String,
+    val noTransactions: String,
+    val noTransactionsHint: String,
+    val noSearchResults: String,
+    val noSearchResultsHint: String,
+    val weeklyValue: String,
+    val noWeeklyRecords: String,
+    val noWeeklyRecordsHint: String,
+    val editValue: String,
+    val weekCurrent: String,
+    val week: String,
+
+    // Filters
+    val clearFilters: String,
+    val searchDescriptionCategory: String,
+    val transactionType: String,
+    val transferOut: String,
+    val transferIn: String,
+
+    // Add/Edit transaction
+    val editTransaction: String,
+    val newTransaction: String,
+    val amountEur: String,
+    val dateFormat: String,
+    val categoryOptional: String,
+    val descriptionOptional: String,
+    val destinationAccount: String,
+    val placeholderAmount: String,
+    val buttonTransfer: String,
+    val buttonAdd: String,
+    val amountError: String,
+    val dateError: String,
+
+    // Add/Edit snapshot
+    val totalValueEur: String,
+    val valueError: String,
+    val save: String,
+
+    // Create account
+    val newAccount: String,
+    val createAccount: String,
+    val name: String,
+    val typeLabel: String,
+    val color: String,
+    val placeholderName: String,
+    val customColor: String,
+    val placeholderColor: String,
+    val initialBalanceOptional: String,
+    val bankOrPlatform: String,
+    val moreOptions: String,
+
+    // Account types
+    val accountTypeBank: String,
+    val accountTypeInvestment: String,
+    val accountTypeCash: String,
+
+    // Transaction types
+    val transactionIncome: String,
+    val transactionExpense: String,
+    val transactionTransfer: String,
+
+    // Settings
+    val settings: String,
+    val appearance: String,
+    val darkMode: String,
+    val lightMode: String,
+    val themeDescription: String,
+    val data: String,
+    val exportBackup: String,
+    val importBackup: String,
+    val exportData: String,
+    val importData: String,
+    val accounts: String,
+    val noAccounts: String,
+    val dangerZone: String,
+    val deleteAllData: String,
+    val language: String,
+
+    // Confirm dialogs
+    val confirmDeleteTransaction: String,
+    val confirmDeleteTransactionText: String,
+    val confirmDeleteSnapshot: String,
+    val confirmDeleteSnapshotText: String,
+    val confirmDeleteAccount: String,
+    val confirmDeleteAccountText: String,
+    val confirmDeleteAll: String,
+    val confirmDeleteAllText: String,
+    val deleteAll: String,
+    val confirmRestoreBackup: String,
+    val confirmRestoreBackupText: String,
+    val restore: String,
+)
+
+val LocalStrings = compositionLocalOf<Strings> { StringsEn }

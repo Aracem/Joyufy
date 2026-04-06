@@ -9,11 +9,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
-import joyufy.composeapp.generated.resources.*
 import kotlinx.datetime.Clock
-import org.jetbrains.compose.resources.stringResource
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -29,6 +28,7 @@ fun AddSnapshotDialog(
     // If non-null, dialog is in edit mode
     editingSnapshot: com.aracem.joyufy.domain.model.InvestmentSnapshot? = null,
 ) {
+    val strings = LocalStrings.current
     var valueText by remember {
         mutableStateOf(editingSnapshot?.totalValue?.let { "%.2f".format(it) }
             ?: currentValue?.let { "%.2f".format(it) } ?: "")
@@ -36,8 +36,8 @@ fun AddSnapshotDialog(
     var valueError by remember { mutableStateOf<String?>(null) }
 
     // Build last 12 weeks (including current) as options
-    val weekCurrentStr = stringResource(Res.string.week_current)
-    val weekStr = stringResource(Res.string.week)
+    val weekCurrentStr = strings.weekCurrent
+    val weekStr = strings.week
     val weeks = remember(weekCurrentStr, weekStr) { buildRecentWeeks(12, weekCurrentStr, weekStr) }
     // Pre-select the week matching the snapshot being edited, or current week
     var selectedWeek by remember {
@@ -63,7 +63,7 @@ fun AddSnapshotDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (editingSnapshot != null) stringResource(Res.string.edit_value) else stringResource(Res.string.update_value),
+                            text = if (editingSnapshot != null) strings.editValue else strings.updateValue,
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
@@ -74,7 +74,7 @@ fun AddSnapshotDialog(
                         )
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.close),
+                        Icon(Icons.Default.Close, contentDescription = strings.close,
                             tint = MaterialTheme.joyufyColors.contentSecondary)
                     }
                 }
@@ -90,7 +90,7 @@ fun AddSnapshotDialog(
                         value = selectedWeek.label,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text(stringResource(Res.string.week)) },
+                        label = { Text(strings.week) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(weekExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -115,8 +115,8 @@ fun AddSnapshotDialog(
                 OutlinedTextField(
                     value = valueText,
                     onValueChange = { valueText = it; valueError = null },
-                    label = { Text(stringResource(Res.string.total_value_eur)) },
-                    placeholder = { Text(stringResource(Res.string.placeholder_amount)) },
+                    label = { Text(strings.totalValueEur) },
+                    placeholder = { Text(strings.placeholderAmount) },
                     isError = valueError != null,
                     supportingText = valueError?.let { { Text(it) } },
                     singleLine = true,
@@ -129,17 +129,16 @@ fun AddSnapshotDialog(
 
                 Spacer(Modifier.height(24.dp))
 
-                val valueErrorStr = stringResource(Res.string.value_error)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) {
-                        Text(stringResource(Res.string.cancel), color = MaterialTheme.joyufyColors.contentSecondary)
+                        Text(strings.cancel, color = MaterialTheme.joyufyColors.contentSecondary)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
                             val value = valueText.replace(",", ".").toDoubleOrNull()
                             if (value == null || value < 0) {
-                                valueError = valueErrorStr
+                                valueError = strings.valueError
                                 return@Button
                             }
                             onConfirm(value, selectedWeek.mondayMs)
@@ -147,7 +146,7 @@ fun AddSnapshotDialog(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     ) {
-                        Text(if (editingSnapshot != null) stringResource(Res.string.save_changes) else stringResource(Res.string.save_current_month))
+                        Text(if (editingSnapshot != null) strings.saveChanges else strings.save)
                     }
                 }
             }

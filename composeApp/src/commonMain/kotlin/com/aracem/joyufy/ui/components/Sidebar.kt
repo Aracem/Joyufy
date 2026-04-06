@@ -35,10 +35,9 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.dashboard.AccountSummary
 import com.aracem.joyufy.ui.navigation.Screen
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
-import joyufy.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 private val SIDEBAR_EXPANDED_WIDTH = 220.dp
 private val SIDEBAR_COLLAPSED_WIDTH = 56.dp
@@ -55,6 +54,7 @@ fun Sidebar(
     onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
     var expanded by remember { mutableStateOf(true) }
     var reorderMode by remember { mutableStateOf(false) }
     val itemCenterY = remember { mutableStateMapOf<Long, Float>() }
@@ -88,7 +88,7 @@ fun Sidebar(
             ) {
                 Icon(
                     imageVector = Icons.Default.Menu,
-                    contentDescription = if (expanded) stringResource(Res.string.sidebar_collapse) else stringResource(Res.string.sidebar_expand),
+                    contentDescription = if (expanded) strings.sidebarCollapse else strings.sidebarExpand,
                     tint = MaterialTheme.joyufyColors.contentSecondary,
                     modifier = Modifier.size(18.dp),
                 )
@@ -108,7 +108,7 @@ fun Sidebar(
 
         // ── Dashboard nav item ────────────────────────────────────────────
         SidebarNavItem(
-            label = stringResource(Res.string.sidebar_dashboard),
+            label = strings.sidebarDashboard,
             icon = Icons.Default.Home,
             selected = currentScreen is Screen.Dashboard,
             expanded = expanded,
@@ -161,13 +161,13 @@ fun Sidebar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(Res.string.sidebar_new_account),
+                        contentDescription = strings.sidebarNewAccount,
                         tint = Accent,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = stringResource(Res.string.sidebar_new_account),
+                        text = strings.sidebarNewAccount,
                         style = MaterialTheme.typography.bodyMedium,
                         color = Accent,
                     )
@@ -183,7 +183,7 @@ fun Sidebar(
                     ) {
                         Icon(
                             imageVector = Icons.Default.SwapVert,
-                            contentDescription = if (reorderMode) stringResource(Res.string.sidebar_reorder_exit) else stringResource(Res.string.sidebar_reorder_enter),
+                            contentDescription = if (reorderMode) strings.sidebarReorderExit else strings.sidebarReorderEnter,
                             tint = androidx.compose.ui.graphics.lerp(
                                 MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
                                 Accent,
@@ -201,7 +201,7 @@ fun Sidebar(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.sidebar_new_account),
+                    contentDescription = strings.sidebarNewAccount,
                     tint = Accent,
                     modifier = Modifier.size(18.dp),
                 )
@@ -231,7 +231,7 @@ fun Sidebar(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = if (darkMode) stringResource(Res.string.sidebar_dark_mode) else stringResource(Res.string.sidebar_light_mode),
+                    text = if (darkMode) strings.sidebarDarkMode else strings.sidebarLightMode,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -246,7 +246,7 @@ fun Sidebar(
         }
 
         SidebarNavItem(
-            label = stringResource(Res.string.sidebar_settings),
+            label = strings.sidebarSettings,
             icon = Icons.Default.Settings,
             selected = currentScreen is Screen.Settings,
             expanded = expanded,
@@ -270,6 +270,7 @@ private fun SidebarAccountItem(
     onClick: () -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
 ) {
+    val strings = LocalStrings.current
     var isDragging by remember { mutableStateOf(false) }
     var cursorY by remember { mutableStateOf(0f) }
     val account = summary.account
@@ -305,7 +306,7 @@ private fun SidebarAccountItem(
         if (reorderMode && expanded) {
             Icon(
                 imageVector = Icons.Default.Menu,
-                contentDescription = stringResource(Res.string.sidebar_reorder),
+                contentDescription = strings.sidebarReorder,
                 tint = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
                 modifier = Modifier
                     .size(14.dp)

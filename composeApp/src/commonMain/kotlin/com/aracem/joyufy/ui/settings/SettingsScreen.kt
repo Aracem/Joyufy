@@ -22,22 +22,23 @@ import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.components.ConfettiBurst
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.joyufyColors
-import joyufy.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 @Composable
 fun SettingsScreen(
     darkMode: Boolean,
     onToggleTheme: () -> Unit,
+    language: String,
+    onLanguageChange: (String) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
     viewModel: SettingsViewModel = koinInject(),
 ) {
+    val strings = LocalStrings.current
     val state by viewModel.uiState.collectAsState()
 
     var accountToDelete by remember { mutableStateOf<Account?>(null) }
@@ -51,16 +52,16 @@ fun SettingsScreen(
         val account = accountToDelete!!
         AlertDialog(
             onDismissRequest = { accountToDelete = null },
-            title = { Text(stringResource(Res.string.confirm_delete_account)) },
-            text = { Text(stringResource(Res.string.confirm_delete_account_text)) },
+            title = { Text(strings.confirmDeleteAccount) },
+            text = { Text(strings.confirmDeleteAccountText) },
             confirmButton = {
                 Button(
                     onClick = { viewModel.deleteAccount(account.id); accountToDelete = null },
                     colors = ButtonDefaults.buttonColors(containerColor = Negative),
-                ) { Text(stringResource(Res.string.delete)) }
+                ) { Text(strings.delete) }
             },
             dismissButton = {
-                TextButton(onClick = { accountToDelete = null }) { Text(stringResource(Res.string.cancel)) }
+                TextButton(onClick = { accountToDelete = null }) { Text(strings.cancel) }
             },
         )
     }
@@ -69,8 +70,8 @@ fun SettingsScreen(
     if (showDeleteAllConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteAllConfirm = false },
-            title = { Text(stringResource(Res.string.confirm_delete_all)) },
-            text = { Text(stringResource(Res.string.confirm_delete_all_text)) },
+            title = { Text(strings.confirmDeleteAll) },
+            text = { Text(strings.confirmDeleteAllText) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -78,10 +79,10 @@ fun SettingsScreen(
                         viewModel.deleteAllData {}
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Negative),
-                ) { Text(stringResource(Res.string.delete_all)) }
+                ) { Text(strings.deleteAll) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteAllConfirm = false }) { Text(stringResource(Res.string.cancel)) }
+                TextButton(onClick = { showDeleteAllConfirm = false }) { Text(strings.cancel) }
             },
         )
     }
@@ -97,18 +98,52 @@ fun SettingsScreen(
         // ── Title ─────────────────────────────────────────────────────────
         item {
             Text(
-                text = stringResource(Res.string.settings),
+                text = strings.settings,
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
 
+        // ── Idioma ────────────────────────────────────────────────────────
+        item {
+            SettingsSection(title = "Idioma / Language") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf("" to "Sistema / System", "en" to "English", "es" to "Español").forEach { (code, label) ->
+                        val selected = language == code
+                        FilterChip(
+                            selected = selected,
+                            onClick = { onLanguageChange(code) },
+                            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Accent.copy(alpha = 0.15f),
+                                selectedLabelColor = Accent,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.joyufyColors.contentSecondary,
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selected,
+                                selectedBorderColor = Accent,
+                                borderColor = MaterialTheme.joyufyColors.border,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
         // ── Apariencia ────────────────────────────────────────────────────
         item {
-            SettingsSection(title = stringResource(Res.string.appearance)) {
+            SettingsSection(title = strings.appearance) {
                 SettingsRow(
-                    label = if (darkMode) stringResource(Res.string.dark_mode) else stringResource(Res.string.light_mode),
-                    description = stringResource(Res.string.theme_description),
+                    label = if (darkMode) strings.darkMode else strings.lightMode,
+                    description = strings.themeDescription,
                 ) {
                     Switch(
                         checked = darkMode,
@@ -121,23 +156,23 @@ fun SettingsScreen(
 
         // ── Datos ─────────────────────────────────────────────────────────
         item {
-            SettingsSection(title = stringResource(Res.string.data)) {
-                SettingsButton(label = stringResource(Res.string.export_backup), onClick = onExport)
+            SettingsSection(title = strings.data) {
+                SettingsButton(label = strings.exportBackup, onClick = onExport)
                 HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsButton(label = stringResource(Res.string.import_backup), onClick = onImport)
+                SettingsButton(label = strings.importBackup, onClick = onImport)
             }
         }
 
         // ── Cuentas ───────────────────────────────────────────────────────
         item {
-            SettingsSection(title = stringResource(Res.string.accounts)) {
+            SettingsSection(title = strings.accounts) {
                 if (state.accounts.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            stringResource(Res.string.no_accounts),
+                            strings.noAccounts,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.joyufyColors.contentSecondary,
                         )
@@ -161,9 +196,9 @@ fun SettingsScreen(
 
         // ── Zona de peligro ───────────────────────────────────────────────
         item {
-            SettingsSection(title = stringResource(Res.string.danger_zone)) {
+            SettingsSection(title = strings.dangerZone) {
                 SettingsButton(
-                    label = stringResource(Res.string.delete_all_data),
+                    label = strings.deleteAllData,
                     labelColor = Negative,
                     onClick = { showDeleteAllConfirm = true },
                 )
@@ -292,6 +327,7 @@ private fun AccountSettingsRow(
     account: Account,
     onDelete: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -311,7 +347,11 @@ private fun AccountSettingsRow(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = stringResource(account.type.stringRes),
+                text = when (account.type) {
+                    AccountType.BANK -> strings.accountTypeBank
+                    AccountType.INVESTMENT -> strings.accountTypeInvestment
+                    AccountType.CASH -> strings.accountTypeCash
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
@@ -319,7 +359,7 @@ private fun AccountSettingsRow(
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
             Icon(
                 Icons.Default.Delete,
-                contentDescription = stringResource(Res.string.delete),
+                contentDescription = strings.delete,
                 tint = MaterialTheme.joyufyColors.contentDisabled,
                 modifier = Modifier.size(16.dp),
             )
@@ -327,9 +367,3 @@ private fun AccountSettingsRow(
     }
 }
 
-private val AccountType.stringRes: StringResource
-    get() = when (this) {
-        AccountType.BANK -> Res.string.account_type_bank
-        AccountType.INVESTMENT -> Res.string.account_type_investment
-        AccountType.CASH -> Res.string.account_type_cash
-    }

@@ -36,15 +36,14 @@ import com.aracem.joyufy.ui.components.formatCurrency
 import com.aracem.joyufy.ui.dashboard.ChartMode
 import com.aracem.joyufy.ui.dashboard.ChartRange
 import com.aracem.joyufy.ui.dashboard.ChartRangeSelector
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.Positive
 import com.aracem.joyufy.ui.theme.joyufyColors
-import joyufy.composeapp.generated.resources.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
@@ -53,6 +52,7 @@ fun AccountDetailScreen(
     accountId: Long,
     onBack: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val viewModel: AccountDetailViewModel = koinInject { parametersOf(accountId) }
     val state by viewModel.uiState.collectAsState()
 
@@ -120,7 +120,7 @@ fun AccountDetailScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(Res.string.go_back),
+                        contentDescription = strings.goBack,
                         tint = MaterialTheme.joyufyColors.contentSecondary,
                     )
                 }
@@ -138,7 +138,11 @@ fun AccountDetailScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = stringResource(account.type.stringRes),
+                        text = when (account.type) {
+                        AccountType.BANK -> strings.accountTypeBank
+                        AccountType.INVESTMENT -> strings.accountTypeInvestment
+                        AccountType.CASH -> strings.accountTypeCash
+                    },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.joyufyColors.contentSecondary,
                     )
@@ -148,7 +152,7 @@ fun AccountDetailScreen(
                     IconButton(onClick = { showEditAccount = true }, modifier = Modifier.size(32.dp)) {
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = stringResource(Res.string.edit_account),
+                            contentDescription = strings.editAccount,
                             tint = MaterialTheme.joyufyColors.contentSecondary,
                             modifier = Modifier.size(18.dp),
                         )
@@ -158,7 +162,7 @@ fun AccountDetailScreen(
                             onClick = { showAddSnapshot = true },
                             border = androidx.compose.foundation.BorderStroke(1.dp, Accent),
                         ) {
-                            Text(stringResource(Res.string.update_value), color = Accent)
+                            Text(strings.updateValue, color = Accent)
                         }
                     }
                     Button(
@@ -167,7 +171,7 @@ fun AccountDetailScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text(stringResource(Res.string.add_transaction))
+                        Text(strings.addTransaction)
                     }
                 }
             }
@@ -177,7 +181,7 @@ fun AccountDetailScreen(
         item {
             Column(modifier = Modifier.padding(start = 48.dp)) {
                 Text(
-                    text = stringResource(Res.string.current_balance),
+                    text = strings.currentBalance,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -225,14 +229,14 @@ fun AccountDetailScreen(
         if (account.type == AccountType.INVESTMENT) {
             item {
                 Text(
-                    text = stringResource(Res.string.weekly_value),
+                    text = strings.weeklyValue,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(start = 4.dp),
                 )
             }
             if (state.snapshots.isEmpty()) {
-                item { EmptyListHint(stringResource(Res.string.no_weekly_records), stringResource(Res.string.no_weekly_records_hint), Icons.Default.DateRange) }
+                item { EmptyListHint(strings.noWeeklyRecords, strings.noWeeklyRecordsHint, Icons.Default.DateRange) }
             } else {
                 items(state.snapshots, key = { it.id }) { snapshot ->
                     SnapshotRow(
@@ -252,7 +256,7 @@ fun AccountDetailScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(Res.string.transactions),
+                    text = strings.transactions,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f).padding(start = 4.dp),
@@ -261,7 +265,7 @@ fun AccountDetailScreen(
                     TextButton(
                         onClick = { searchQuery = ""; filterType = null; filterCategory = null },
                     ) {
-                        Text(stringResource(Res.string.clear_filters), color = MaterialTheme.joyufyColors.contentSecondary)
+                        Text(strings.clearFilters, color = MaterialTheme.joyufyColors.contentSecondary)
                     }
                 }
             }
@@ -282,9 +286,9 @@ fun AccountDetailScreen(
         }
 
         if (state.transactions.isEmpty()) {
-            item { EmptyListHint(stringResource(Res.string.no_transactions), stringResource(Res.string.no_transactions_hint), Icons.AutoMirrored.Filled.List) }
+            item { EmptyListHint(strings.noTransactions, strings.noTransactionsHint, Icons.AutoMirrored.Filled.List) }
         } else if (filteredTransactions.isEmpty()) {
-            item { EmptyListHint(stringResource(Res.string.no_search_results), stringResource(Res.string.no_search_results_hint), Icons.Default.Search) }
+            item { EmptyListHint(strings.noSearchResults, strings.noSearchResultsHint, Icons.Default.Search) }
         } else {
             items(filteredTransactions, key = { it.id }) { tx ->
                 TransactionRow(
@@ -326,8 +330,8 @@ fun AccountDetailScreen(
 
     confirmDeleteTxId?.let { txId ->
         DeleteConfirmDialog(
-            title = stringResource(Res.string.confirm_delete_transaction),
-            text = stringResource(Res.string.confirm_delete_transaction_text),
+            title = strings.confirmDeleteTransaction,
+            text = strings.confirmDeleteTransactionText,
             onConfirm = { viewModel.deleteTransaction(txId); confirmDeleteTxId = null },
             onDismiss = { confirmDeleteTxId = null },
         )
@@ -335,8 +339,8 @@ fun AccountDetailScreen(
 
     confirmDeleteSnapshotId?.let { snapId ->
         DeleteConfirmDialog(
-            title = stringResource(Res.string.confirm_delete_snapshot),
-            text = stringResource(Res.string.confirm_delete_snapshot_text),
+            title = strings.confirmDeleteSnapshot,
+            text = strings.confirmDeleteSnapshotText,
             onConfirm = { viewModel.deleteSnapshot(snapId); confirmDeleteSnapshotId = null },
             onDismiss = { confirmDeleteSnapshotId = null },
         )
@@ -369,6 +373,7 @@ private fun AccountHistoryCard(
     account: com.aracem.joyufy.domain.model.Account,
     onRangeChange: (ChartRange) -> Unit,
 ) {
+    val strings = LocalStrings.current
     var chartMode by remember { mutableStateOf(ChartMode.AREA) }
 
     Column(
@@ -382,7 +387,7 @@ private fun AccountHistoryCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(Res.string.evolution),
+                text = strings.evolution,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
@@ -393,7 +398,7 @@ private fun AccountHistoryCard(
             ) {
                 Icon(
                     imageVector = if (chartMode == ChartMode.AREA) Icons.AutoMirrored.Filled.List else Icons.Default.DateRange,
-                    contentDescription = stringResource(Res.string.change_view),
+                    contentDescription = strings.changeView,
                     tint = MaterialTheme.joyufyColors.contentSecondary,
                     modifier = Modifier.size(18.dp),
                 )
@@ -423,12 +428,13 @@ private fun TransactionFilterBar(
     onCategoryChange: (String) -> Unit,
     availableCategories: List<String>,
 ) {
+    val strings = LocalStrings.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Search field
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchChange,
-            placeholder = { Text(stringResource(Res.string.search_description_category), style = MaterialTheme.typography.bodySmall) },
+            placeholder = { Text(strings.searchDescriptionCategory, style = MaterialTheme.typography.bodySmall) },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null,
                     tint = MaterialTheme.joyufyColors.contentSecondary,
@@ -437,7 +443,7 @@ private fun TransactionFilterBar(
             trailingIcon = {
                 if (searchQuery.isNotBlank()) {
                     IconButton(onClick = { onSearchChange("") }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.clear_filters),
+                        Icon(Icons.Default.Close, contentDescription = strings.clearFilters,
                             tint = MaterialTheme.joyufyColors.contentSecondary,
                             modifier = Modifier.size(16.dp))
                     }
@@ -463,7 +469,11 @@ private fun TransactionFilterBar(
                 FilterChip(
                     selected = selected,
                     onClick = { onTypeChange(type) },
-                    label = { Text(stringResource(type.stringRes), style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(when (type) {
+                        TransactionType.INCOME -> strings.transactionIncome
+                        TransactionType.EXPENSE -> strings.transactionExpense
+                        TransactionType.TRANSFER -> strings.transactionTransfer
+                    }, style = MaterialTheme.typography.labelSmall) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Accent.copy(alpha = 0.15f),
                         selectedLabelColor = Accent,
@@ -513,6 +523,7 @@ private fun TransactionRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val relatedAccount = allAccounts.find { it.id == transaction.relatedAccountId }
     val relatedName = relatedAccount?.name
     // Transfers and investment deposits are stored as EXPENSE/INCOME with a relatedAccountId
@@ -522,9 +533,13 @@ private fun TransactionRow(
     val amountColor = if (isPositive) Positive else Negative
     val prefix = if (isPositive) "+" else "-"
     val displayLabel = when {
-        isTransferOut -> stringResource(Res.string.transfer_out)
-        isTransferIn  -> stringResource(Res.string.transfer_in)
-        else          -> stringResource(transaction.type.stringRes)
+        isTransferOut -> strings.transferOut
+        isTransferIn  -> strings.transferIn
+        else          -> when (transaction.type) {
+            TransactionType.INCOME -> strings.transactionIncome
+            TransactionType.EXPENSE -> strings.transactionExpense
+            TransactionType.TRANSFER -> strings.transactionTransfer
+        }
     }
 
     Row(
@@ -576,12 +591,12 @@ private fun TransactionRow(
         )
         Spacer(Modifier.width(4.dp))
         IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.edit),
+            Icon(Icons.Default.Edit, contentDescription = strings.edit,
                 tint = MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier.size(16.dp))
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = stringResource(Res.string.delete),
+            Icon(Icons.Default.Delete, contentDescription = strings.delete,
                 tint = MaterialTheme.joyufyColors.contentDisabled,
                 modifier = Modifier.size(16.dp))
         }
@@ -594,6 +609,7 @@ private fun SnapshotRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -604,7 +620,7 @@ private fun SnapshotRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "${stringResource(Res.string.week)} ${snapshot.weekDate.formatDate()}",
+                text = "${strings.week} ${snapshot.weekDate.formatDate()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
@@ -616,12 +632,12 @@ private fun SnapshotRow(
         )
         Spacer(Modifier.width(4.dp))
         IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.edit),
+            Icon(Icons.Default.Edit, contentDescription = strings.edit,
                 tint = MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier.size(16.dp))
         }
         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = stringResource(Res.string.delete),
+            Icon(Icons.Default.Delete, contentDescription = strings.delete,
                 tint = MaterialTheme.joyufyColors.contentDisabled,
                 modifier = Modifier.size(16.dp))
         }
@@ -634,17 +650,18 @@ private fun AccountPeriodChangeBadge(
     changePct: Double,
     range: ChartRange,
 ) {
+    val strings = LocalStrings.current
     val isPositive = change >= 0
     val color = if (isPositive) Positive else Negative
     val sign = if (isPositive) "+" else ""
     val rangeLabel = when (range) {
-        ChartRange.ONE_WEEK     -> stringResource(Res.string.range_one_week)
-        ChartRange.ONE_MONTH    -> stringResource(Res.string.range_one_month)
-        ChartRange.THREE_MONTHS -> stringResource(Res.string.range_three_months)
-        ChartRange.SIX_MONTHS  -> stringResource(Res.string.range_six_months)
-        ChartRange.YTD         -> stringResource(Res.string.range_ytd)
-        ChartRange.ONE_YEAR    -> stringResource(Res.string.range_one_year)
-        ChartRange.ALL         -> stringResource(Res.string.range_all)
+        ChartRange.ONE_WEEK     -> strings.rangeOneWeek
+        ChartRange.ONE_MONTH    -> strings.rangeOneMonth
+        ChartRange.THREE_MONTHS -> strings.rangeThreeMonths
+        ChartRange.SIX_MONTHS  -> strings.rangeSixMonths
+        ChartRange.YTD         -> strings.rangeYtd
+        ChartRange.ONE_YEAR    -> strings.rangeOneYear
+        ChartRange.ALL         -> strings.rangeAll
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -720,20 +737,6 @@ private fun DeleteConfirmDialog(
         },
     )
 }
-
-private val AccountType.stringRes: org.jetbrains.compose.resources.StringResource
-    get() = when (this) {
-        AccountType.BANK -> Res.string.account_type_bank
-        AccountType.INVESTMENT -> Res.string.account_type_investment
-        AccountType.CASH -> Res.string.account_type_cash
-    }
-
-private val TransactionType.stringRes: org.jetbrains.compose.resources.StringResource
-    get() = when (this) {
-        TransactionType.INCOME -> Res.string.transaction_income
-        TransactionType.EXPENSE -> Res.string.transaction_expense
-        TransactionType.TRANSFER -> Res.string.transaction_transfer
-    }
 
 private fun Long.formatDate(): String {
     val instant = Instant.fromEpochMilliseconds(this)

@@ -11,6 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.ui.account.AccountDetailScreen
+import com.aracem.joyufy.ui.strings.LocalStrings
+import com.aracem.joyufy.ui.strings.StringsEn
+import com.aracem.joyufy.ui.strings.StringsEs
 import com.aracem.joyufy.ui.account.CreateAccountDialog
 import com.aracem.joyufy.ui.backup.BackupEvent
 import com.aracem.joyufy.ui.backup.BackupViewModel
@@ -31,7 +34,14 @@ import org.koin.compose.koinInject
 fun App() {
     val prefsRepo: PreferencesRepository = koinInject()
     var darkMode by remember { mutableStateOf(prefsRepo.getDarkMode()) }
+    var language by remember { mutableStateOf(prefsRepo.getLanguage()) }
+    val strings = when (language) {
+        "es" -> StringsEs
+        "en" -> StringsEn
+        else -> if (java.util.Locale.getDefault().language == "es") StringsEs else StringsEn
+    }
 
+    CompositionLocalProvider(LocalStrings provides strings) {
     JoyufyTheme(darkMode = darkMode) {
         Surface(modifier = Modifier.fillMaxSize()) {
             var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
@@ -61,19 +71,20 @@ fun App() {
             }
 
             if (showImportConfirm != null) {
+                val s = LocalStrings.current
                 AlertDialog(
                     onDismissRequest = { showImportConfirm = null; backupViewModel.reset() },
-                    title = { Text("¿Restaurar backup?") },
-                    text = { Text("Se borrarán todos los datos actuales y se reemplazarán con los del archivo. Esta acción no se puede deshacer.") },
+                    title = { Text(s.confirmRestoreBackup) },
+                    text = { Text(s.confirmRestoreBackupText) },
                     confirmButton = {
                         Button(
                             onClick = { showImportConfirm?.invoke(); showImportConfirm = null },
                             colors = ButtonDefaults.buttonColors(containerColor = Negative),
-                        ) { Text("Restaurar") }
+                        ) { Text(s.restore) }
                     },
                     dismissButton = {
                         TextButton(onClick = { showImportConfirm = null; backupViewModel.reset() }) {
-                            Text("Cancelar")
+                            Text(s.cancel)
                         }
                     },
                 )
@@ -138,6 +149,8 @@ fun App() {
                         is Screen.Settings -> SettingsScreen(
                             darkMode = darkMode,
                             onToggleTheme = { darkMode = !darkMode; prefsRepo.setDarkMode(darkMode) },
+                            language = language,
+                            onLanguageChange = { language = it; prefsRepo.setLanguage(it) },
                             onExport = { backupViewModel.requestExport() },
                             onImport = {
                                 scope.launch {
@@ -160,4 +173,5 @@ fun App() {
             }
         }
     }
+    } // end CompositionLocalProvider
 }

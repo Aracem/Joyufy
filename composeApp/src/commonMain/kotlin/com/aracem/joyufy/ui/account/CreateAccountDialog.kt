@@ -28,12 +28,10 @@ import com.aracem.joyufy.domain.model.BankPreset
 import com.aracem.joyufy.domain.model.BankPresets
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.AccountPalette
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
-import joyufy.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -45,6 +43,7 @@ fun CreateAccountDialog(
     editingAccount: Account? = null,
     viewModel: CreateAccountViewModel = koinInject(),
 ) {
+    val strings = LocalStrings.current
     val state by viewModel.uiState.collectAsState()
 
     // Reset / pre-populate on first composition
@@ -65,7 +64,7 @@ fun CreateAccountDialog(
                 // ── Header ────────────────────────────────────────────────
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (editingAccount != null) stringResource(Res.string.edit_account) else stringResource(Res.string.new_account),
+                        text = if (editingAccount != null) strings.editAccount else strings.newAccount,
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
@@ -73,7 +72,7 @@ fun CreateAccountDialog(
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = stringResource(Res.string.close),
+                            contentDescription = strings.close,
                             tint = MaterialTheme.joyufyColors.contentSecondary,
                         )
                     }
@@ -90,7 +89,7 @@ fun CreateAccountDialog(
 
                 // ── Presets ───────────────────────────────────────────────
                 Text(
-                    text = stringResource(Res.string.bank_or_platform),
+                    text = strings.bankOrPlatform,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -109,7 +108,11 @@ fun CreateAccountDialog(
                     order.forEach { type ->
                         val group = grouped[type] ?: return@forEach
                         Text(
-                            text = stringResource(type.stringRes),
+                            text = when (type) {
+                            AccountType.BANK -> strings.accountTypeBank
+                            AccountType.INVESTMENT -> strings.accountTypeInvestment
+                            AccountType.CASH -> strings.accountTypeCash
+                        },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.joyufyColors.contentSecondary,
                         )
@@ -134,8 +137,8 @@ fun CreateAccountDialog(
                 OutlinedTextField(
                     value = state.name,
                     onValueChange = viewModel::onNameChange,
-                    label = { Text(stringResource(Res.string.name)) },
-                    placeholder = { Text(stringResource(Res.string.placeholder_name)) },
+                    label = { Text(strings.name) },
+                    placeholder = { Text(strings.placeholderName) },
                     isError = state.nameError != null,
                     supportingText = state.nameError?.let { { Text(it) } },
                     singleLine = true,
@@ -150,7 +153,7 @@ fun CreateAccountDialog(
 
                 // ── Tipo ──────────────────────────────────────────────────
                 Text(
-                    text = stringResource(Res.string.type_label),
+                    text = strings.typeLabel,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -161,7 +164,11 @@ fun CreateAccountDialog(
                         FilterChip(
                             selected = selected,
                             onClick = { viewModel.onTypeChange(type) },
-                            label = { Text(stringResource(type.stringRes)) },
+                            label = { Text(when (type) {
+                                AccountType.BANK -> strings.accountTypeBank
+                                AccountType.INVESTMENT -> strings.accountTypeInvestment
+                                AccountType.CASH -> strings.accountTypeCash
+                            }) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Accent.copy(alpha = 0.15f),
                                 selectedLabelColor = Accent,
@@ -180,7 +187,7 @@ fun CreateAccountDialog(
 
                 // ── Color ─────────────────────────────────────────────────
                 Text(
-                    text = stringResource(Res.string.color),
+                    text = strings.color,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -222,8 +229,8 @@ fun CreateAccountDialog(
                                 .onFailure { hexError = true }
                         }
                     },
-                    label = { Text(stringResource(Res.string.custom_color)) },
-                    placeholder = { Text(stringResource(Res.string.placeholder_color)) },
+                    label = { Text(strings.customColor) },
+                    placeholder = { Text(strings.placeholderColor) },
                     isError = hexError,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -247,8 +254,8 @@ fun CreateAccountDialog(
                     OutlinedTextField(
                         value = state.initialBalance,
                         onValueChange = viewModel::onInitialBalanceChange,
-                        label = { Text(stringResource(Res.string.initial_balance_optional)) },
-                        placeholder = { Text(stringResource(Res.string.placeholder_amount)) },
+                        label = { Text(strings.initialBalanceOptional) },
+                        placeholder = { Text(strings.placeholderAmount) },
                         isError = state.initialBalanceError != null,
                         supportingText = state.initialBalanceError?.let { { Text(it) } },
                         singleLine = true,
@@ -270,7 +277,7 @@ fun CreateAccountDialog(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(stringResource(Res.string.cancel), color = MaterialTheme.joyufyColors.contentSecondary)
+                        Text(strings.cancel, color = MaterialTheme.joyufyColors.contentSecondary)
                     }
                     Spacer(Modifier.width(8.dp))
                     Button(
@@ -297,7 +304,7 @@ fun CreateAccountDialog(
                                 color = Color.White,
                             )
                         } else {
-                            Text(if (editingAccount != null) stringResource(Res.string.save_changes) else stringResource(Res.string.create_account))
+                            Text(if (editingAccount != null) strings.saveChanges else strings.createAccount)
                         }
                     }
                 }
@@ -371,9 +378,3 @@ private fun BankPresetChip(
     }
 }
 
-private val AccountType.stringRes: StringResource
-    get() = when (this) {
-        AccountType.BANK -> Res.string.account_type_bank
-        AccountType.INVESTMENT -> Res.string.account_type_investment
-        AccountType.CASH -> Res.string.account_type_cash
-    }

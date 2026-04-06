@@ -43,14 +43,13 @@ import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.ui.openUrl
 import com.aracem.joyufy.ui.components.*
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.*
-import joyufy.composeapp.generated.resources.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 @Composable
@@ -60,6 +59,7 @@ fun DashboardScreen(
     onImport: () -> Unit,
     viewModel: DashboardViewModel = koinInject(),
 ) {
+    val strings = LocalStrings.current
     val state by viewModel.uiState.collectAsState()
 
     if (state.isLoading) {
@@ -112,7 +112,7 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(Res.string.total_wealth),
+                        text = strings.totalWealth,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.joyufyColors.contentSecondary,
                         modifier = Modifier.weight(1f),
@@ -235,13 +235,13 @@ fun DashboardScreen(
                         }
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = stringResource(Res.string.no_accounts_yet),
+                            text = strings.noAccountsYet,
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.joyufyColors.contentSecondary,
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            text = stringResource(Res.string.add_first_account),
+                            text = strings.addFirstAccount,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.6f),
                         )
@@ -270,6 +270,7 @@ private fun WealthChartCard(
     onToggleAccount: (Long) -> Unit,
     onToggleTotal: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -281,7 +282,7 @@ private fun WealthChartCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(Res.string.evolution),
+                text = strings.evolution,
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
@@ -289,7 +290,7 @@ private fun WealthChartCard(
             IconButton(onClick = onToggleMode, modifier = Modifier.size(32.dp)) {
                 Icon(
                     imageVector = if (mode == ChartMode.AREA) Icons.AutoMirrored.Filled.List else Icons.Default.DateRange,
-                    contentDescription = stringResource(Res.string.change_view),
+                    contentDescription = strings.changeView,
                     tint = MaterialTheme.joyufyColors.contentSecondary,
                     modifier = Modifier.size(18.dp),
                 )
@@ -393,17 +394,18 @@ private fun PeriodChangeBadge(
     changePct: Double,
     range: ChartRange,
 ) {
+    val strings = LocalStrings.current
     val isPositive = change >= 0
     val color = if (isPositive) Positive else Negative
     val sign = if (isPositive) "+" else ""
     val rangeLabel = when (range) {
-        ChartRange.ONE_WEEK     -> stringResource(Res.string.range_one_week)
-        ChartRange.ONE_MONTH    -> stringResource(Res.string.range_one_month)
-        ChartRange.THREE_MONTHS -> stringResource(Res.string.range_three_months)
-        ChartRange.SIX_MONTHS  -> stringResource(Res.string.range_six_months)
-        ChartRange.YTD         -> stringResource(Res.string.range_ytd)
-        ChartRange.ONE_YEAR    -> stringResource(Res.string.range_one_year)
-        ChartRange.ALL         -> stringResource(Res.string.range_all)
+        ChartRange.ONE_WEEK     -> strings.rangeOneWeek
+        ChartRange.ONE_MONTH    -> strings.rangeOneMonth
+        ChartRange.THREE_MONTHS -> strings.rangeThreeMonths
+        ChartRange.SIX_MONTHS  -> strings.rangeSixMonths
+        ChartRange.YTD         -> strings.rangeYtd
+        ChartRange.ONE_YEAR    -> strings.rangeOneYear
+        ChartRange.ALL         -> strings.rangeAll
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -426,14 +428,15 @@ fun ChartRangeSelector(
     onSelect: (ChartRange) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
     val items = listOf(
-        ChartRange.ONE_WEEK to stringResource(Res.string.chart_week),
-        ChartRange.ONE_MONTH to stringResource(Res.string.chart_month),
-        ChartRange.THREE_MONTHS to stringResource(Res.string.chart_three_months),
-        ChartRange.SIX_MONTHS to stringResource(Res.string.chart_six_months),
-        ChartRange.YTD to stringResource(Res.string.chart_ytd),
-        ChartRange.ONE_YEAR to stringResource(Res.string.chart_year),
-        ChartRange.ALL to stringResource(Res.string.year_all),
+        ChartRange.ONE_WEEK to strings.chartWeek,
+        ChartRange.ONE_MONTH to strings.chartMonth,
+        ChartRange.THREE_MONTHS to strings.chartThreeMonths,
+        ChartRange.SIX_MONTHS to strings.chartSixMonths,
+        ChartRange.YTD to strings.chartYtd,
+        ChartRange.ONE_YEAR to strings.chartYear,
+        ChartRange.ALL to strings.yearAll,
     )
 
     Row(
@@ -480,6 +483,7 @@ private fun AnalysisCard(
     onPreviousYear: () -> Unit,
     onNextYear: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val currentYear = remember {
         Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
     }
@@ -504,7 +508,7 @@ private fun AnalysisCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(Res.string.analysis),
+                text = strings.analysis,
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
@@ -530,13 +534,13 @@ private fun AnalysisCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.DateRange,
-                        contentDescription = stringResource(Res.string.month_current),
+                        contentDescription = strings.monthCurrent,
                         tint = Accent,
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = stringResource(Res.string.month_current),
+                        text = strings.monthCurrent,
                         style = MaterialTheme.typography.labelMedium,
                         color = Accent,
                     )
@@ -545,7 +549,7 @@ private fun AnalysisCard(
             }
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = if (expanded) stringResource(Res.string.collapse) else stringResource(Res.string.expand),
+                contentDescription = if (expanded) strings.collapse else strings.expand,
                 tint = MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier
                     .size(20.dp)
@@ -624,6 +628,7 @@ private fun MonthlySection(
     isCurrentMonth: Boolean,
     onClearSelection: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val monthName = monthFullNames[month.monthNumber]
 
     // Header: título sección + mes actual bien visible
@@ -631,7 +636,7 @@ private fun MonthlySection(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = stringResource(Res.string.current_month),
+                    text = strings.currentMonth,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -654,12 +659,12 @@ private fun MonthlySection(
 
     // Stats row — cifras animadas individualmente
     Row(modifier = Modifier.fillMaxWidth()) {
-        MonthlyStat(stringResource(Res.string.income), month.income, Positive, Modifier.weight(1f))
-        MonthlyStat(stringResource(Res.string.expenses), month.expenses, Negative, Modifier.weight(1f))
+        MonthlyStat(strings.income, month.income, Positive, Modifier.weight(1f))
+        MonthlyStat(strings.expenses, month.expenses, Negative, Modifier.weight(1f))
         if (month.investmentDelta != 0.0) {
             val d = month.investmentDelta
             MonthlyStat(
-                label = stringResource(Res.string.investment),
+                label = strings.investment,
                 amount = kotlin.math.abs(d),
                 color = if (d >= 0) Positive else Negative,
                 modifier = Modifier.weight(1f),
@@ -667,7 +672,7 @@ private fun MonthlySection(
             )
         }
         MonthlyStat(
-            label = stringResource(Res.string.net),
+            label = strings.net,
             amount = month.net,
             color = if (month.net >= 0) Positive else Negative,
             modifier = Modifier.weight(1f),
@@ -678,7 +683,7 @@ private fun MonthlySection(
     if (month.topCategories.isNotEmpty()) {
         Spacer(Modifier.height(14.dp))
         Text(
-            text = stringResource(Res.string.top_expenses),
+            text = strings.topExpenses,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.joyufyColors.contentSecondary,
         )
@@ -714,6 +719,7 @@ private fun AnnualSection(
     onNextYear: () -> Unit,
     onMonthClick: (MonthBreakdown) -> Unit,
 ) {
+    val strings = LocalStrings.current
     val monthNames = listOf("E","F","M","A","M","J","J","A","S","O","N","D")
     val maxAbs = summary.months.maxOf { kotlin.math.abs(it.net) }.coerceAtLeast(1.0)
     // Current calendar month (1-based), used to dim future months in current year
@@ -726,7 +732,7 @@ private fun AnnualSection(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = stringResource(Res.string.current_year),
+                    text = strings.currentYear,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -743,7 +749,7 @@ private fun AnnualSection(
                     IconButton(onClick = onPreviousYear, modifier = Modifier.size(24.dp)) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.year_previous),
+                            contentDescription = strings.yearPrevious,
                             tint = if (selectedYear == currentYear) Accent
                                    else MaterialTheme.joyufyColors.contentSecondary,
                             modifier = Modifier.size(12.dp),
@@ -762,7 +768,7 @@ private fun AnnualSection(
                     ) {
                         Icon(
                             Icons.Default.ArrowForward,
-                            contentDescription = stringResource(Res.string.year_next),
+                            contentDescription = strings.yearNext,
                             tint = if (selectedYear < currentYear)
                                 (if (selectedYear == currentYear - 1) Accent else MaterialTheme.joyufyColors.contentSecondary)
                             else MaterialTheme.joyufyColors.contentDisabled,
@@ -777,12 +783,12 @@ private fun AnnualSection(
 
     // Totals row
     Row(modifier = Modifier.fillMaxWidth()) {
-        MonthlyStat(stringResource(Res.string.income), summary.totalIncome, Positive, Modifier.weight(1f))
-        MonthlyStat(stringResource(Res.string.expenses), summary.totalExpenses, Negative, Modifier.weight(1f))
+        MonthlyStat(strings.income, summary.totalIncome, Positive, Modifier.weight(1f))
+        MonthlyStat(strings.expenses, summary.totalExpenses, Negative, Modifier.weight(1f))
         if (summary.totalInvestmentDelta != 0.0) {
             val d = summary.totalInvestmentDelta
             MonthlyStat(
-                label = stringResource(Res.string.investment),
+                label = strings.investment,
                 amount = kotlin.math.abs(d),
                 color = if (d >= 0) Positive else Negative,
                 modifier = Modifier.weight(1f),
@@ -790,7 +796,7 @@ private fun AnnualSection(
             )
         }
         MonthlyStat(
-            label = stringResource(Res.string.net),
+            label = strings.net,
             amount = summary.totalNet,
             color = if (summary.totalNet >= 0) Positive else Negative,
             modifier = Modifier.weight(1f),
@@ -979,12 +985,13 @@ private fun DashboardMenu(
     onExport: () -> Unit,
     onImport: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }, modifier = Modifier.size(32.dp)) {
             Icon(
                 Icons.Default.MoreVert,
-                contentDescription = stringResource(Res.string.more_options),
+                contentDescription = strings.moreOptions,
                 tint = MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier.size(18.dp),
             )
@@ -994,11 +1001,11 @@ private fun DashboardMenu(
             onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(Res.string.export_data)) },
+                text = { Text(strings.exportData) },
                 onClick = { expanded = false; onExport() },
             )
             DropdownMenuItem(
-                text = { Text(stringResource(Res.string.import_data)) },
+                text = { Text(strings.importData) },
                 onClick = { expanded = false; onImport() },
             )
         }

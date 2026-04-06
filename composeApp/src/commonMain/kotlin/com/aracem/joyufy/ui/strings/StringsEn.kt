@@ -1,0 +1,161 @@
+package com.aracem.joyufy.ui.strings
+
+val StringsEn = Strings(
+    // Navigation
+    goBack = "Go back",
+    sidebarDashboard = "Dashboard",
+    sidebarSettings = "Settings",
+    sidebarCollapse = "Collapse sidebar",
+    sidebarExpand = "Expand sidebar",
+    sidebarReorderEnter = "Reorder accounts",
+    sidebarReorderExit = "Exit reorder mode",
+    sidebarReorder = "Reorder",
+    sidebarNewAccount = "New account",
+    sidebarDarkMode = "Light mode",
+    sidebarLightMode = "Dark mode",
+
+    // Common actions
+    cancel = "Cancel",
+    delete = "Delete",
+    edit = "Edit",
+    saveChanges = "Save changes",
+    close = "Close",
+    download = "Download",
+
+    // Dashboard
+    totalWealth = "Total wealth",
+    noAccountsYet = "No accounts yet",
+    addFirstAccount = "Add your first account from the left panel",
+    evolution = "Evolution",
+    changeView = "Change view",
+    analysis = "Analysis",
+    collapse = "Collapse",
+    expand = "Expand",
+
+    // Monthly summary
+    currentMonth = "This month",
+    income = "Income",
+    expenses = "Expenses",
+    investment = "Investment",
+    net = "Net",
+    topExpenses = "Top expenses",
+    monthCurrent = "Current month",
+
+    // Annual summary
+    currentYear = "This year",
+    yearAll = "All",
+    yearPrevious = "Previous year",
+    yearNext = "Next year",
+
+    // Chart ranges
+    chartWeek = "1W",
+    chartMonth = "1M",
+    chartThreeMonths = "3M",
+    chartSixMonths = "6M",
+    chartYtd = "YTD",
+    chartYear = "1Y",
+    rangeOneWeek = "in the last week",
+    rangeOneMonth = "in the last month",
+    rangeThreeMonths = "in the last 3 months",
+    rangeSixMonths = "in the last 6 months",
+    rangeYtd = "year-to-date",
+    rangeOneYear = "in the last year",
+    rangeAll = "since the beginning",
+
+    // Account detail
+    editAccount = "Edit account",
+    updateValue = "Update value",
+    addTransaction = "Add transaction",
+    currentBalance = "Current balance",
+    transactions = "Transactions",
+    noTransactions = "No transactions yet",
+    noTransactionsHint = "Press \"Add transaction\" to record the first one",
+    noSearchResults = "No results",
+    noSearchResultsHint = "Try changing or clearing the filters",
+    weeklyValue = "Weekly market value",
+    noWeeklyRecords = "No weekly records",
+    noWeeklyRecordsHint = "Press \"Update value\" to add the first one",
+    editValue = "Edit value",
+    weekCurrent = "Current week — ",
+    week = "Week",
+
+    // Filters
+    clearFilters = "Clear",
+    searchDescriptionCategory = "Search by description or category…",
+    transactionType = "Type",
+    transferOut = "Transfer out →",
+    transferIn = "Transfer in ←",
+
+    // Add/Edit transaction
+    editTransaction = "Edit transaction",
+    newTransaction = "New transaction",
+    amountEur = "Amount (€)",
+    dateFormat = "Date (dd/MM/yyyy)",
+    categoryOptional = "Category (optional)",
+    descriptionOptional = "Description (optional)",
+    destinationAccount = "Destination account",
+    placeholderAmount = "0.00",
+    buttonTransfer = "Transfer",
+    buttonAdd = "Add",
+    amountError = "Enter a valid amount",
+    dateError = "Use the format dd/MM/yyyy",
+
+    // Add/Edit snapshot
+    totalValueEur = "Total value (€)",
+    valueError = "Enter a valid value",
+    save = "Save",
+
+    // Create account
+    newAccount = "New account",
+    createAccount = "Create account",
+    name = "Name",
+    typeLabel = "Type",
+    color = "Color",
+    placeholderName = "E.g.: Santander Bank",
+    customColor = "Custom color",
+    placeholderColor = "#7B6EF6",
+    initialBalanceOptional = "Initial balance (optional)",
+    bankOrPlatform = "Bank or platform",
+    moreOptions = "More options",
+
+    // Account types
+    accountTypeBank = "Bank",
+    accountTypeInvestment = "Investment",
+    accountTypeCash = "Cash",
+
+    // Transaction types
+    transactionIncome = "Income",
+    transactionExpense = "Expense",
+    transactionTransfer = "Transfer",
+
+    // Settings
+    settings = "Settings",
+    appearance = "Appearance",
+    darkMode = "Dark mode",
+    lightMode = "Light mode",
+    themeDescription = "Switch between dark and light theme",
+    data = "Data",
+    exportBackup = "Export backup",
+    importBackup = "Import backup",
+    exportData = "Export data",
+    importData = "Import data",
+    accounts = "Accounts",
+    noAccounts = "No accounts",
+    dangerZone = "Danger zone",
+    deleteAllData = "Delete all data",
+    language = "Language",
+
+    // Confirm dialogs
+    confirmDeleteTransaction = "Delete transaction?",
+    confirmDeleteTransactionText = "This action cannot be undone.",
+    confirmDeleteSnapshot = "Delete weekly record?",
+    confirmDeleteSnapshotText = "This action cannot be undone.",
+    confirmDeleteAccount = "Delete account?",
+    confirmDeleteAccountText = "The account and all its transactions and snapshots will be permanently deleted. This action cannot be undone.",
+    confirmDeleteAll = "Delete all data?",
+    confirmDeleteAllText = "All accounts, transactions and snapshots will be deleted. The application will be empty. This action cannot be undone.",
+    deleteAll = "Delete all",
+    confirmRestoreBackup = "Restore backup?",
+    confirmRestoreBackupText = "All current data will be deleted and replaced with the file contents. This action cannot be undone.",
+    restore = "Restore",
+)

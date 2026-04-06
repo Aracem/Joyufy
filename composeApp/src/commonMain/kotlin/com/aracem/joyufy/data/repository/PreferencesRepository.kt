@@ -16,4 +16,10 @@ class PreferencesRepository {
     fun setAnalysisExpanded(value: Boolean) {
         prefs.putBoolean("analysis_expanded", value)
     }
+
+    fun getLanguage(): String = prefs.get("language", "")
+
+    fun setLanguage(value: String) {
+        prefs.put("language", value)
+    }
 }
