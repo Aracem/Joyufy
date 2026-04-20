@@ -18,16 +18,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.toLocalDateTime
+import com.aracem.joyufy.ui.components.MILLIS_IN_WEEK
+import com.aracem.joyufy.ui.components.currentWeekStartMillis
+import com.aracem.joyufy.ui.components.weekStartsForRange
+import com.aracem.joyufy.ui.components.weekStartsForYtd
 
 data class SingleAccountPoint(
     val weekDate: Long,
     val balance: Double,
 )
+
+sealed interface InvestmentListItem {
+    data class Snapshot(val snapshot: InvestmentSnapshot) : InvestmentListItem
+    data class Tx(val transaction: Transaction) : InvestmentListItem
+}
 
 data class AccountDetailUiState(
     val isLoading: Boolean = true,
@@ -35,6 +39,7 @@ data class AccountDetailUiState(
     val balance: Double = 0.0,
     val transactions: List<Transaction> = emptyList(),
     val snapshots: List<InvestmentSnapshot> = emptyList(),
+    val investmentFeed: List<InvestmentListItem> = emptyList(),
     val allAccounts: List<Account> = emptyList(),
     val accountHistory: List<SingleAccountPoint> = emptyList(),
     val chartRange: ChartRange = ChartRangePreference.range.value,
@@ -93,13 +98,15 @@ class AccountDetailViewModel(
                 launch {
                     combine(
                         snapshotRepository.observeSnapshotsForAccount(accountId),
+                        transactionRepository.observeTransactionsForAccount(accountId),
                         ChartRangePreference.range,
-                    ) { snapshots, range ->
+                    ) { snapshots, transactions, range ->
                         val balance = snapshots.firstOrNull()?.totalValue
                             ?: transactionRepository.getAccountBalance(accountId)
                         _uiState.value = _uiState.value.copy(
                             balance = balance,
                             snapshots = snapshots,
+                            investmentFeed = buildInvestmentFeed(snapshots, transactions),
                         )
                         buildInvestmentHistory(snapshots, range)
                     }.collect { history ->
@@ -129,17 +136,48 @@ class AccountDetailViewModel(
         }
     }
 
+    private fun buildInvestmentFeed(
+        snapshots: List<InvestmentSnapshot>,
+        transactions: List<Transaction>,
+    ): List<InvestmentListItem> {
+        val result = mutableListOf<InvestmentListItem>()
+        val sortedSnapshots = snapshots.sortedByDescending { it.weekDate }
+        val sortedTxns = transactions.sortedByDescending { it.date }
+
+        // transactions with no snapshot covering their week (newer than most recent snapshot's week end)
+        val newestWeekEnd = sortedSnapshots.firstOrNull()?.let { it.weekDate + MILLIS_IN_WEEK } ?: Long.MIN_VALUE
+        sortedTxns
+            .filter { it.date >= newestWeekEnd }
+            .forEach { result.add(InvestmentListItem.Tx(it)) }
+
+        // each snapshot owns transactions within [weekDate, weekDate + 7 days)
+        sortedSnapshots.forEach { snapshot ->
+            result.add(InvestmentListItem.Snapshot(snapshot))
+            val weekEnd = snapshot.weekDate + MILLIS_IN_WEEK
+            sortedTxns
+                .filter { it.date >= snapshot.weekDate && it.date < weekEnd }
+                .forEach { result.add(InvestmentListItem.Tx(it)) }
+        }
+
+        // transactions older than the oldest snapshot's week start
+        val oldestWeekStart = sortedSnapshots.lastOrNull()?.weekDate ?: Long.MAX_VALUE
+        sortedTxns
+            .filter { it.date < oldestWeekStart }
+            .forEach { result.add(InvestmentListItem.Tx(it)) }
+
+        return result
+    }
+
     private fun buildInvestmentHistory(
         snapshots: List<InvestmentSnapshot>,
         range: ChartRange,
     ): List<SingleAccountPoint> {
         if (snapshots.isEmpty()) return emptyList()
-        val millisInWeek = 7 * 86_400_000L
         val now = currentWeekStartMillis()
-        val weekStarts = weekStartsForRange(range, now, millisInWeek)
+        val weekStarts = if (range == ChartRange.YTD) weekStartsForYtd(now) else weekStartsForRange(range.weeks, now)
 
         val points = weekStarts.map { weekStart ->
-            val weekEnd = weekStart + millisInWeek - 1
+            val weekEnd = weekStart + MILLIS_IN_WEEK - 1
             val balance = snapshots
                 .filter { it.weekDate <= weekEnd }
                 .maxByOrNull { it.weekDate }
@@ -156,12 +194,11 @@ class AccountDetailViewModel(
         range: ChartRange,
     ): List<SingleAccountPoint> {
         if (transactions.isEmpty()) return emptyList()
-        val millisInWeek = 7 * 86_400_000L
         val now = currentWeekStartMillis()
-        val weekStarts = weekStartsForRange(range, now, millisInWeek)
+        val weekStarts = if (range == ChartRange.YTD) weekStartsForYtd(now) else weekStartsForRange(range.weeks, now)
 
         val points = weekStarts.map { weekStart ->
-            val weekEnd = weekStart + millisInWeek - 1
+            val weekEnd = weekStart + MILLIS_IN_WEEK - 1
             val balance = transactions
                 .filter { it.date <= weekEnd }
                 .sumOf { tx ->
@@ -173,21 +210,6 @@ class AccountDetailViewModel(
         val firstNonZero = points.indexOfFirst { it.balance != 0.0 }
         return if (firstNonZero >= 0) points.drop(firstNonZero) else emptyList()
     }
-
-    private fun weekStartsForRange(range: ChartRange, now: Long, millisInWeek: Long): List<Long> =
-        when {
-            range == ChartRange.YTD -> {
-                val local = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                val jan1Ms = LocalDate(local.year, 1, 1)
-                    .atStartOfDayIn(TimeZone.currentSystemDefault())
-                    .toEpochMilliseconds()
-                generateSequence(jan1Ms) { it + millisInWeek }
-                    .takeWhile { it <= now }
-                    .toList()
-            }
-            range.weeks != null -> (range.weeks downTo 0).map { now - it * millisInWeek }
-            else -> (260 downTo 0).map { now - it * millisInWeek }
-        }
 
     private suspend fun calculateBalance(type: AccountType): Double =
         transactionRepository.getAccountBalance(accountId)
@@ -371,11 +393,4 @@ class AccountDetailViewModel(
         return (change / first) * 100.0
     }
 
-    private fun currentWeekStartMillis(): Long {
-        val now = Clock.System.now()
-        val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
-        val dayOfWeek = local.dayOfWeek.ordinal
-        val millisInDay = 86_400_000L
-        return (now.toEpochMilliseconds() / millisInDay - dayOfWeek) * millisInDay
-    }
 }

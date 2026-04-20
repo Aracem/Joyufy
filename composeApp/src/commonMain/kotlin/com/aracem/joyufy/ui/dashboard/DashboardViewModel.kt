@@ -26,10 +26,16 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
+import com.aracem.joyufy.ui.components.MILLIS_IN_WEEK
+import com.aracem.joyufy.ui.components.currentWeekStartMillis
+import com.aracem.joyufy.ui.components.monthEndMillis
+import com.aracem.joyufy.ui.components.monthStartMillis
+import com.aracem.joyufy.ui.components.weekStartsForRange
+import com.aracem.joyufy.ui.components.weekStartsForYtd
+import com.aracem.joyufy.ui.components.yearEndMillis
+import com.aracem.joyufy.ui.components.yearStartMillis
 
 data class AccountSummary(
     val account: Account,
@@ -223,35 +229,14 @@ class DashboardViewModel(
         allSnapshots: List<InvestmentSnapshot>,
         range: ChartRange,
     ): List<WealthPoint> {
-        val millisInWeek = 7 * 86_400_000L
         val now = currentWeekStartMillis()
-
-        // Build the list of week starts based on range
-        val weekStarts = when {
-            range == ChartRange.YTD -> {
-                val local = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                val jan1Ms = LocalDate(local.year, 1, 1)
-                    .atStartOfDayIn(TimeZone.currentSystemDefault())
-                    .toEpochMilliseconds()
-                generateSequence(jan1Ms) { it + millisInWeek }
-                    .takeWhile { it <= now }
-                    .toList()
-            }
-            range.weeks != null -> {
-                val count = range.weeks
-                (count downTo 0).map { now - it * millisInWeek }
-            }
-            else -> {
-                // ALL: up to 5 years of history
-                (260 downTo 0).map { now - it * millisInWeek }
-            }
-        }
+        val weekStarts = if (range == ChartRange.YTD) weekStartsForYtd(now) else weekStartsForRange(range.weeks, now)
 
         val snapshotsByAccount = allSnapshots.groupBy { it.accountId }
         val transactionsByAccount = allTransactions.groupBy { it.accountId }
 
         val points = weekStarts.map { weekStart ->
-            val weekEnd = weekStart + millisInWeek - 1
+            val weekEnd = weekStart + MILLIS_IN_WEEK - 1
 
             val byAccount = accounts
                 .filter { account -> account.createdAt <= weekEnd }
@@ -325,9 +310,8 @@ class DashboardViewModel(
         investmentAccountIds: Set<Long>,
         year: Int,
     ): AnnualSummary? {
-        val tz = TimeZone.currentSystemDefault()
-        val yearStart = LocalDate(year, 1, 1).atStartOfDayIn(tz).toEpochMilliseconds()
-        val yearEnd = LocalDate(year, 12, 31).atStartOfDayIn(tz).toEpochMilliseconds() + 86_400_000L - 1
+        val yearStart = yearStartMillis(year)
+        val yearEnd = yearEndMillis(year)
 
         // Exclude transfer legs (both sides have relatedAccountId != null)
         val thisYear = transactions.filter { it.date in yearStart..yearEnd && it.relatedAccountId == null }
@@ -339,14 +323,8 @@ class DashboardViewModel(
         val snapshotsByAccount = snapshots.groupBy { it.accountId }
 
         val months = (1..12).map { month ->
-            val monthStart = LocalDate(year, month, 1).atStartOfDayIn(tz).toEpochMilliseconds()
-            val lastDay = when (month) {
-                1, 3, 5, 7, 8, 10, 12 -> 31
-                4, 6, 9, 11 -> 30
-                2 -> if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) 29 else 28
-                else -> 30
-            }
-            val monthEnd = LocalDate(year, month, lastDay).atStartOfDayIn(tz).toEpochMilliseconds() + 86_400_000L - 1
+            val monthStart = monthStartMillis(year, month)
+            val monthEnd = monthEndMillis(year, month)
 
             val monthTxs = thisYear.filter { it.date in monthStart..monthEnd }
             val monthTxsAll = thisYearAll.filter { it.date in monthStart..monthEnd }
@@ -413,21 +391,8 @@ class DashboardViewModel(
         investmentAccountIds: Set<Long>,
     ): MonthlySummary? {
         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        val tz = TimeZone.currentSystemDefault()
-        val monthStart = LocalDate(now.year, now.monthNumber, 1)
-            .atStartOfDayIn(tz)
-            .toEpochMilliseconds()
-        val monthEnd = run {
-            val lastDay = when (now.monthNumber) {
-                1, 3, 5, 7, 8, 10, 12 -> 31
-                4, 6, 9, 11 -> 30
-                2 -> if (now.year % 4 == 0 && (now.year % 100 != 0 || now.year % 400 == 0)) 29 else 28
-                else -> 30
-            }
-            LocalDate(now.year, now.monthNumber, lastDay)
-                .atStartOfDayIn(tz)
-                .toEpochMilliseconds() + 86_400_000L - 1
-        }
+        val monthStart = monthStartMillis(now.year, now.monthNumber)
+        val monthEnd = monthEndMillis(now.year, now.monthNumber)
 
         val thisMonthAll = transactions.filter { it.date in monthStart..monthEnd }
         // Exclude transfer legs for income/expense counts
@@ -553,11 +518,4 @@ class DashboardViewModel(
         }
     }
 
-    private fun currentWeekStartMillis(): Long {
-        val now = Clock.System.now()
-        val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
-        val dayOfWeek = local.dayOfWeek.ordinal
-        val millisInDay = 86_400_000L
-        return (now.toEpochMilliseconds() / millisInDay - dayOfWeek) * millisInDay
-    }
 }
