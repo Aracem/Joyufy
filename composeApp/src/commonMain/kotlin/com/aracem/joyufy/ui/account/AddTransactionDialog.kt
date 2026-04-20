@@ -19,6 +19,7 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.ui.components.formatInputAmount
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
@@ -45,7 +46,7 @@ fun AddTransactionDialog(
         AccountType.BANK, AccountType.CASH -> listOf(TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.TRANSFER)
     }
     var selectedType by remember { mutableStateOf(editingTransaction?.type ?: allowedTypes.first()) }
-    var amountText by remember { mutableStateOf(editingTransaction?.amount?.let { "%.2f".format(it) } ?: "") }
+    var amountText by remember { mutableStateOf(editingTransaction?.amount?.formatInputAmount() ?: "") }
     var amountError by remember { mutableStateOf<String?>(null) }
     var category by remember { mutableStateOf(editingTransaction?.category ?: "") }
     var description by remember { mutableStateOf(editingTransaction?.description ?: "") }

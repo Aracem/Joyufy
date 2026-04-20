@@ -12,11 +12,11 @@ import androidx.compose.ui.window.Dialog
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.toLocalDateTime
+import com.aracem.joyufy.ui.components.MILLIS_IN_WEEK
+import com.aracem.joyufy.ui.components.currentWeekStartMillis
+import com.aracem.joyufy.ui.components.formatInputAmount
+import com.aracem.joyufy.ui.components.formatIsoWeekLabel
+import com.aracem.joyufy.ui.components.formatMonthDay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,8 +30,8 @@ fun AddSnapshotDialog(
 ) {
     val strings = LocalStrings.current
     var valueText by remember {
-        mutableStateOf(editingSnapshot?.totalValue?.let { "%.2f".format(it) }
-            ?: currentValue?.let { "%.2f".format(it) } ?: "")
+        mutableStateOf(editingSnapshot?.totalValue?.formatInputAmount()
+            ?: currentValue?.formatInputAmount() ?: "")
     }
     var valueError by remember { mutableStateOf<String?>(null) }
 
@@ -157,39 +157,15 @@ fun AddSnapshotDialog(
 private data class WeekOption(val label: String, val mondayMs: Long)
 
 private fun buildRecentWeeks(count: Int, weekCurrentLabel: String, weekLabel: String): List<WeekOption> {
-    val millisInWeek = 7 * 86_400_000L
-    val now = Clock.System.now()
-    val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
-    val dayOfWeek = local.dayOfWeek.ordinal  // Mon=0
-    val millisInDay = 86_400_000L
-    val currentMonday = (now.toEpochMilliseconds() / millisInDay - dayOfWeek) * millisInDay
-
+    val currentMonday = currentWeekStartMillis()
     return (0 until count).map { weeksAgo ->
-        val mondayMs = currentMonday - weeksAgo * millisInWeek
-        val mondayLocal = Instant.fromEpochMilliseconds(mondayMs)
-            .toLocalDateTime(TimeZone.currentSystemDefault())
-        val iso = isoWeekLabel(mondayMs)
+        val mondayMs = currentMonday - weeksAgo * MILLIS_IN_WEEK
+        val iso = mondayMs.formatIsoWeekLabel()
         val label = if (weeksAgo == 0) {
             "$weekCurrentLabel$iso"
         } else {
-            "$weekLabel $iso  (${"%02d/%02d".format(mondayLocal.dayOfMonth, mondayLocal.monthNumber)})"
+            "$weekLabel $iso  (${mondayMs.formatMonthDay()})"
         }
         WeekOption(label = label, mondayMs = mondayMs)
     }
-}
-
-private fun isoWeekLabel(mondayMs: Long): String {
-    val local = Instant.fromEpochMilliseconds(mondayMs)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
-    // ISO week: shift Thursday of the week to get the year
-    val thursdayMs = mondayMs + 3 * 86_400_000L
-    val thursdayLocal = Instant.fromEpochMilliseconds(thursdayMs)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
-    // Week number: day of year of thursday / 7 + 1
-    val jan1Ms = kotlinx.datetime.LocalDate(thursdayLocal.year, 1, 1)
-        .atStartOfDayIn(TimeZone.currentSystemDefault())
-        .toEpochMilliseconds()
-    val dayOfYear = ((thursdayMs - jan1Ms) / 86_400_000L).toInt()
-    val weekNumber = dayOfYear / 7 + 1
-    return "S%02d-%d".format(weekNumber, thursdayLocal.year)
 }

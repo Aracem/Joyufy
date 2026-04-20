@@ -33,9 +33,6 @@ import com.aracem.joyufy.ui.dashboard.ChartMode
 import com.aracem.joyufy.ui.dashboard.WealthPoint
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 // ── Y-axis range ─────────────────────────────────────────────────────────────
 //
@@ -62,23 +59,10 @@ private val bottomPadding = 24f
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
-private fun Long.toShortDate(): String {
-    val local = Instant.fromEpochMilliseconds(this)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
-    return "%d/%02d".format(local.dayOfMonth, local.monthNumber)
-}
+private fun Long.toShortDate(): String = formatShortDate()
+private fun Long.toLongDate(): String = formatDate()
 
-private fun Long.toLongDate(): String {
-    val local = Instant.fromEpochMilliseconds(this)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
-    return "%02d/%02d/%04d".format(local.dayOfMonth, local.monthNumber, local.year)
-}
-
-private fun Double.toShortAmount(): String = when {
-    this >= 1_000_000 -> "${"%.1f".format(this / 1_000_000)}M"
-    this >= 1_000     -> "${"%.0f".format(this / 1_000)}k"
-    else              -> "%.0f".format(this)
-}
+private fun Double.toShortAmount(): String = formatAmountCompact()
 
 // ── Main composable ───────────────────────────────────────────────────────────
 

@@ -409,7 +409,7 @@ private fun PeriodChangeBadge(
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = "$sign${change.formatCurrency()}  ($sign${"%.2f".format(changePct)}%)",
+            text = "$sign${change.formatCurrency()}  ($sign${changePct.formatPercent()})",
             style = MaterialTheme.typography.bodyMedium,
             color = color,
         )
