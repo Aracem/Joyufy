@@ -33,6 +33,7 @@ import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.components.SingleAccountChart
 import com.aracem.joyufy.ui.components.formatCurrency
+import com.aracem.joyufy.ui.components.formatPercent
 import com.aracem.joyufy.ui.dashboard.ChartMode
 import com.aracem.joyufy.ui.dashboard.ChartRange
 import com.aracem.joyufy.ui.dashboard.ChartRangeSelector
@@ -41,9 +42,8 @@ import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.Positive
 import com.aracem.joyufy.ui.theme.joyufyColors
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import com.aracem.joyufy.ui.components.formatDate
+import com.aracem.joyufy.ui.components.formatWeekRange
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
@@ -225,8 +225,8 @@ fun AccountDetailScreen(
 
         item { HorizontalDivider(color = MaterialTheme.joyufyColors.border) }
 
-        // ── Investment snapshots (valor de mercado semanal) ───────────────
         if (account.type == AccountType.INVESTMENT) {
+            // ── Investment feed: snapshots + transacciones intercaladas ────
             item {
                 Text(
                     text = strings.weeklyValue,
@@ -235,68 +235,81 @@ fun AccountDetailScreen(
                     modifier = Modifier.padding(start = 4.dp),
                 )
             }
-            if (state.snapshots.isEmpty()) {
+            if (state.investmentFeed.isEmpty()) {
                 item { EmptyListHint(strings.noWeeklyRecords, strings.noWeeklyRecordsHint, Icons.Default.DateRange) }
             } else {
-                items(state.snapshots, key = { it.id }) { snapshot ->
-                    SnapshotRow(
-                        snapshot = snapshot,
-                        onEdit = { editingSnapshot = snapshot },
-                        onDelete = { confirmDeleteSnapshotId = snapshot.id },
-                    )
-                }
-            }
-            item { HorizontalDivider(color = MaterialTheme.joyufyColors.border) }
-        }
-
-        // ── Transactions (all account types) ──────────────────────────────
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = strings.transactions,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f).padding(start = 4.dp),
-                )
-                if (state.transactions.isNotEmpty() && isFiltered) {
-                    TextButton(
-                        onClick = { searchQuery = ""; filterType = null; filterCategory = null },
-                    ) {
-                        Text(strings.clearFilters, color = MaterialTheme.joyufyColors.contentSecondary)
+                items(state.investmentFeed, key = { item ->
+                    when (item) {
+                        is InvestmentListItem.Snapshot -> "snap_${item.snapshot.id}"
+                        is InvestmentListItem.Tx -> "tx_${item.transaction.id}"
+                    }
+                }) { item ->
+                    when (item) {
+                        is InvestmentListItem.Snapshot -> SnapshotRow(
+                            snapshot = item.snapshot,
+                            onEdit = { editingSnapshot = item.snapshot },
+                            onDelete = { confirmDeleteSnapshotId = item.snapshot.id },
+                        )
+                        is InvestmentListItem.Tx -> TransactionRow(
+                            transaction = item.transaction,
+                            allAccounts = state.allAccounts,
+                            onEdit = { editingTransaction = item.transaction },
+                            onDelete = { confirmDeleteTxId = item.transaction.id },
+                            indented = true,
+                        )
                     }
                 }
             }
-        }
-
-        if (state.transactions.isNotEmpty()) {
-            item {
-                TransactionFilterBar(
-                    searchQuery = searchQuery,
-                    onSearchChange = { searchQuery = it },
-                    filterType = filterType,
-                    onTypeChange = { filterType = if (filterType == it) null else it },
-                    filterCategory = filterCategory,
-                    onCategoryChange = { filterCategory = if (filterCategory == it) null else it },
-                    availableCategories = availableCategories,
-                )
-            }
-        }
-
-        if (state.transactions.isEmpty()) {
-            item { EmptyListHint(strings.noTransactions, strings.noTransactionsHint, Icons.AutoMirrored.Filled.List) }
-        } else if (filteredTransactions.isEmpty()) {
-            item { EmptyListHint(strings.noSearchResults, strings.noSearchResultsHint, Icons.Default.Search) }
         } else {
-            items(filteredTransactions, key = { it.id }) { tx ->
-                TransactionRow(
-                    transaction = tx,
-                    allAccounts = state.allAccounts,
-                    onEdit = { editingTransaction = tx },
-                    onDelete = { confirmDeleteTxId = tx.id },
-                )
+            // ── Transactions (bank / cash) ─────────────────────────────────
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = strings.transactions,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f).padding(start = 4.dp),
+                    )
+                    if (state.transactions.isNotEmpty() && isFiltered) {
+                        TextButton(
+                            onClick = { searchQuery = ""; filterType = null; filterCategory = null },
+                        ) {
+                            Text(strings.clearFilters, color = MaterialTheme.joyufyColors.contentSecondary)
+                        }
+                    }
+                }
+            }
+
+            if (state.transactions.isNotEmpty()) {
+                item {
+                    TransactionFilterBar(
+                        searchQuery = searchQuery,
+                        onSearchChange = { searchQuery = it },
+                        filterType = filterType,
+                        onTypeChange = { filterType = if (filterType == it) null else it },
+                        filterCategory = filterCategory,
+                        onCategoryChange = { filterCategory = if (filterCategory == it) null else it },
+                        availableCategories = availableCategories,
+                    )
+                }
+            }
+
+            if (state.transactions.isEmpty()) {
+                item { EmptyListHint(strings.noTransactions, strings.noTransactionsHint, Icons.AutoMirrored.Filled.List) }
+            } else if (filteredTransactions.isEmpty()) {
+                item { EmptyListHint(strings.noSearchResults, strings.noSearchResultsHint, Icons.Default.Search) }
+            } else {
+                items(filteredTransactions, key = { it.id }) { tx ->
+                    TransactionRow(
+                        transaction = tx,
+                        allAccounts = state.allAccounts,
+                        onEdit = { editingTransaction = tx },
+                        onDelete = { confirmDeleteTxId = tx.id },
+                    )
+                }
             }
         }
     }
@@ -522,6 +535,7 @@ private fun TransactionRow(
     allAccounts: List<com.aracem.joyufy.domain.model.Account>,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    indented: Boolean = false,
 ) {
     val strings = LocalStrings.current
     val relatedAccount = allAccounts.find { it.id == transaction.relatedAccountId }
@@ -545,9 +559,13 @@ private fun TransactionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(start = if (indented) 16.dp else 0.dp)
             .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .background(
+                if (indented) MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.surfaceVariant
+            )
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -620,7 +638,7 @@ private fun SnapshotRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "${strings.week} ${snapshot.weekDate.formatDate()}",
+                text = snapshot.weekDate.formatWeekRange(strings.week),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
@@ -665,7 +683,7 @@ private fun AccountPeriodChangeBadge(
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = "$sign${change.formatCurrency()}  ($sign${"%.2f".format(changePct)}%)",
+            text = "$sign${change.formatCurrency()}  ($sign${changePct.formatPercent()})",
             style = MaterialTheme.typography.bodyMedium,
             color = color,
         )
@@ -738,8 +756,3 @@ private fun DeleteConfirmDialog(
     )
 }
 
-private fun Long.formatDate(): String {
-    val instant = Instant.fromEpochMilliseconds(this)
-    val local = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-    return "%02d/%02d/%04d".format(local.dayOfMonth, local.monthNumber, local.year)
-}

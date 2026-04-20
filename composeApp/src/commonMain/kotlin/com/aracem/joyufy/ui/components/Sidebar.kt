@@ -99,7 +99,7 @@ fun Sidebar(
                     text = "Joyufy",
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).clickable { onScreenSelected(Screen.Dashboard) },
                 )
             }
         }
