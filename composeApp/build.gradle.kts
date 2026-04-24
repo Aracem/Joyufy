@@ -1,5 +1,24 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
+val appVersion = "1.2.1"
+
+val generateAppVersion by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/appversion/commonMain/kotlin")
+    outputs.dir(outputDir)
+    doLast {
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        dir.resolve("AppVersion.kt").writeText(
+            """package com.aracem.joyufy
+|
+|object AppVersion {
+|    const val NAME = "$appVersion"
+|}
+|""".trimMargin()
+        )
+    }
+}
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.multiplatform)
@@ -17,6 +36,10 @@ kotlin {
 
     sourceSets {
         val desktopMain by getting
+
+        commonMain {
+            kotlin.srcDir(generateAppVersion.map { it.outputs.files })
+        }
 
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -69,7 +92,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Joyufy"
-            packageVersion = "1.2.1"
+            packageVersion = appVersion
             modules("java.sql", "java.naming")
             description = "Control personal de finanzas"
             copyright = "© 2026 Aracem"
