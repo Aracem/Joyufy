@@ -141,16 +141,23 @@ class AccountDetailViewModel(
         transactions: List<Transaction>,
     ): List<InvestmentListItem> {
         val result = mutableListOf<InvestmentListItem>()
-        val sortedSnapshots = snapshots.sortedByDescending { it.weekDate }
+        // Keep only the most recent snapshot per week in case of duplicate data in DB
+        val sortedSnapshots = snapshots
+            .sortedByDescending { it.weekDate }
+            .distinctBy { it.weekDate }
         val sortedTxns = transactions.sortedByDescending { it.date }
 
-        // transactions with no snapshot covering their week (newer than most recent snapshot's week end)
-        val newestWeekEnd = sortedSnapshots.firstOrNull()?.let { it.weekDate + MILLIS_IN_WEEK } ?: Long.MIN_VALUE
+        // Build week intervals: each snapshot owns [weekDate, weekDate + 7 days)
+        // Transactions not covered by any snapshot go at the top (newer) or bottom (older)
+        val newestWeekStart = sortedSnapshots.firstOrNull()?.weekDate ?: Long.MAX_VALUE
+        val oldestWeekStart = sortedSnapshots.lastOrNull()?.weekDate ?: Long.MAX_VALUE
+
+        // Transactions newer than the most recent snapshot's week start (no snapshot covers them yet)
         sortedTxns
-            .filter { it.date >= newestWeekEnd }
+            .filter { it.date >= newestWeekStart + MILLIS_IN_WEEK }
             .forEach { result.add(InvestmentListItem.Tx(it)) }
 
-        // each snapshot owns transactions within [weekDate, weekDate + 7 days)
+        // Each snapshot owns transactions within [weekDate, weekDate + 7 days)
         sortedSnapshots.forEach { snapshot ->
             result.add(InvestmentListItem.Snapshot(snapshot))
             val weekEnd = snapshot.weekDate + MILLIS_IN_WEEK
@@ -159,8 +166,7 @@ class AccountDetailViewModel(
                 .forEach { result.add(InvestmentListItem.Tx(it)) }
         }
 
-        // transactions older than the oldest snapshot's week start
-        val oldestWeekStart = sortedSnapshots.lastOrNull()?.weekDate ?: Long.MAX_VALUE
+        // Transactions older than the oldest snapshot's week start
         sortedTxns
             .filter { it.date < oldestWeekStart }
             .forEach { result.add(InvestmentListItem.Tx(it)) }

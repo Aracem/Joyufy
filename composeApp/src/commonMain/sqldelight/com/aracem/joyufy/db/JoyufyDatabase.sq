@@ -106,11 +106,12 @@ CREATE TABLE InvestmentSnapshot (
     account_id  INTEGER NOT NULL,
     total_value REAL    NOT NULL,
     week_date   INTEGER NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES Account(id) ON DELETE CASCADE
+    FOREIGN KEY (account_id) REFERENCES Account(id) ON DELETE CASCADE,
+    UNIQUE (account_id, week_date)
 );
 
 insertSnapshot:
-INSERT INTO InvestmentSnapshot (account_id, total_value, week_date)
+INSERT OR REPLACE INTO InvestmentSnapshot (account_id, total_value, week_date)
 VALUES (?, ?, ?);
 
 updateSnapshot:
