@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "timeout": 10,
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && DIFF=$(git show --stat HEAD 2>/dev/null) || exit 0; MSG=$(git log -1 --pretty=%B HEAD 2>/dev/null); jq -nc --arg diff \"$DIFF\" --arg msg \"$MSG\" '{hookSpecificOutput: {hookEventName: \"PostToolUse\", additionalContext: (\"A git commit just landed. Decide whether the project docs in `.claude/memory/*.md` (architecture, domain, data-layer, ui-layer, cloud-sync, build-and-run, conventions) and `docs/index.html` (features grid, architecture diagram, data-model diagram, stack, design system) need updating to reflect it.\\n\\nUpdate docs if the commit touched: a new repository, a domain model or enum value, a new screen+ViewModel, the SQLDelight schema, a stack dependency, the OAuth/Drive flow, color tokens, or animation rules.\\n\\nSkip if it was: a bug fix, copy/string tweak, refactor that kept public shape, tests, internal helper, version bump, or a change to the docs themselves.\\n\\nIf docs need a refresh, do it now (or surface what to change). Otherwise carry on silently.\\n\\nCommit message:\\n\" + $msg + \"\\n\\nFiles touched:\\n\" + $diff)}}'"
+          }
+        ]
+      }
+    ]
+  }
+}
