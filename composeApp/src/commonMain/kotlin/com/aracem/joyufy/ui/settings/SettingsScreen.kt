@@ -1,5 +1,6 @@
 package com.aracem.joyufy.ui.settings
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,15 +18,20 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.AppVersion
+import com.aracem.joyufy.data.cloud.AuthState
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.components.ConfettiBurst
+import com.aracem.joyufy.ui.drive.DriveViewModel
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.joyufyColors
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 
 @Composable
@@ -37,12 +43,15 @@ fun SettingsScreen(
     onExport: () -> Unit,
     onImport: () -> Unit,
     viewModel: SettingsViewModel = koinInject(),
+    driveViewModel: DriveViewModel = koinInject(),
 ) {
     val strings = LocalStrings.current
     val state by viewModel.uiState.collectAsState()
+    val driveState by driveViewModel.uiState.collectAsState()
 
     var accountToDelete by remember { mutableStateOf<Account?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
+    var showRestoreFromDriveConfirm by remember { mutableStateOf(false) }
     var versionClickCount by remember { mutableStateOf(0) }
     var burstOrigin by remember { mutableStateOf<Offset?>(null) }
     var burstKey by remember { mutableStateOf(0) }
@@ -62,6 +71,24 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { accountToDelete = null }) { Text(strings.cancel) }
+            },
+        )
+    }
+
+    // Confirm restore from Drive
+    if (showRestoreFromDriveConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRestoreFromDriveConfirm = false },
+            title = { Text(strings.confirmRestoreFromDrive) },
+            text = { Text(strings.confirmRestoreFromDriveText) },
+            confirmButton = {
+                Button(
+                    onClick = { showRestoreFromDriveConfirm = false; driveViewModel.syncFromCloud() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                ) { Text(strings.restore) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreFromDriveConfirm = false }) { Text(strings.cancel) }
             },
         )
     }
@@ -163,6 +190,18 @@ fun SettingsScreen(
             }
         }
 
+        // ── Cloud Sync ────────────────────────────────────────────────────
+        item {
+            CloudSyncSection(
+                driveState = driveState,
+                onConnect = { driveViewModel.signIn() },
+                onDisconnect = { driveViewModel.signOut() },
+                onUpload = { driveViewModel.syncToCloud() },
+                onRestore = { showRestoreFromDriveConfirm = true },
+                onAutoSyncChange = { driveViewModel.setAutoSync(it) },
+            )
+        }
+
         // ── Cuentas ───────────────────────────────────────────────────────
         item {
             SettingsSection(title = strings.accounts) {
@@ -246,6 +285,73 @@ fun SettingsScreen(
         }
     }
     } // end Box
+}
+
+// ── Cloud Sync section ────────────────────────────────────────────────────────
+
+@Composable
+private fun CloudSyncSection(
+    driveState: com.aracem.joyufy.ui.drive.DriveUiState,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+    onUpload: () -> Unit,
+    onRestore: () -> Unit,
+    onAutoSyncChange: (Boolean) -> Unit,
+) {
+    val strings = LocalStrings.current
+    val isAuthenticated = driveState.authState is AuthState.Authenticated
+    val isAuthenticating = driveState.authState is AuthState.Authenticating
+
+    SettingsSection(title = strings.cloudSync) {
+        AnimatedVisibility(visible = !isAuthenticated) {
+            SettingsButton(
+                label = if (isAuthenticating) strings.syncing else strings.connectDrive,
+                labelColor = Accent,
+                onClick = { if (!isAuthenticating) onConnect() },
+            )
+        }
+
+        AnimatedVisibility(visible = isAuthenticated) {
+            Column {
+                // Email
+                val email = (driveState.authState as? AuthState.Authenticated)?.email ?: ""
+                SettingsRow(
+                    label = strings.driveConnected.format(email),
+                    description = if (driveState.lastSyncAt > 0L) {
+                        val instant = Instant.fromEpochMilliseconds(driveState.lastSyncAt)
+                        val local = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+                        strings.lastSync.format("%02d/%02d/%d %02d:%02d".format(
+                            local.dayOfMonth, local.monthNumber, local.year,
+                            local.hour, local.minute,
+                        ))
+                    } else null,
+                ) {
+                    TextButton(onClick = onDisconnect) {
+                        Text(strings.disconnectDrive, color = MaterialTheme.joyufyColors.contentSecondary)
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
+
+                // Auto-sync toggle
+                SettingsRow(label = strings.autoSync, description = strings.autoSyncDescription) {
+                    Switch(
+                        checked = driveState.autoSync,
+                        onCheckedChange = onAutoSyncChange,
+                        colors = SwitchDefaults.colors(checkedThumbColor = Accent, checkedTrackColor = Accent.copy(alpha = 0.4f)),
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
+
+                SettingsButton(label = strings.uploadNow, onClick = onUpload)
+
+                HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
+
+                SettingsButton(label = strings.restoreFromDrive, onClick = onRestore)
+            }
+        }
+    }
 }
 
 // ── Section container ──────────────────────────────────────────────────────

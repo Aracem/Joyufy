@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import com.aracem.joyufy.data.cloud.AuthState
 import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.ui.account.AccountDetailScreen
 import com.aracem.joyufy.ui.strings.LocalStrings
@@ -20,6 +21,8 @@ import com.aracem.joyufy.ui.backup.BackupViewModel
 import com.aracem.joyufy.ui.components.Sidebar
 import com.aracem.joyufy.ui.dashboard.DashboardScreen
 import com.aracem.joyufy.ui.dashboard.DashboardViewModel
+import com.aracem.joyufy.ui.drive.DriveEvent
+import com.aracem.joyufy.ui.drive.DriveViewModel
 import com.aracem.joyufy.ui.navigation.Screen
 import com.aracem.joyufy.ui.settings.SettingsScreen
 import com.aracem.joyufy.ui.theme.JoyufyTheme
@@ -48,10 +51,40 @@ fun App() {
             var showCreateAccount by remember { mutableStateOf(false) }
             val dashboardViewModel: DashboardViewModel = koinInject()
             val backupViewModel: BackupViewModel = koinInject()
+            val driveViewModel: DriveViewModel = koinInject()
             val scope = rememberCoroutineScope()
             val backupEvent by backupViewModel.event.collectAsState()
+            val driveEvent by driveViewModel.event.collectAsState()
             val snackbarHostState = remember { SnackbarHostState() }
             var showImportConfirm by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+            // Auto-sync from Drive on launch
+            LaunchedEffect(Unit) {
+                if (driveViewModel.shouldAutoSync()) {
+                    driveViewModel.syncFromCloud(silent = true)
+                }
+            }
+
+            // Handle Drive events globally
+            LaunchedEffect(driveEvent) {
+                val s = strings
+                when (val ev = driveEvent) {
+                    is DriveEvent.Success -> {
+                        val msg = when (ev.message) {
+                            "drive_upload_ok" -> s.syncSuccess
+                            "drive_download_ok" -> s.syncSuccess
+                            else -> ev.message
+                        }
+                        snackbarHostState.showSnackbar(msg)
+                        driveViewModel.reset()
+                    }
+                    is DriveEvent.Error -> {
+                        snackbarHostState.showSnackbar("${s.syncError}: ${ev.message}")
+                        driveViewModel.reset()
+                    }
+                    else -> {}
+                }
+            }
 
             // Handle all backup events globally — works regardless of which screen is active
             LaunchedEffect(backupEvent) {

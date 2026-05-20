@@ -5,15 +5,27 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.aracem.joyufy.di.initKoin
 import com.aracem.joyufy.ui.App
+import com.aracem.joyufy.ui.drive.DriveViewModel
 import java.awt.Taskbar
 import java.awt.Toolkit
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
+import org.koin.core.context.GlobalContext
 
 fun main() {
     initKoin()
     setAppIcon()
     application {
         Window(
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                val driveViewModel: DriveViewModel = GlobalContext.get().get()
+                if (driveViewModel.shouldAutoSync()) {
+                    runBlocking {
+                        withTimeoutOrNull(5_000) { driveViewModel.syncToCloudSuspend() }
+                    }
+                }
+                exitApplication()
+            },
             title = "Joyufy",
             icon = loadWindowIcon(),
         ) {

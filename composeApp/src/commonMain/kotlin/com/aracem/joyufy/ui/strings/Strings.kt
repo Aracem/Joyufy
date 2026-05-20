@@ -147,6 +147,22 @@ data class Strings(
     val deleteAllData: String,
     val language: String,
 
+    // Cloud sync
+    val cloudSync: String,
+    val connectDrive: String,
+    val disconnectDrive: String,
+    val driveConnected: String,
+    val uploadNow: String,
+    val restoreFromDrive: String,
+    val autoSync: String,
+    val autoSyncDescription: String,
+    val lastSync: String,
+    val syncSuccess: String,
+    val syncError: String,
+    val syncing: String,
+    val confirmRestoreFromDrive: String,
+    val confirmRestoreFromDriveText: String,
+
     // Confirm dialogs
     val confirmDeleteTransaction: String,
     val confirmDeleteTransactionText: String,

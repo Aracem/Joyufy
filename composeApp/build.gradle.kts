@@ -1,9 +1,18 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
+plugins {
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.compose.multiplatform)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.sqldelight)
+}
 
 val appVersion = "1.2.1"
 
 val generateAppVersion by tasks.registering {
     val outputDir = layout.buildDirectory.dir("generated/appversion/commonMain/kotlin")
+    val version = appVersion
     outputs.dir(outputDir)
     doLast {
         val dir = outputDir.get().asFile
@@ -12,19 +21,11 @@ val generateAppVersion by tasks.registering {
             """package com.aracem.joyufy
 |
 |object AppVersion {
-|    const val NAME = "$appVersion"
+|    const val NAME = "$version"
 |}
 |""".trimMargin()
         )
     }
-}
-
-plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.compose.multiplatform)
-    alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.sqldelight)
 }
 
 kotlin {
@@ -73,6 +74,12 @@ kotlin {
 
             // Main dispatcher for desktop (Swing event loop)
             implementation(libs.kotlinx.coroutines.swing)
+
+            // Ktor (Google Drive REST API)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
         }
     }
 }

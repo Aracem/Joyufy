@@ -8,6 +8,7 @@ kotlinx-serialization = "1.7.3"
 kotlinx-coroutines = "1.9.0"
 kotlinx-datetime = "0.6.1"
 sqliteJdbc = "3.47.1.0"
+ktor = "2.3.12"
 
 [libraries]
 # Compose Multiplatform
@@ -30,6 +31,12 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 
 # SQLite JDBC (for JVM/Desktop)
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
+
+# Ktor (HTTP client for Google Drive REST API)
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

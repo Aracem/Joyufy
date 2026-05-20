@@ -145,6 +145,22 @@ val StringsEn = Strings(
     deleteAllData = "Delete all data",
     language = "Language",
 
+    // Cloud sync
+    cloudSync = "Cloud sync",
+    connectDrive = "Connect Google Drive",
+    disconnectDrive = "Disconnect",
+    driveConnected = "Connected as %s",
+    uploadNow = "Upload now",
+    restoreFromDrive = "Restore from Drive",
+    autoSync = "Auto-sync",
+    autoSyncDescription = "Upload on close, download on launch",
+    lastSync = "Last sync: %s",
+    syncSuccess = "Synced with Google Drive",
+    syncError = "Sync failed",
+    syncing = "Syncing…",
+    confirmRestoreFromDrive = "Restore from Drive?",
+    confirmRestoreFromDriveText = "All current data will be replaced with the Drive backup. This action cannot be undone.",
+
     // Confirm dialogs
     confirmDeleteTransaction = "Delete transaction?",
     confirmDeleteTransactionText = "This action cannot be undone.",

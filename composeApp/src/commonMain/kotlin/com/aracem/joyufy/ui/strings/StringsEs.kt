@@ -145,6 +145,22 @@ val StringsEs = Strings(
     deleteAllData = "Borrar todos los datos",
     language = "Idioma",
 
+    // Cloud sync
+    cloudSync = "Sincronización en la nube",
+    connectDrive = "Conectar Google Drive",
+    disconnectDrive = "Desconectar",
+    driveConnected = "Conectado como %s",
+    uploadNow = "Subir ahora",
+    restoreFromDrive = "Restaurar desde Drive",
+    autoSync = "Sync automático",
+    autoSyncDescription = "Sube al cerrar, descarga al abrir",
+    lastSync = "Última sync: %s",
+    syncSuccess = "Sincronizado con Google Drive",
+    syncError = "Error al sincronizar",
+    syncing = "Sincronizando…",
+    confirmRestoreFromDrive = "¿Restaurar desde Drive?",
+    confirmRestoreFromDriveText = "Todos los datos actuales se reemplazarán con el backup de Drive. Esta acción no se puede deshacer.",
+
     // Confirm dialogs
     confirmDeleteTransaction = "¿Eliminar transacción?",
     confirmDeleteTransactionText = "Esta acción no se puede deshacer.",
