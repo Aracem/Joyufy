@@ -11,6 +11,9 @@ permissions:
 jobs:
   build-macos:
     runs-on: macos-latest
+    env:
+      GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +34,9 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    env:
+      GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,6 +57,9 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    env:
+      GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
 
