@@ -23,10 +23,10 @@ There are no JUnit/UI tests yet, so there's no `:test` task that does anything u
 
 ## Version source-of-truth
 
-Single string `val appVersion = "1.2.1"` near the top of `composeApp/build.gradle.kts`. This drives:
+Single string `val appVersion = "1.3.0"` near the top of `composeApp/build.gradle.kts`. This drives:
 
 1. `packageVersion = appVersion` in the `nativeDistributions` block (the installer version).
-2. The `generateAppVersion` task that writes `AppVersion.kt` into `build/generated/appversion/commonMain/kotlin/` before compilation. The generated `object AppVersion { const val NAME = "1.2.1" }` is what Settings shows in the footer.
+2. The `generateAppVersion` task that writes `AppVersion.kt` into `build/generated/appversion/commonMain/kotlin/` before compilation. The generated `object AppVersion { const val NAME = "1.3.0" }` is what Settings shows in the footer.
 
 **To bump the version**: change `appVersion`, commit, tag, package. Never edit `AppVersion.kt` directly — it's regenerated.
 
