@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Joyufy — Personal finance, dark-first, offline-first</title>
+<style>
+:root {
+  --bg:          #0F0F0F;
+  --surface:     #1A1A1A;
+  --surface-2:   #242424;
+  --border:      #2E2E2E;
+  --content:     #FFFFFF;
+  --content-2:   #9A9A9A;
+  --content-3:   #4A4A4A;
+  --accent:      #7B6EF6;
+  --accent-dim:  rgba(123, 110, 246, 0.18);
+  --positive:    #34C77B;
+  --negative:    #F25C5C;
+  --radius:      14px;
+  --radius-sm:   8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--content);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  font-feature-settings: "tnum", "ss01";
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; color: var(--content); }
+
+/* ── Layout ──────────────────────────────────────────────────────── */
+.container { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+section { padding: 88px 0; border-bottom: 1px solid var(--border); }
+section:last-of-type { border-bottom: none; }
+h1, h2, h3 { letter-spacing: -0.02em; font-weight: 600; }
+h1 { font-size: 56px; line-height: 1.05; margin-bottom: 18px; }
+h2 { font-size: 32px; margin-bottom: 16px; }
+h3 { font-size: 18px; margin-bottom: 10px; }
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.lead { color: var(--content-2); font-size: 18px; max-width: 720px; }
+.muted { color: var(--content-2); }
+
+/* ── Header / nav ───────────────────────────────────────────────── */
+header {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(15, 15, 15, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 18px; }
+.brand-mark {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), #5340D9);
+  border-radius: 8px;
+}
+.nav-links { display: flex; gap: 28px; }
+.nav-links a { color: var(--content-2); font-size: 14px; }
+.nav-links a:hover { color: var(--content); text-decoration: none; }
+@media (max-width: 720px) { .nav-links { display: none; } }
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.hero { padding: 120px 0 88px; border-bottom: 1px solid var(--border); }
+.hero h1 .accent { color: var(--accent); }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 32px; }
+.badge {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--content-2);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+.badge strong { color: var(--content); font-weight: 500; }
+
+/* ── Features grid ──────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 880px) { .grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.card .icon {
+  width: 36px; height: 36px;
+  background: var(--accent-dim);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+  color: var(--accent);
+}
+.card h3 { margin-bottom: 6px; }
+.card p { color: var(--content-2); font-size: 14px; }
+
+/* ── Architecture diagram ──────────────────────────────────────── */
+.arch-wrapper { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px; }
+svg { width: 100%; height: auto; display: block; }
+
+/* ── Data model ────────────────────────────────────────────────── */
+.data-callout {
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin-top: 24px;
+  font-size: 14px;
+  color: var(--content-2);
+}
+.data-callout strong { color: var(--content); }
+
+/* ── Stack cards (why) ─────────────────────────────────────────── */
+.stack-grid { grid-template-columns: 1fr 1fr; }
+@media (max-width: 720px) { .stack-grid { grid-template-columns: 1fr; } }
+.stack-grid .card h3 { color: var(--accent); }
+
+/* ── Design system swatches ────────────────────────────────────── */
+.palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; }
+@media (max-width: 720px) { .palette { grid-template-columns: 1fr 1fr; } }
+.swatch {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+.swatch .chip { width: 100%; height: 56px; border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--border); }
+.swatch .name { font-size: 13px; color: var(--content); font-weight: 500; }
+.swatch .hex { font-size: 12px; color: var(--content-2); font-family: ui-monospace, monospace; margin-top: 2px; }
+
+/* ── Footer ────────────────────────────────────────────────────── */
+footer { padding: 40px 0; color: var(--content-2); font-size: 13px; }
+.footer-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container nav">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <span>Joyufy</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#data">Data model</a>
+      <a href="#stack">Stack</a>
+      <a href="#design">Design</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container">
+    <div class="eyebrow">Desktop · Mac · Windows · Linux</div>
+    <h1>Personal finance,<br><span class="accent">dark-first, offline-first.</span></h1>
+    <p class="lead">
+      A single-user desktop app for tracking total wealth across bank accounts,
+      cash, and investments. Everything stored locally in SQLite, with an
+      optional one-click backup to your own Google Drive.
+    </p>
+    <div class="badges">
+      <span class="badge"><strong>Kotlin</strong> 2.1</span>
+      <span class="badge"><strong>Compose Multiplatform</strong> 1.7</span>
+      <span class="badge"><strong>SQLDelight</strong> 2.0</span>
+      <span class="badge"><strong>Koin</strong> 4.0</span>
+      <span class="badge"><strong>Ktor</strong> 2.3</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ──────────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <div class="eyebrow">What it does</div>
+    <h2>Wealth tracking, the practical way</h2>
+    <p class="lead" style="margin-bottom: 40px;">
+      Three account types (bank, cash, investment), one euro currency, weekly
+      snapshots for what you can't transact on directly. No login, no cloud
+      account required.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <div class="icon">▲</div>
+        <h3>Total wealth chart</h3>
+        <p>Area or bar visualisations across 6 ranges from 1 week to all-time. Per-account breakdown.</p>
+      </div>
+      <div class="card">
+        <div class="icon">●</div>
+        <h3>Three account types</h3>
+        <p>Bank and cash use a transaction model. Investment uses weekly value snapshots — no manual P&amp;L math.</p>
+      </div>
+      <div class="card">
+        <div class="icon">⇄</div>
+        <h3>Smart transfers</h3>
+        <p>Move money between accounts in one action — the app records both legs and excludes them from income/expense totals.</p>
+      </div>
+      <div class="card">
+        <div class="icon">★</div>
+        <h3>34 bank presets</h3>
+        <p>Type "Santander" or "TradeRepublic" and the app suggests the logo and brand colour automatically.</p>
+      </div>
+      <div class="card">
+        <div class="icon">↻</div>
+        <h3>Drive backup</h3>
+        <p>Optional sync to your own Google Drive. Auto-upload on close, auto-restore on open. Off by default.</p>
+      </div>
+      <div class="card">
+        <div class="icon">⌘</div>
+        <h3>Dark / light · EN / ES</h3>
+        <p>Both themes follow the same token system. Language switches instantly without restart.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Architecture ──────────────────────────────────────────────── -->
+<section id="architecture">
+  <div class="container">
+    <div class="eyebrow">Architecture</div>
+    <h2>Four layers, one direction</h2>
+    <p class="lead" style="margin-bottom: 40px;">
+      MVVM with <code>StateFlow&lt;UiState&gt;</code>. Each layer depends only on the
+      one beneath it. Domain is pure Kotlin — no Compose, no SQL.
+    </p>
+
+    <div class="arch-wrapper">
+      <svg viewBox="0 0 880 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Layer diagram">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#9A9A9A"/>
+          </marker>
+        </defs>
+
+        <!-- UI layer -->
+        <rect x="180" y="20" width="520" height="64" rx="12" fill="#242424" stroke="#7B6EF6" stroke-width="1.5"/>
+        <text x="440" y="50" text-anchor="middle" fill="#FFFFFF" font-family="-apple-system, Inter, sans-serif" font-size="16" font-weight="600">UI Layer</text>
+        <text x="440" y="70" text-anchor="middle" fill="#9A9A9A" font-family="-apple-system, Inter, sans-serif" font-size="13">Compose screens · CompositionLocal&lt;Strings&gt; · Sidebar · WealthChart</text>
+
+        <!-- ViewModel layer -->
+        <rect x="180" y="124" width="520" height="64" rx="12" fill="#1A1A1A" stroke="#2E2E2E"/>
+        <text x="440" y="154" text-anchor="middle" fill="#FFFFFF" font-family="-apple-system, Inter, sans-serif" font-size="16" font-weight="600">ViewModel Layer</text>
+        <text x="440" y="174" text-anchor="middle" fill="#9A9A9A" font-family="-apple-system, Inter, sans-serif" font-size="13">StateFlow&lt;UiState&gt; · sealed Event interfaces · Koin factories</text>
+
+        <!-- Repository layer -->
+        <rect x="180" y="228" width="520" height="64" rx="12" fill="#1A1A1A" stroke="#2E2E2E"/>
+        <text x="440" y="258" text-anchor="middle" fill="#FFFFFF" font-family="-apple-system, Inter, sans-serif" font-size="16" font-weight="600">Repository Layer</text>
+        <text x="440" y="278" text-anchor="middle" fill="#9A9A9A" font-family="-apple-system, Inter, sans-serif" font-size="13">Account · Transaction · Snapshot · Wealth · Preferences · Backup · Drive</text>
+
+        <!-- Data sources -->
+        <rect x="100" y="332" width="320" height="80" rx="12" fill="#1A1A1A" stroke="#34C77B" stroke-width="1.5"/>
+        <text x="260" y="362" text-anchor="middle" fill="#FFFFFF" font-family="-apple-system, Inter, sans-serif" font-size="15" font-weight="600">SQLDelight (local)</text>
+        <text x="260" y="382" text-anchor="middle" fill="#9A9A9A" font-family="-apple-system, Inter, sans-serif" font-size="12">~/.joyufy/joyufy.db</text>
+        <text x="260" y="400" text-anchor="middle" fill="#9A9A9A" font-family="-apple-system, Inter, sans-serif" font-size="12">Account · Transaction · InvestmentSnapshot</text>
+
+        <rect x="460" y="332" width="320" height="80" rx="12" fill="#1A1A1A" stroke="#7B6EF6" stroke-width="1.5"/>
+        <text x="620" y="362" text-anchor="middle" fill="#FFFFFF" font-family="-apple-system, Inter, sans-serif" font-size="15" font-weight="600">Google Drive REST (cloud)</text>
+        <text x="620" y="382" text-anchor="middle" fill="#9A9A9A" font-family="-apple-system, Inter, sans-serif" font-size="12">Ktor client · OAuth2</text>
+        <text x="620" y="400" text-anchor="middle" fill="#9A9A9A" font-family="-apple-system, Inter, sans-serif" font-size="12">joyufy_backup.json (scope: drive.file)</text>
+
+        <!-- Arrows -->
+        <line x1="440" y1="84"  x2="440" y2="120" stroke="#9A9A9A" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="440" y1="188" x2="440" y2="224" stroke="#9A9A9A" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="340" y1="292" x2="260" y2="328" stroke="#9A9A9A" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="540" y1="292" x2="620" y2="328" stroke="#9A9A9A" stroke-width="1.5" marker-end="url(#arrow)"/>
+      </svg>
+    </div>
+
+    <div class="data-callout">
+      <strong>Why this matters:</strong> domain models are pure — they can be unit-tested
+      without a SQLite driver or Compose runtime. The Google Drive layer is desktop-only
+      via <code>expect</code>/<code>actual</code> so the codebase stays portable to other targets later.
+    </div>
+  </div>
+</section>
+
+<!-- ── Data model ────────────────────────────────────────────────── -->
+<section id="data">
+  <div class="container">
+    <div class="eyebrow">Data model</div>
+    <h2>Three tables, one invariant</h2>
+    <p class="lead" style="margin-bottom: 40px;">
+      Everything fits in three SQLite tables with foreign-key cascades. The
+      trickiest piece is how transfers are stored.
+    </p>
+
+    <div class="arch-wrapper">
+      <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Data model diagram">
+        <defs>
+          <marker id="arrow-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#9A9A9A"/>
+          </marker>
+        </defs>
+
+        <!-- Account -->
+        <rect x="40" y="40" width="240" height="280" rx="12" fill="#1A1A1A" stroke="#7B6EF6" stroke-width="1.5"/>
+        <text x="160" y="70" text-anchor="middle" fill="#7B6EF6" font-family="-apple-system, Inter, sans-serif" font-size="15" font-weight="600">Account</text>
+        <text x="60" y="100" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">id           INTEGER PK</text>
+        <text x="60" y="122" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">name         TEXT</text>
+        <text x="60" y="144" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">type         TEXT  ← BANK</text>
+        <text x="92" y="160" fill="#4A4A4A" font-family="ui-monospace, monospace" font-size="11">INVESTMENT</text>
+        <text x="92" y="176" fill="#4A4A4A" font-family="ui-monospace, monospace" font-size="11">CASH</text>
+        <text x="60" y="200" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">color_hex    TEXT</text>
+        <text x="60" y="222" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">logo_url     TEXT?</text>
+        <text x="60" y="244" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">position     INTEGER</text>
+        <text x="60" y="266" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">is_archived  INTEGER</text>
+        <text x="60" y="288" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">created_at   INTEGER</text>
+
+        <!-- Transaction -->
+        <rect x="320" y="40" width="240" height="280" rx="12" fill="#1A1A1A" stroke="#34C77B" stroke-width="1.5"/>
+        <text x="440" y="70" text-anchor="middle" fill="#34C77B" font-family="-apple-system, Inter, sans-serif" font-size="15" font-weight="600">Transaction</text>
+        <text x="340" y="100" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">id           INTEGER PK</text>
+        <text x="340" y="122" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">account_id   FK → Account</text>
+        <text x="340" y="144" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">type         TEXT  ← INCOME</text>
+        <text x="372" y="160" fill="#4A4A4A" font-family="ui-monospace, monospace" font-size="11">EXPENSE</text>
+        <text x="372" y="176" fill="#4A4A4A" font-family="ui-monospace, monospace" font-size="11">TRANSFER</text>
+        <text x="340" y="200" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">amount       REAL</text>
+        <text x="340" y="222" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">category     TEXT?</text>
+        <text x="340" y="244" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">description  TEXT?</text>
+        <text x="340" y="266" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">related_acc  FK?</text>
+        <text x="340" y="288" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">date         INTEGER</text>
+
+        <!-- InvestmentSnapshot -->
+        <rect x="600" y="40" width="240" height="220" rx="12" fill="#1A1A1A" stroke="#F25C5C" stroke-width="1.5"/>
+        <text x="720" y="70" text-anchor="middle" fill="#F25C5C" font-family="-apple-system, Inter, sans-serif" font-size="15" font-weight="600">InvestmentSnapshot</text>
+        <text x="620" y="100" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">id           INTEGER PK</text>
+        <text x="620" y="122" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">account_id   FK → Account</text>
+        <text x="620" y="144" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">total_value  REAL</text>
+        <text x="620" y="166" fill="#9A9A9A" font-family="ui-monospace, monospace" font-size="12">week_date    INTEGER</text>
+        <text x="620" y="200" fill="#4A4A4A" font-family="ui-monospace, monospace" font-size="11">UNIQUE (account_id,</text>
+        <text x="620" y="216" fill="#4A4A4A" font-family="ui-monospace, monospace" font-size="11">        week_date)</text>
+
+        <!-- FK arrows -->
+        <line x1="280" y1="125" x2="320" y2="125" stroke="#9A9A9A" stroke-width="1.5" marker-end="url(#arrow-data)"/>
+        <line x1="280" y1="125" x2="600" y2="125" stroke="#9A9A9A" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.4"/>
+      </svg>
+    </div>
+
+    <div class="data-callout">
+      <strong>Transfers are two transactions, not one.</strong>
+      Sending €100 from A → B writes <code>EXPENSE</code> on A and <code>INCOME</code> on B,
+      both with <code>related_account_id</code> pointing at the other account. That makes
+      per-account balances trivially correct (net zero across the pair), but income/expense
+      aggregations must filter <code>related_account_id IS NULL</code> to exclude both legs.
+    </div>
+  </div>
+</section>
+
+<!-- ── Stack & why ───────────────────────────────────────────────── -->
+<section id="stack">
+  <div class="container">
+    <div class="eyebrow">Tech stack</div>
+    <h2>Why each piece</h2>
+    <p class="lead" style="margin-bottom: 40px;">
+      Every choice optimises for one thing: a single Kotlin codebase that
+      delivers a polished native desktop app on three operating systems.
+    </p>
+
+    <div class="grid stack-grid">
+      <div class="card">
+        <h3>Compose Multiplatform</h3>
+        <p class="muted">JetBrains' port of Jetpack Compose to JVM and beyond. Same declarative UI model as Compose for Android, but renders natively on macOS, Windows and Linux. Keeps the door open for an Android target later without rewriting screens.</p>
+      </div>
+      <div class="card">
+        <h3>SQLDelight</h3>
+        <p class="muted">Writes the SQL, generates the Kotlin. Type-safe queries, Flow integration, and zero ORM mystery. The full schema is one <code>.sq</code> file you can read in two minutes.</p>
+      </div>
+      <div class="card">
+        <h3>Koin</h3>
+        <p class="muted">Lightweight DI without annotation processing. The whole object graph fits in a 40-line <code>Koin.kt</code>. Inject in composables via <code>koinInject()</code> — no Hilt boilerplate.</p>
+      </div>
+      <div class="card">
+        <h3>Ktor (Drive only)</h3>
+        <p class="muted">Google doesn't ship a Kotlin Multiplatform Drive SDK, so the integration talks the REST API directly with Ktor's CIO engine. About 250 lines for OAuth2 plus upload/download.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Design system ─────────────────────────────────────────────── -->
+<section id="design">
+  <div class="container">
+    <div class="eyebrow">Design system</div>
+    <h2>Dark first, with one accent</h2>
+    <p class="lead" style="margin-bottom: 16px;">
+      All colours live in a single Kotlin file
+      (<code>ui/theme/Color.kt</code>). Both dark and light modes share the same brand
+      colours; only surface tones swap.
+    </p>
+
+    <div class="palette">
+      <div class="swatch"><div class="chip" style="background:#0F0F0F"></div><div class="name">Background</div><div class="hex">#0F0F0F</div></div>
+      <div class="swatch"><div class="chip" style="background:#1A1A1A"></div><div class="name">Surface</div><div class="hex">#1A1A1A</div></div>
+      <div class="swatch"><div class="chip" style="background:#242424"></div><div class="name">Surface raised</div><div class="hex">#242424</div></div>
+      <div class="swatch"><div class="chip" style="background:#2E2E2E"></div><div class="name">Border</div><div class="hex">#2E2E2E</div></div>
+      <div class="swatch"><div class="chip" style="background:#7B6EF6"></div><div class="name">Accent</div><div class="hex">#7B6EF6</div></div>
+      <div class="swatch"><div class="chip" style="background:#34C77B"></div><div class="name">Positive</div><div class="hex">#34C77B</div></div>
+      <div class="swatch"><div class="chip" style="background:#F25C5C"></div><div class="name">Negative</div><div class="hex">#F25C5C</div></div>
+      <div class="swatch"><div class="chip" style="background:#FFFFFF"></div><div class="name">Content primary</div><div class="hex">#FFFFFF</div></div>
+    </div>
+
+    <div class="data-callout" style="margin-top: 32px;">
+      <strong>Typography:</strong> Inter (or system) with tabular figures on every amount,
+      so digits line up vertically in lists. <strong>Motion:</strong> nothing snaps —
+      every show/hide goes through <code>AnimatedVisibility</code> or <code>animate*AsState</code>
+      with ~280ms tweens.
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container footer-row">
+    <div>Joyufy · Personal finance for desktop</div>
+    <div>Built with Kotlin, Compose Multiplatform and a lot of opinions.</div>
+  </div>
+</footer>
+
+</body>
+</html>
