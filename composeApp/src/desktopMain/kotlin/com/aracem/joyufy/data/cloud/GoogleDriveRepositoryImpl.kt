@@ -22,7 +22,7 @@ import java.net.ServerSocket
 import java.net.URI
 
 private const val BACKUP_FILE_NAME = "joyufy_backup.json"
-private const val DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+private const val DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file openid email"
 private const val TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 private const val AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 private const val USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo"
@@ -45,9 +45,12 @@ class GoogleDriveRepositoryImpl(
     }
 
     init {
-        val token = prefs.getDriveAccessToken()
+        val accessToken = prefs.getDriveAccessToken()
+        val refreshToken = prefs.getDriveRefreshToken()
         val email = prefs.getDriveUserEmail()
-        if (token.isNotEmpty() && email.isNotEmpty()) {
+        // Restore session whenever we have any credential that lets us call Drive again.
+        // Email may be empty if it wasn't granted at sign-in time — the session is still valid.
+        if (accessToken.isNotEmpty() || refreshToken.isNotEmpty()) {
             _authState.value = AuthState.Authenticated(email)
         }
     }
@@ -77,7 +80,11 @@ class GoogleDriveRepositoryImpl(
         val expiryMs = System.currentTimeMillis() + tokenResponse.expiresIn * 1000L
 
         prefs.setDriveAccessToken(tokenResponse.accessToken)
-        prefs.setDriveRefreshToken(tokenResponse.refreshToken ?: prefs.getDriveRefreshToken())
+        // Google only returns refresh_token on first consent — keep the previous one if absent.
+        val newRefresh = tokenResponse.refreshToken
+        if (!newRefresh.isNullOrEmpty()) {
+            prefs.setDriveRefreshToken(newRefresh)
+        }
         prefs.setDriveTokenExpiry(expiryMs)
         prefs.setDriveUserEmail(email)
 
@@ -179,9 +186,19 @@ class GoogleDriveRepositoryImpl(
     }
 
     private suspend fun validAccessToken(): String? {
-        val token = prefs.getDriveAccessToken().takeIf { it.isNotEmpty() } ?: return null
+        val token = prefs.getDriveAccessToken()
         val expiry = prefs.getDriveTokenExpiry()
-        return if (System.currentTimeMillis() < expiry - 60_000) token else refreshAccessToken()
+        val stillValid = token.isNotEmpty() && System.currentTimeMillis() < expiry - 60_000
+        if (stillValid) return token
+        val refreshed = refreshAccessToken()
+        if (refreshed == null) {
+            // Refresh failed and we have no usable token — surface as unauthenticated
+            // so the UI reflects reality instead of showing a stale "connected" state.
+            if (prefs.getDriveRefreshToken().isEmpty()) {
+                _authState.value = AuthState.Unauthenticated
+            }
+        }
+        return refreshed
     }
 
     private suspend fun fetchUserEmail(accessToken: String): String? {
