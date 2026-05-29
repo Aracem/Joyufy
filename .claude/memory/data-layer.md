@@ -17,7 +17,7 @@ Path: `composeApp/src/commonMain/kotlin/com/aracem/joyufy/data/repository/` (plu
 | `TransactionRepository` | CRUD on `Transaction`. Includes `getRelatedTransfer()` for finding the sibling leg of a transfer. |
 | `InvestmentSnapshotRepository` | CRUD on `InvestmentSnapshot`. `upsert` semantics via `INSERT OR REPLACE`. |
 | `WealthRepository` | Read-only aggregator. Single source for "total wealth" (sum of latest investment snapshots + bank/cash balances). |
-| `PreferencesRepository` | Wraps `java.util.prefs.Preferences`. Stores app-level settings: dark mode, language, analysis card expanded state, Drive tokens, last sync timestamp, auto-sync toggle. |
+| `PreferencesRepository` | Reads/writes a JSON file at the OS-standard per-user app data dir (mac: `~/Library/Application Support/Joyufy/preferences.json`, win: `%APPDATA%\Joyufy\…`, linux: `$XDG_CONFIG_HOME/Joyufy/…` or `~/.config/Joyufy/…`). Writes are atomic (tmp file + `Files.move(ATOMIC_MOVE, REPLACE_EXISTING)`) so the data survives JVM exit. Auto-migrates from the legacy `java.util.prefs.Preferences` node `com/aracem/joyufy` on first run if the JSON file is absent. Stores app-level settings: dark mode, language, analysis card expanded state, Drive tokens, last sync timestamp, auto-sync toggle. |
 | `BackupRepository` | Serialises the full DB to JSON (`JoyufyBackup { version, exportedAt, accounts[], transactions[], snapshots[] }`) and imports it back atomically (delete all → re-insert with original IDs to preserve FKs). |
 | `GoogleDriveRepository` | Interface in commonMain, `GoogleDriveRepositoryImpl` in desktopMain. See [[cloud-sync]]. |
 

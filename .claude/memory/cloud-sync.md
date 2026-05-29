@@ -32,12 +32,18 @@ Syncs the same JSON used by manual backup ([[data-layer]] § Backup format) to t
 2. Repository finds a free local TCP port, builds the auth URL with `redirect_uri = http://localhost:<port>` and `Desktop.getDesktop().browse(uri)`.
 3. A one-shot `ServerSocket` accepts the redirect, parses `?code=...` out of the request line, sends back a tiny HTML "you can close this window".
 4. The code is exchanged at `https://oauth2.googleapis.com/token` for an access + refresh token.
-5. User email fetched from `https://www.googleapis.com/oauth2/v3/userinfo`.
+5. User email fetched from `https://www.googleapis.com/oauth2/v3/userinfo`. Works because the scope set includes `openid email` — `drive.file` alone does *not* grant userinfo access, which previously caused the email to silently come back empty.
 6. All four pieces (access token, refresh token, expiry, email) persisted via `PreferencesRepository`.
 
-`validAccessToken()` refreshes automatically if the cached token is within 60s of expiry.
+`validAccessToken()` refreshes automatically if the cached token is within 60s of expiry. If the refresh call fails and no refresh token remains on disk, it flips `authState` back to `Unauthenticated` so the UI matches reality.
 
-Scope used: `https://www.googleapis.com/auth/drive.file`.
+Refresh tokens are only returned by Google on first consent (`prompt=consent`). On subsequent re-auths the response may omit `refresh_token`; the code keeps the previously-stored one in that case rather than overwriting with null.
+
+Scopes used: `https://www.googleapis.com/auth/drive.file openid email`.
+
+## Restoring a session on app launch
+
+`GoogleDriveRepositoryImpl.init {}` flips `authState` to `Authenticated(email)` whenever **any** persisted token is present (access *or* refresh). Email is treated as a display label only — a missing email does not invalidate the session, since `validAccessToken()` can still call Drive. This is what makes the session survive restarts even if the cached email is stale or empty.
 
 ## Drive REST endpoints used
 
