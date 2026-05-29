@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.sqldelight)
 }
 
-val appVersion = "1.3.1"
+val appVersion = "1.3.2"
 
 val generateAppVersion by tasks.registering {
     val outputDir = layout.buildDirectory.dir("generated/appversion/commonMain/kotlin")
