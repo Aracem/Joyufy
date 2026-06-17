@@ -63,6 +63,11 @@ val StringsEn = Strings(
     rangeAll = "since the beginning",
 
     // Account detail
+    confirmTypeChangeTitle = "Change account type?",
+    confirmTypeChangeBody = "This is a destructive operation and cannot be undone.",
+    confirmTypeChangeBankToInvestment = "Switching to Investment will delete %1\$d transactions and replace them with a single snapshot for this week with the current balance.",
+    confirmTypeChangeInvestmentToBank = "Switching away from Investment will delete %1\$d weekly snapshots. Any transactions on this account will be kept.",
+    confirmTypeChangeContinue = "Change type",
     editAccount = "Edit account",
     updateValue = "Update value",
     addTransaction = "Add transaction",

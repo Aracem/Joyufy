@@ -89,6 +89,9 @@ DELETE FROM `Transaction` WHERE id = ?;
 deleteAllTransactions:
 DELETE FROM `Transaction`;
 
+deleteTransactionsForAccount:
+DELETE FROM `Transaction` WHERE account_id = ?;
+
 -- Balance calculado de una cuenta banco/efectivo
 getAccountBalance:
 SELECT
@@ -131,6 +134,9 @@ DELETE FROM InvestmentSnapshot WHERE id = ?;
 
 deleteAllSnapshots:
 DELETE FROM InvestmentSnapshot;
+
+deleteSnapshotsForAccount:
+DELETE FROM InvestmentSnapshot WHERE account_id = ?;
 
 -- Cuentas de inversión sin snapshot esta semana
 getInvestmentAccountsMissingThisWeek:

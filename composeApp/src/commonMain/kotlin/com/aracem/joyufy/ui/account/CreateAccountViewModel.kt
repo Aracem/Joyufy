@@ -4,11 +4,13 @@ import androidx.compose.ui.graphics.Color
 import com.aracem.joyufy.data.mapper.toColorHex
 import com.aracem.joyufy.data.mapper.toComposeColor
 import com.aracem.joyufy.data.repository.AccountRepository
+import com.aracem.joyufy.data.repository.InvestmentSnapshotRepository
 import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.BankPreset
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.ui.components.currentWeekStartMillis
 import com.aracem.joyufy.ui.theme.AccountPalette
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,9 +32,23 @@ data class CreateAccountUiState(
     val nameError: String? = null,
 )
 
+/**
+ * Describes what an account type change will do to existing data.
+ * Surfaced to the UI so the confirmation dialog can warn the user.
+ */
+data class TypeChangePlan(
+    val from: AccountType,
+    val to: AccountType,
+    val transactionsToDelete: Int,
+    val snapshotsToDelete: Int,
+    /** Synthetic snapshot value (current balance) when crossing into INVESTMENT. */
+    val syntheticSnapshotValue: Double?,
+)
+
 class CreateAccountViewModel(
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
+    private val snapshotRepository: InvestmentSnapshotRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -126,6 +142,47 @@ class CreateAccountViewModel(
         _uiState.value = CreateAccountUiState()
     }
 
+    /**
+     * Computes what would happen if [account]'s type changed to [newType]
+     * given current DB contents. Returns null when no destructive change is
+     * required (same family — Bank↔Cash, or same type).
+     *
+     * Families: { BANK, CASH } share a transaction-based model. INVESTMENT
+     * uses snapshots. Crossing the boundary drops the data that no longer
+     * makes sense and, when entering INVESTMENT, mints a synthetic snapshot
+     * from the current balance so the account doesn't reset to zero.
+     */
+    suspend fun planTypeChange(account: Account, newType: AccountType): TypeChangePlan? {
+        if (newType == account.type) return null
+        val fromInvestment = account.type == AccountType.INVESTMENT
+        val toInvestment = newType == AccountType.INVESTMENT
+        // BANK ↔ CASH: no data change needed.
+        if (!fromInvestment && !toInvestment) return null
+
+        return if (toInvestment) {
+            // BANK/CASH → INVESTMENT
+            val txs = transactionRepository.getAllTransactions().filter { it.accountId == account.id }
+            val balance = transactionRepository.getAccountBalance(account.id)
+            TypeChangePlan(
+                from = account.type,
+                to = newType,
+                transactionsToDelete = txs.size,
+                snapshotsToDelete = 0,
+                syntheticSnapshotValue = balance,
+            )
+        } else {
+            // INVESTMENT → BANK/CASH
+            val snapshots = snapshotRepository.getAllSnapshots().filter { it.accountId == account.id }
+            TypeChangePlan(
+                from = account.type,
+                to = newType,
+                transactionsToDelete = 0,
+                snapshotsToDelete = snapshots.size,
+                syntheticSnapshotValue = null,
+            )
+        }
+    }
+
     fun saveEdit(
         account: Account,
         onSuccess: () -> Unit,
@@ -137,6 +194,10 @@ class CreateAccountViewModel(
         }
         _uiState.value = state.copy(isSaving = true)
         scope.launch {
+            // Cross-family type changes need a data migration step.
+            if (state.type != account.type) {
+                applyTypeChange(account, state.type)
+            }
             accountRepository.updateAccount(
                 account.copy(
                     name = state.name.trim(),
@@ -147,6 +208,29 @@ class CreateAccountViewModel(
             )
             _uiState.value = _uiState.value.copy(isSaving = false)
             onSuccess()
+        }
+    }
+
+    private suspend fun applyTypeChange(account: Account, newType: AccountType) {
+        val fromInvestment = account.type == AccountType.INVESTMENT
+        val toInvestment = newType == AccountType.INVESTMENT
+        when {
+            toInvestment -> {
+                // Collapse the bank/cash balance into a single snapshot for this week,
+                // then drop the source transactions.
+                val balance = transactionRepository.getAccountBalance(account.id)
+                transactionRepository.deleteTransactionsForAccount(account.id)
+                snapshotRepository.insertSnapshot(
+                    accountId = account.id,
+                    totalValue = balance,
+                    weekDate = currentWeekStartMillis(),
+                )
+            }
+            fromInvestment -> {
+                // Snapshots make no sense for a transaction-based account.
+                snapshotRepository.deleteSnapshotsForAccount(account.id)
+            }
+            // BANK ↔ CASH: no data conversion required, just the metadata update.
         }
     }
 

@@ -64,6 +64,13 @@ data class Strings(
     val rangeOneYear: String,
     val rangeAll: String,
 
+    // Account type change (destructive)
+    val confirmTypeChangeTitle: String,
+    val confirmTypeChangeBody: String,
+    val confirmTypeChangeBankToInvestment: String,
+    val confirmTypeChangeInvestmentToBank: String,
+    val confirmTypeChangeContinue: String,
+
     // Account detail
     val editAccount: String,
     val updateValue: String,

@@ -31,7 +31,9 @@ import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.AccountPalette
 import com.aracem.joyufy.ui.theme.Accent
+import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.joyufyColors
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -45,6 +47,8 @@ fun CreateAccountDialog(
 ) {
     val strings = LocalStrings.current
     val state by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    var pendingTypeChange by remember { mutableStateOf<TypeChangePlan?>(null) }
 
     // Reset / pre-populate on first composition
     LaunchedEffect(Unit) {
@@ -283,10 +287,27 @@ fun CreateAccountDialog(
                     Button(
                         onClick = {
                             if (editingAccount != null) {
-                                viewModel.saveEdit(
-                                    account = editingAccount,
-                                    onSuccess = { onCreated(); onDismiss() },
-                                )
+                                // Cross-family type changes are destructive. Ask the VM
+                                // for a plan; if it's non-null, route through the
+                                // confirmation dialog instead of saving directly.
+                                if (state.type != editingAccount.type) {
+                                    scope.launch {
+                                        val plan = viewModel.planTypeChange(editingAccount, state.type)
+                                        if (plan != null) {
+                                            pendingTypeChange = plan
+                                        } else {
+                                            viewModel.saveEdit(
+                                                account = editingAccount,
+                                                onSuccess = { onCreated(); onDismiss() },
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    viewModel.saveEdit(
+                                        account = editingAccount,
+                                        onSuccess = { onCreated(); onDismiss() },
+                                    )
+                                }
                             } else {
                                 viewModel.save(
                                     existingCount = existingCount,
@@ -310,6 +331,46 @@ fun CreateAccountDialog(
                 }
             }
         }
+    }
+
+    pendingTypeChange?.let { plan ->
+        val specific = when {
+            plan.to == AccountType.INVESTMENT ->
+                strings.confirmTypeChangeBankToInvestment.format(plan.transactionsToDelete)
+            plan.from == AccountType.INVESTMENT ->
+                strings.confirmTypeChangeInvestmentToBank.format(plan.snapshotsToDelete)
+            else -> ""
+        }
+        AlertDialog(
+            onDismissRequest = { pendingTypeChange = null },
+            title = { Text(strings.confirmTypeChangeTitle) },
+            text = {
+                Column {
+                    Text(specific)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        strings.confirmTypeChangeBody,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingTypeChange = null
+                        viewModel.saveEdit(
+                            account = editingAccount!!,
+                            onSuccess = { onCreated(); onDismiss() },
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                ) { Text(strings.confirmTypeChangeContinue) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingTypeChange = null }) { Text(strings.cancel) }
+            },
+        )
     }
 }
 

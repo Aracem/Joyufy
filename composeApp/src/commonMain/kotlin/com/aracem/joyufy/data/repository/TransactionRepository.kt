@@ -63,6 +63,10 @@ class TransactionRepository(private val db: JoyufyDatabase) {
         db.joyufyDatabaseQueries.deleteAllTransactions()
     }
 
+    suspend fun deleteTransactionsForAccount(accountId: Long): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.deleteTransactionsForAccount(accountId)
+    }
+
     suspend fun getAccountBalance(accountId: Long): Double = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries
             .getAccountBalance(accountId)

@@ -82,4 +82,8 @@ class InvestmentSnapshotRepository(private val db: JoyufyDatabase) {
     suspend fun deleteAllSnapshots(): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.deleteAllSnapshots()
     }
+
+    suspend fun deleteSnapshotsForAccount(accountId: Long): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.deleteSnapshotsForAccount(accountId)
+    }
 }
