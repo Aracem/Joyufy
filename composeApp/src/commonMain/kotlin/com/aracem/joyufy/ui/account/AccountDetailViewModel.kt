@@ -7,6 +7,7 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
+import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.dashboard.ChartRange
 import com.aracem.joyufy.ui.dashboard.ChartRangePreference
@@ -45,6 +46,10 @@ data class AccountDetailUiState(
     val chartRange: ChartRange = ChartRangePreference.range.value,
     val periodChange: Double? = null,
     val periodChangePct: Double? = null,
+    // Distinct free-text category strings the user has ever used (across all
+    // accounts), sorted by most-recent first. Fed to AddTransactionDialog so
+    // custom categories become reusable suggestions in future transactions.
+    val customCategories: List<String> = emptyList(),
 )
 
 class AccountDetailViewModel(
@@ -73,6 +78,25 @@ class AccountDetailViewModel(
                     _uiState.value = _uiState.value.copy(
                         allAccounts = accounts.filter { it.id != accountId }
                     )
+                }
+            }
+
+            // Distinct categories across all accounts, freshest first. Drives the
+            // "custom categories" autocomplete in AddTransactionDialog so any free
+            // text the user has typed is reusable in future entries.
+            launch {
+                transactionRepository.observeAllTransactions().collect { all ->
+                    val presetLower = TransactionCategory.entries.map { it.label.lowercase() }.toSet()
+                    val seen = HashSet<String>()
+                    val out = ArrayList<String>()
+                    all.sortedByDescending { it.date }.forEach { tx ->
+                        val raw = tx.category?.trim().orEmpty()
+                        if (raw.isEmpty()) return@forEach
+                        val lower = raw.lowercase()
+                        if (lower in presetLower) return@forEach
+                        if (seen.add(lower)) out += raw
+                    }
+                    _uiState.value = _uiState.value.copy(customCategories = out)
                 }
             }
 
@@ -140,19 +164,31 @@ class AccountDetailViewModel(
         snapshots: List<InvestmentSnapshot>,
         transactions: List<Transaction>,
     ): List<InvestmentListItem> {
-        val result = mutableListOf<InvestmentListItem>()
         // Keep only the most recent snapshot per week in case of duplicate data in DB
         val sortedSnapshots = snapshots
             .sortedByDescending { it.weekDate }
             .distinctBy { it.weekDate }
-        val sortedTxns = transactions.sortedByDescending { it.date }
+        // Dedupe transactions by id — a defence against stray duplicates in the
+        // emitted list (LazyColumn keys crash otherwise).
+        val sortedTxns = transactions
+            .distinctBy { it.id }
+            .sortedByDescending { it.date }
 
+        // No snapshots → all transactions go into a single flat list. Bailing
+        // out here also avoids overflow on Long.MAX_VALUE + MILLIS_IN_WEEK,
+        // which previously made every tx match every bucket and produced
+        // duplicate keys.
+        if (sortedSnapshots.isEmpty()) {
+            return sortedTxns.map { InvestmentListItem.Tx(it) }
+        }
+
+        val result = mutableListOf<InvestmentListItem>()
         // Build week intervals: each snapshot owns [weekDate, weekDate + 7 days)
-        // Transactions not covered by any snapshot go at the top (newer) or bottom (older)
-        val newestWeekStart = sortedSnapshots.firstOrNull()?.weekDate ?: Long.MAX_VALUE
-        val oldestWeekStart = sortedSnapshots.lastOrNull()?.weekDate ?: Long.MAX_VALUE
+        // Transactions not covered by any snapshot go at the top (newer) or bottom (older).
+        val newestWeekStart = sortedSnapshots.first().weekDate
+        val oldestWeekStart = sortedSnapshots.last().weekDate
 
-        // Transactions newer than the most recent snapshot's week start (no snapshot covers them yet)
+        // Transactions newer than the most recent snapshot's window
         sortedTxns
             .filter { it.date >= newestWeekStart + MILLIS_IN_WEEK }
             .forEach { result.add(InvestmentListItem.Tx(it)) }
@@ -166,7 +202,7 @@ class AccountDetailViewModel(
                 .forEach { result.add(InvestmentListItem.Tx(it)) }
         }
 
-        // Transactions older than the oldest snapshot's week start
+        // Transactions older than the oldest snapshot's window
         sortedTxns
             .filter { it.date < oldestWeekStart }
             .forEach { result.add(InvestmentListItem.Tx(it)) }

@@ -328,6 +328,7 @@ fun AccountDetailScreen(
         AddTransactionDialog(
             accountType = account.type,
             availableAccounts = state.allAccounts,
+            customCategories = state.customCategories,
             editingTransaction = editingTransaction,
             onDismiss = { showAddTransaction = false; editingTransaction = null },
             onConfirm = { type, amount, category, desc, relatedId, date ->

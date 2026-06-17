@@ -1,18 +1,25 @@
 package com.aracem.joyufy.ui.account
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.aracem.joyufy.domain.model.Account
@@ -37,6 +44,10 @@ fun AddTransactionDialog(
     availableAccounts: List<Account>,
     onDismiss: () -> Unit,
     onConfirm: (type: TransactionType, amount: Double, category: String?, description: String?, relatedAccountId: Long?, date: Long) -> Unit,
+    // Custom categories already used by the user in past transactions. Merged
+    // with the predefined enum labels in the autocomplete dropdown so a manually
+    // typed category becomes a normal suggestion in subsequent dialogs.
+    customCategories: List<String> = emptyList(),
     // If non-null, dialog is in edit mode pre-populated with this transaction
     editingTransaction: com.aracem.joyufy.domain.model.Transaction? = null,
 ) {
@@ -127,6 +138,25 @@ fun AddTransactionDialog(
 
                 Spacer(Modifier.height(16.dp))
 
+                // Focus management: Enter / Tab on a field jumps to the next.
+                val focusManager = LocalFocusManager.current
+                val amountFocus = remember { FocusRequester() }
+                val dateFocus = remember { FocusRequester() }
+                val descriptionFocus = remember { FocusRequester() }
+                LaunchedEffect(Unit) { amountFocus.requestFocus() }
+
+                // All available categories: predefined enum labels + any free-text
+                // values the user has used before (case-insensitive dedup, custom
+                // strings get priority casing).
+                val allCategoryLabels = remember(customCategories) {
+                    val preset = TransactionCategory.entries.map { it.label }
+                    val seen = HashSet<String>()
+                    val out = ArrayList<String>(preset.size + customCategories.size)
+                    customCategories.forEach { if (seen.add(it.lowercase())) out += it }
+                    preset.forEach { if (seen.add(it.lowercase())) out += it }
+                    out
+                }
+
                 // Importe
                 OutlinedTextField(
                     value = amountText,
@@ -136,7 +166,9 @@ fun AddTransactionDialog(
                     isError = amountError != null,
                     supportingText = amountError?.let { { Text(it) } },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth().focusRequester(amountFocus),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Accent, focusedLabelColor = Accent),
                 )
@@ -152,43 +184,49 @@ fun AddTransactionDialog(
                     isError = dateError != null,
                     supportingText = dateError?.let { { Text(it) } },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth().focusRequester(dateFocus),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Accent, focusedLabelColor = Accent),
                 )
 
                 Spacer(Modifier.height(12.dp))
 
-                // Categoría — autocomplete con filtrado y soporte Enter
-                val categorySuggestions by remember {
-                    derivedStateOf {
-                        val q = category.trim().lowercase()
-                        if (q.isEmpty()) TransactionCategory.entries.map { it.label }
-                        else TransactionCategory.entries
-                            .map { it.label }
-                            .filter { it.lowercase().contains(q) }
-                    }
-                }
-                // Abre el dropdown en cuanto hay texto y hay sugerencias
-                LaunchedEffect(category) {
-                    categoryExpanded = category.isNotBlank() && categorySuggestions.isNotEmpty()
+                // Categoría — autocomplete con filtrado y soporte Enter.
+                //
+                // The dropdown is opened *only by user typing* (onValueChange) or
+                // by clicking the trailing icon. When the user picks an item, we
+                // set the text *and* lock the dropdown shut, otherwise the new
+                // text matches a single suggestion and the menu pops back open
+                // showing only that one item — making the user feel they have to
+                // click twice.
+                val categorySuggestions = remember(category, allCategoryLabels) {
+                    val q = category.trim().lowercase()
+                    if (q.isEmpty()) allCategoryLabels
+                    else allCategoryLabels.filter { it.lowercase().contains(q) }
                 }
 
-                fun acceptFirstSuggestion() {
+                fun acceptFirstSuggestionOrFocusNext() {
                     val first = categorySuggestions.firstOrNull()
-                    if (first != null) {
+                    if (first != null && !category.equals(first, ignoreCase = true)) {
                         category = first
-                        categoryExpanded = false
                     }
+                    categoryExpanded = false
+                    focusManager.moveFocus(FocusDirection.Down)
                 }
 
                 ExposedDropdownMenuBox(
                     expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = it },
+                    onExpandedChange = { /* manually controlled — see onClick below */ },
                 ) {
                     OutlinedTextField(
                         value = category,
-                        onValueChange = { category = it },
+                        onValueChange = {
+                            category = it
+                            // Reopen on typing so suggestions follow the input.
+                            categoryExpanded = it.isNotBlank()
+                        },
                         label = { Text(strings.categoryOptional) },
                         trailingIcon = {
                             if (category.isNotBlank()) {
@@ -201,16 +239,24 @@ fun AddTransactionDialog(
                                         modifier = Modifier.size(16.dp))
                                 }
                             } else {
-                                ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded)
+                                // Tap arrow to open / close all suggestions.
+                                IconButton(
+                                    onClick = { categoryExpanded = !categoryExpanded },
+                                    modifier = Modifier.size(32.dp),
+                                ) {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded)
+                                }
                             }
                         },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardActions = KeyboardActions(onNext = { acceptFirstSuggestionOrFocusNext() }),
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(MenuAnchorType.PrimaryEditable)
                             .onPreviewKeyEvent { event ->
-                                if (event.key == Key.Enter && event.type == KeyEventType.KeyDown) {
-                                    acceptFirstSuggestion()
+                                if (event.type == KeyEventType.KeyDown && event.key == Key.Enter) {
+                                    acceptFirstSuggestionOrFocusNext()
                                     true
                                 } else false
                             },
@@ -225,7 +271,11 @@ fun AddTransactionDialog(
                             categorySuggestions.forEach { label ->
                                 DropdownMenuItem(
                                     text = { Text(label) },
-                                    onClick = { category = label; categoryExpanded = false },
+                                    onClick = {
+                                        category = label
+                                        categoryExpanded = false
+                                        focusManager.moveFocus(FocusDirection.Down)
+                                    },
                                 )
                             }
                         }
@@ -240,7 +290,9 @@ fun AddTransactionDialog(
                     onValueChange = { description = it },
                     label = { Text(strings.descriptionOptional) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    modifier = Modifier.fillMaxWidth().focusRequester(descriptionFocus),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Accent, focusedLabelColor = Accent),
                 )
