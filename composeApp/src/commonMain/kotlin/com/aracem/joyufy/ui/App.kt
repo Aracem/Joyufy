@@ -2,14 +2,32 @@ package com.aracem.joyufy.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.data.cloud.AuthState
+import com.aracem.joyufy.data.repository.BackupDiff
 import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.ui.account.AccountDetailScreen
 import com.aracem.joyufy.ui.strings.LocalStrings
@@ -57,11 +75,14 @@ fun App() {
             val driveEvent by driveViewModel.event.collectAsState()
             val snackbarHostState = remember { SnackbarHostState() }
             var showImportConfirm by remember { mutableStateOf<(() -> Unit)?>(null) }
+            var cloudRestorePrompt by remember { mutableStateOf<Pair<BackupDiff, String>?>(null) }
+            val isSyncingToCloud by driveViewModel.isSyncing.collectAsState()
 
-            // Auto-sync from Drive on launch
+            // Auto-preview from Drive on launch: download + diff, prompt the user
+            // only if cloud differs from local. Never silently overwrites.
             LaunchedEffect(Unit) {
                 if (driveViewModel.shouldAutoSync()) {
-                    driveViewModel.syncFromCloud(silent = true)
+                    driveViewModel.previewFromCloud()
                 }
             }
 
@@ -80,6 +101,10 @@ fun App() {
                     }
                     is DriveEvent.Error -> {
                         snackbarHostState.showSnackbar("${s.syncError}: ${ev.message}")
+                        driveViewModel.reset()
+                    }
+                    is DriveEvent.RestorePrompt -> {
+                        cloudRestorePrompt = ev.diff to ev.rawJson
                         driveViewModel.reset()
                     }
                     else -> {}
@@ -119,6 +144,35 @@ fun App() {
                         TextButton(onClick = { showImportConfirm = null; backupViewModel.reset() }) {
                             Text(s.cancel)
                         }
+                    },
+                )
+            }
+
+            cloudRestorePrompt?.let { (diff, rawJson) ->
+                val s = LocalStrings.current
+                AlertDialog(
+                    onDismissRequest = { cloudRestorePrompt = null },
+                    title = { Text(s.cloudDiffTitle) },
+                    text = {
+                        Column {
+                            Text(s.cloudDiffSubtitle, style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.height(12.dp))
+                            DiffRow(s.cloudDiffAccounts, diff.accountsAdded, diff.accountsRemoved, diff.accountsModified, s)
+                            DiffRow(s.cloudDiffTransactions, diff.transactionsAdded, diff.transactionsRemoved, diff.transactionsModified, s)
+                            DiffRow(s.cloudDiffSnapshots, diff.snapshotsAdded, diff.snapshotsRemoved, diff.snapshotsModified, s)
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                driveViewModel.applyCloudBackup(rawJson)
+                                cloudRestorePrompt = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                        ) { Text(s.useCloud) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { cloudRestorePrompt = null }) { Text(s.keepLocal) }
                     },
                 )
             }
@@ -204,7 +258,76 @@ fun App() {
                     onCreated = { showCreateAccount = false },
                 )
             }
+
+            // Full-screen overlay while close-time upload is in flight. Sits on
+            // top of everything so the user sees the syncing state until the
+            // upload completes (or Main.kt's 5s timeout closes the app anyway).
+            AnimatedVisibility(
+                visible = isSyncingToCloud,
+                enter = fadeIn(tween(150)),
+                exit = fadeOut(tween(150)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.55f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Surface(
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 6.dp,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Text(
+                                text = strings.syncingToDrive,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
     } // end CompositionLocalProvider
+}
+
+@Composable
+private fun DiffRow(
+    label: String,
+    added: Int,
+    removed: Int,
+    modified: Int,
+    s: com.aracem.joyufy.ui.strings.Strings,
+) {
+    if (added == 0 && removed == 0 && modified == 0) return
+    Row(
+        modifier = Modifier.padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(end = 12.dp),
+        )
+        val parts = buildList {
+            if (added > 0) add("+$added ${s.cloudDiffAdded}")
+            if (removed > 0) add("-$removed ${s.cloudDiffRemoved}")
+            if (modified > 0) add("~$modified ${s.cloudDiffModified}")
+        }
+        Text(
+            text = parts.joinToString("  ·  "),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+        )
+    }
 }

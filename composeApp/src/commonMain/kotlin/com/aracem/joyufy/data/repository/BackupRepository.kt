@@ -53,6 +53,33 @@ data class JoyufyBackup(
     val snapshots: List<SnapshotBackup>,
 )
 
+/**
+ * Per-entity delta counts when comparing a backup against the local DB.
+ * `cloudExportedAt` and `localCount*` are useful for the confirmation dialog
+ * so the user can sanity-check what they're about to replace.
+ *
+ * "Added" = present in cloud, missing locally.
+ * "Removed" = present locally, missing from cloud.
+ * "Modified" = present in both with the same id but different field values.
+ */
+data class BackupDiff(
+    val cloudExportedAt: Long,
+    val accountsAdded: Int,
+    val accountsRemoved: Int,
+    val accountsModified: Int,
+    val transactionsAdded: Int,
+    val transactionsRemoved: Int,
+    val transactionsModified: Int,
+    val snapshotsAdded: Int,
+    val snapshotsRemoved: Int,
+    val snapshotsModified: Int,
+) {
+    val hasChanges: Boolean
+        get() = accountsAdded + accountsRemoved + accountsModified +
+            transactionsAdded + transactionsRemoved + transactionsModified +
+            snapshotsAdded + snapshotsRemoved + snapshotsModified > 0
+}
+
 // ── Repository ────────────────────────────────────────────────────────────────
 
 class BackupRepository(
@@ -61,6 +88,46 @@ class BackupRepository(
     private val snapshotRepository: InvestmentSnapshotRepository,
 ) {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
+
+    /**
+     * Compares a cloud backup JSON against the current local DB and returns
+     * per-entity add/remove/modify counts. Does not mutate anything.
+     */
+    suspend fun diffAgainstLocal(jsonString: String): BackupDiff = withContext(Dispatchers.IO) {
+        val cloud = json.decodeFromString(JoyufyBackup.serializer(), jsonString)
+
+        val localAccounts = accountRepository.getAllAccounts().map { it.toBackup() }
+        val localTransactions = transactionRepository.getAllTransactions().map { it.toBackup() }
+        val localSnapshots = snapshotRepository.getAllSnapshots().map { it.toBackup() }
+
+        val (aAdd, aRem, aMod) = diffById(
+            cloud.accounts.associateBy { it.id },
+            localAccounts.associateBy { it.id },
+        )
+        val (tAdd, tRem, tMod) = diffById(
+            cloud.transactions.associateBy { it.id },
+            localTransactions.associateBy { it.id },
+        )
+        val (sAdd, sRem, sMod) = diffById(
+            cloud.snapshots.associateBy { it.id },
+            localSnapshots.associateBy { it.id },
+        )
+
+        BackupDiff(
+            cloudExportedAt = cloud.exportedAt,
+            accountsAdded = aAdd, accountsRemoved = aRem, accountsModified = aMod,
+            transactionsAdded = tAdd, transactionsRemoved = tRem, transactionsModified = tMod,
+            snapshotsAdded = sAdd, snapshotsRemoved = sRem, snapshotsModified = sMod,
+        )
+    }
+
+    private fun <T> diffById(cloud: Map<Long, T>, local: Map<Long, T>): Triple<Int, Int, Int> {
+        val added = cloud.keys - local.keys
+        val removed = local.keys - cloud.keys
+        val common = cloud.keys intersect local.keys
+        val modified = common.count { cloud[it] != local[it] }
+        return Triple(added.size, removed.size, modified)
+    }
 
     suspend fun export(): String = withContext(Dispatchers.IO) {
         val accounts = accountRepository.getAllAccounts()
