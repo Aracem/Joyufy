@@ -32,22 +32,37 @@ import com.aracem.joyufy.ui.dashboard.AccountPoint
 import com.aracem.joyufy.ui.dashboard.ChartMode
 import com.aracem.joyufy.ui.dashboard.WealthPoint
 import com.aracem.joyufy.ui.theme.Accent
+import com.aracem.joyufy.ui.theme.Negative
+import com.aracem.joyufy.ui.theme.Positive
 import com.aracem.joyufy.ui.theme.joyufyColors
 
 // ── Y-axis range ─────────────────────────────────────────────────────────────
 //
-// If the series never touches values near 0 (min > 15% of max), we use a
-// smart baseline so movements are visually meaningful. Otherwise we anchor to 0
-// so the chart is not misleading.
+// Choose a Y range that makes movement visible. Two cases lift the baseline
+// above zero:
+//   - The data sits clearly above zero (min > 3% of max), OR
+//   - The data is concentrated: relative spread is tiny vs absolute value
+//     ((max-min)/max < 10%) — these are the cases where a 0-anchored chart
+//     looks dead-flat even though something is changing.
+// When we lift, headroom is expressed as a fraction of the visible span
+// rather than of the absolute value, so the data hugs the chart edges
+// regardless of how large the numbers are.
 //
 // Returns Pair(yMin, yMax) ready to use as chart bounds.
 private fun smartYRange(rawMin: Double, rawMax: Double): Pair<Double, Double> {
     val safeMax = rawMax.coerceAtLeast(rawMin + 1.0)
-    // Only lift the baseline when min is meaningfully above zero
-    val liftBaseline = rawMin > 0 && rawMin > safeMax * 0.15
-    val yMin = if (liftBaseline) (rawMin * 0.90).coerceAtLeast(0.0) else rawMin.coerceAtMost(0.0)
-    val yMax = safeMax * 1.05
-    return Pair(yMin, yMax)
+    val rawRange = safeMax - rawMin
+    val relativeSpread = if (safeMax > 0) rawRange / safeMax else 1.0
+    val liftBaseline = rawMin > 0 && (rawMin > safeMax * 0.03 || relativeSpread < 0.10)
+    return if (liftBaseline) {
+        // 12% headroom below the min and 12% above the max, both measured as
+        // a fraction of the visible span. Guarantees ~76% of the chart height
+        // is occupied by data movement, no matter how concentrated.
+        val pad = rawRange * 0.12
+        Pair((rawMin - pad).coerceAtLeast(0.0), safeMax + pad)
+    } else {
+        Pair(rawMin.coerceAtMost(0.0), safeMax * 1.05)
+    }
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -278,8 +293,27 @@ private fun DrawScope.drawTooltipBackground(
 }
 
 /**
+ * Computes the percentage change from baseline to current, formatted with sign
+ * and a colored visual (Positive / Negative / secondary if zero or no baseline).
+ * Returns null when baseline is null or zero (no meaningful change to show).
+ */
+private data class PctChange(val label: String, val color: Color)
+
+private fun pctChange(baseline: Double?, current: Double, secondaryColor: Color): PctChange? {
+    if (baseline == null || baseline == 0.0) return null
+    val pct = (current - baseline) / baseline * 100.0
+    // Hide truly negligible movement so the badge stays meaningful.
+    if (kotlin.math.abs(pct) < 0.005) return PctChange("0.00%", secondaryColor)
+    val sign = if (pct > 0) "+" else ""
+    val color = if (pct >= 0) Positive else Negative
+    return PctChange("$sign${pct.formatPercent()}", color)
+}
+
+/**
  * Draws a multi-account tooltip entirely on canvas.
  * Returns nothing — pure side effect on DrawScope.
+ *
+ * Baseline values are used to render the % change vs the first visible point.
  */
 private fun DrawScope.drawWealthTooltip(
     measurer: TextMeasurer,
@@ -289,6 +323,8 @@ private fun DrawScope.drawWealthTooltip(
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
+    totalBaseline: Double? = null,
+    accountBaselines: Map<Long, Double> = emptyMap(),
 ) {
     val paddingH = 10.dp.toPx()
     val paddingV = 7.dp.toPx()
@@ -296,6 +332,7 @@ private fun DrawScope.drawWealthTooltip(
     val dotSize = 7.dp.toPx()
     val dotTextGap = 5.dp.toPx()
     val colGap = 6.dp.toPx()
+    val pctGap = 6.dp.toPx()
 
     // Pre-measure everything using an explicit large constraint so the measurer
     // never sees the canvas height and never crashes with negative maxHeight.
@@ -307,18 +344,34 @@ private fun DrawScope.drawWealthTooltip(
 
     val dateLr = measurer.measure(point.weekDate.toLongDate(), dateStyle, constraints = constraints)
     val totalLr = if (showTotal) measurer.measure(point.totalWealth.formatCurrency(), totalStyle, constraints = constraints) else null
+    val totalPct = if (showTotal) pctChange(totalBaseline, point.totalWealth, secondaryColor) else null
+    val totalPctLr = totalPct?.let {
+        measurer.measure(it.label, TextStyle(color = it.color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold), constraints = constraints)
+    }
 
-    data class RowLr(val color: Color, val nameLr: androidx.compose.ui.text.TextLayoutResult, val valueLr: androidx.compose.ui.text.TextLayoutResult)
+    data class RowLr(
+        val color: Color,
+        val nameLr: androidx.compose.ui.text.TextLayoutResult,
+        val valueLr: androidx.compose.ui.text.TextLayoutResult,
+        val pctLr: androidx.compose.ui.text.TextLayoutResult?,
+    )
     val rows = point.byAccount.map { ap ->
+        val pct = pctChange(accountBaselines[ap.account.id], ap.balance, secondaryColor)
         RowLr(
             ap.account.color,
             measurer.measure(ap.account.name, rowLabelStyle, constraints = constraints),
             measurer.measure(ap.balance.formatCurrency(), rowValueStyle, constraints = constraints),
+            pct?.let { measurer.measure(it.label, TextStyle(color = it.color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold), constraints = constraints) },
         )
     }
 
-    val maxRowContentW = rows.maxOfOrNull { dotSize + dotTextGap + it.nameLr.size.width + colGap + it.valueLr.size.width } ?: 0f
-    val contentW = maxOf(dateLr.size.width.toFloat(), totalLr?.size?.width?.toFloat() ?: 0f, maxRowContentW)
+    val totalLineW = (totalLr?.size?.width?.toFloat() ?: 0f) +
+        (totalPctLr?.let { pctGap + it.size.width } ?: 0f)
+    val maxRowContentW = rows.maxOfOrNull {
+        dotSize + dotTextGap + it.nameLr.size.width + colGap + it.valueLr.size.width +
+            (it.pctLr?.let { p -> pctGap + p.size.width } ?: 0f)
+    } ?: 0f
+    val contentW = maxOf(dateLr.size.width.toFloat(), totalLineW, maxRowContentW)
     val tooltipW = contentW + paddingH * 2
 
     var tooltipH = paddingV + dateLr.size.height
@@ -348,6 +401,12 @@ private fun DrawScope.drawWealthTooltip(
     if (totalLr != null) {
         curY += 4.dp.toPx()
         drawText(totalLr, topLeft = Offset(tooltipX + paddingH, curY))
+        if (totalPctLr != null) {
+            // Right-align the % badge on the same row as the total value, sharing baseline.
+            val pctX = tooltipX + tooltipW - paddingH - totalPctLr.size.width
+            val pctY = curY + (totalLr.size.height - totalPctLr.size.height) / 2f
+            drawText(totalPctLr, topLeft = Offset(pctX, pctY))
+        }
         curY += totalLr.size.height
     }
 
@@ -357,8 +416,12 @@ private fun DrawScope.drawWealthTooltip(
             val rowMidY = curY + rowHeight / 2f
             drawCircle(color = row.color, radius = dotSize / 2f, center = Offset(tooltipX + paddingH + dotSize / 2f, rowMidY))
             drawText(row.nameLr, topLeft = Offset(tooltipX + paddingH + dotSize + dotTextGap, rowMidY - row.nameLr.size.height / 2f))
-            val valX = tooltipX + tooltipW - paddingH - row.valueLr.size.width
+            // Right edge: % badge first, then value with a gap, so layout reads "name … value  +1.2%"
+            val pctW = row.pctLr?.size?.width ?: 0
+            val pctX = tooltipX + tooltipW - paddingH - pctW
+            val valX = pctX - (if (row.pctLr != null) pctGap else 0f) - row.valueLr.size.width
             drawText(row.valueLr, topLeft = Offset(valX, rowMidY - row.valueLr.size.height / 2f))
+            row.pctLr?.let { drawText(it, topLeft = Offset(pctX, rowMidY - it.size.height / 2f)) }
             curY += rowHeight
         }
     }
@@ -377,11 +440,13 @@ private fun DrawScope.drawSingleTooltip(
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
+    baseline: Double? = null,
 ) {
     val paddingH = 10.dp.toPx()
     val paddingV = 7.dp.toPx()
     val dotSize = 7.dp.toPx()
     val dotTextGap = 5.dp.toPx()
+    val pctGap = 6.dp.toPx()
 
     val constraints = androidx.compose.ui.unit.Constraints(maxWidth = 400, maxHeight = 200)
     val dateStyle = TextStyle(color = secondaryColor, fontSize = 10.sp)
@@ -389,8 +454,12 @@ private fun DrawScope.drawSingleTooltip(
 
     val dateLr = measurer.measure(weekDate.toLongDate(), dateStyle, constraints = constraints)
     val valueLr = measurer.measure(balance.formatCurrency(), valueStyle, constraints = constraints)
+    val pct = pctChange(baseline, balance, secondaryColor)
+    val pctLr = pct?.let {
+        measurer.measure(it.label, TextStyle(color = it.color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold), constraints = constraints)
+    }
 
-    val valueRowW = dotSize + dotTextGap + valueLr.size.width
+    val valueRowW = dotSize + dotTextGap + valueLr.size.width + (pctLr?.let { pctGap + it.size.width } ?: 0f)
     val contentW = maxOf(dateLr.size.width.toFloat(), valueRowW)
     val tooltipW = contentW + paddingH * 2
     val tooltipH = paddingV + dateLr.size.height + 4.dp.toPx() + dotSize + paddingV
@@ -412,6 +481,10 @@ private fun DrawScope.drawSingleTooltip(
     val rowMidY = curY + dotSize / 2f
     drawCircle(color = accountColor, radius = dotSize / 2f, center = Offset(tooltipX + paddingH + dotSize / 2f, rowMidY))
     drawText(valueLr, topLeft = Offset(tooltipX + paddingH + dotSize + dotTextGap, rowMidY - valueLr.size.height / 2f))
+    pctLr?.let {
+        val pctX = tooltipX + tooltipW - paddingH - it.size.width
+        drawText(it, topLeft = Offset(pctX, rowMidY - it.size.height / 2f))
+    }
 }
 
 // ── Area chart (multi-account) ────────────────────────────────────────────────
@@ -464,8 +537,7 @@ private fun DrawScope.drawAreaChart(
             moveTo(xOf(0), chartBottom)
             lineTo(xOf(0), yOf(points[0].totalWealth))
             for (i in 1 until points.size) {
-                val cx = (xOf(i - 1) + xOf(i)) / 2f
-                cubicTo(cx, yOf(points[i - 1].totalWealth), cx, yOf(points[i].totalWealth), xOf(i), yOf(points[i].totalWealth))
+                lineTo(xOf(i), yOf(points[i].totalWealth))
             }
             lineTo(xOf(points.size - 1), chartBottom)
             close()
@@ -494,10 +566,7 @@ private fun DrawScope.drawAreaChart(
                     moveTo(xOf(i), y)
                     started = true
                 } else {
-                    val cx = (xOf(i - 1) + xOf(i)) / 2f
-                    val prevAp = points[i - 1].byAccount.find { it.account.id == account.id }
-                    val prevY = if (prevAp != null) yOf(prevAp.balance) else y
-                    cubicTo(cx, prevY, cx, y, xOf(i), y)
+                    lineTo(xOf(i), y)
                 }
             }
         }
@@ -513,18 +582,17 @@ private fun DrawScope.drawAreaChart(
         val totalLinePath = Path().apply {
             moveTo(xOf(0), yOf(points[0].totalWealth))
             for (i in 1 until points.size) {
-                val cx = (xOf(i - 1) + xOf(i)) / 2f
-                cubicTo(cx, yOf(points[i - 1].totalWealth), cx, yOf(points[i].totalWealth), xOf(i), yOf(points[i].totalWealth))
+                lineTo(xOf(i), yOf(points[i].totalWealth))
             }
         }
         drawPath(
             path = totalLinePath,
             color = Accent,
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+            style = Stroke(width = 2.5f.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
         drawCircle(
             color = Accent,
-            radius = 4.dp.toPx(),
+            radius = 6.dp.toPx(),
             center = Offset(xOf(points.size - 1), yOf(points.last().totalWealth)),
         )
     }
@@ -561,8 +629,24 @@ private fun DrawScope.drawAreaChart(
             surfaceColor = surfaceColor,
             onSurfaceColor = onSurfaceColor,
             secondaryColor = secondaryColor,
+            totalBaseline = points.first().totalWealth,
+            accountBaselines = firstSeenBalances(points),
         )
     }
+}
+
+/**
+ * For each account id, returns its balance at the first point where the
+ * account appears. Used as the baseline for % change badges in tooltips.
+ */
+private fun firstSeenBalances(points: List<WealthPoint>): Map<Long, Double> {
+    val out = HashMap<Long, Double>()
+    points.forEach { wp ->
+        wp.byAccount.forEach { ap ->
+            if (ap.account.id !in out) out[ap.account.id] = ap.balance
+        }
+    }
+    return out
 }
 
 // ── Bar chart (multi-account) ─────────────────────────────────────────────────
@@ -670,6 +754,8 @@ private fun DrawScope.drawBarChart(
             surfaceColor = surfaceColor,
             onSurfaceColor = onSurfaceColor,
             secondaryColor = secondaryColor,
+            totalBaseline = points.first().totalWealth,
+            accountBaselines = firstSeenBalances(points),
         )
     }
 }
@@ -718,8 +804,7 @@ private fun DrawScope.drawSingleAreaChart(
         moveTo(xOf(0), chartBottom)
         lineTo(xOf(0), yOf(points[0].balance))
         for (i in 1 until points.size) {
-            val cx = (xOf(i - 1) + xOf(i)) / 2f
-            cubicTo(cx, yOf(points[i - 1].balance), cx, yOf(points[i].balance), xOf(i), yOf(points[i].balance))
+            lineTo(xOf(i), yOf(points[i].balance))
         }
         lineTo(xOf(points.size - 1), chartBottom)
         close()
@@ -736,18 +821,17 @@ private fun DrawScope.drawSingleAreaChart(
     val linePath = Path().apply {
         moveTo(xOf(0), yOf(points[0].balance))
         for (i in 1 until points.size) {
-            val cx = (xOf(i - 1) + xOf(i)) / 2f
-            cubicTo(cx, yOf(points[i - 1].balance), cx, yOf(points[i].balance), xOf(i), yOf(points[i].balance))
+            lineTo(xOf(i), yOf(points[i].balance))
         }
     }
     drawPath(
         path = linePath,
         color = lineColor,
-        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+        style = Stroke(width = 2.5f.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
     )
     drawCircle(
         color = lineColor,
-        radius = 4.dp.toPx(),
+        radius = 6.dp.toPx(),
         center = Offset(xOf(points.size - 1), yOf(points.last().balance)),
     )
 
@@ -775,6 +859,7 @@ private fun DrawScope.drawSingleAreaChart(
             surfaceColor = surfaceColor,
             onSurfaceColor = onSurfaceColor,
             secondaryColor = secondaryColor,
+            baseline = points.first().balance,
         )
     }
 }
@@ -860,6 +945,7 @@ private fun DrawScope.drawSingleBarChart(
             surfaceColor = surfaceColor,
             onSurfaceColor = onSurfaceColor,
             secondaryColor = secondaryColor,
+            baseline = points.first().balance,
         )
     }
 }
