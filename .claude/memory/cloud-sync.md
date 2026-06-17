@@ -58,11 +58,19 @@ All requests via Ktor `HttpClient(CIO)` with `ContentNegotiation` + `kotlinx.ser
 
 | When | What | Where |
 |---|---|---|
-| App launch | If `autoSync && authenticated` → `syncFromCloud(silent = true)` | `App.kt` `LaunchedEffect(Unit)` |
-| App close | If `autoSync && authenticated` → `runBlocking { withTimeoutOrNull(5_000) { syncToCloudSuspend() } }` | `Main.kt` `onCloseRequest` |
+| App launch | If `autoSync && authenticated` → `previewFromCloud()` (download + diff against local; only prompts if different) | `App.kt` `LaunchedEffect(Unit)` |
+| App close | If `autoSync && authenticated` → upload runs on the Koin scope, `exitApplication()` waits via `LaunchedEffect(closeRequested)` (5s ceiling) | `Main.kt` `onCloseRequest` |
 | Manual | `Upload now` / `Restore from Drive` buttons in Settings | `SettingsScreen.kt` Cloud Sync section |
 
-`syncToCloudSuspend()` exists separately from `syncToCloud()` because the latter launches its own coroutine in the ViewModel scope, which doesn't help when `Main.kt` needs to *block* the JVM shutdown until the upload completes (with a 5s ceiling).
+### Auto-restore is non-destructive
+
+`previewFromCloud()` downloads the cloud backup and calls `BackupRepository.diffAgainstLocal(json)`, which returns a `BackupDiff` of per-entity counts (`accountsAdded`/`Removed`/`Modified`, same for transactions and snapshots) plus `cloudExportedAt`. Only if `diff.hasChanges` does the VM emit `DriveEvent.RestorePrompt(diff, rawJson)`. `App.kt` catches that event and shows a dialog with the counts. The destructive `applyCloudBackup(rawJson)` fires only after the user clicks **Use cloud** — the default action is **Keep local**.
+
+This replaces the previous "silently overwrite local with cloud at launch" behavior, which destroyed unsynced local edits.
+
+### Close-time sync is non-blocking
+
+`syncToCloudSuspend()` toggles `DriveViewModel.isSyncing: StateFlow<Boolean>` via `try/finally`. `App.kt` observes that flag and renders a full-screen overlay (dim background + spinner + "Syncing to Google Drive…") on top of everything while it's true. `Main.kt`'s `onCloseRequest` no longer uses `runBlocking` — it sets a local `closeRequested` flag, a `LaunchedEffect` runs the upload with a 5s timeout, and only then does it call `exitApplication()`. This keeps the window alive long enough for Compose to render the overlay and gives visible feedback before the JVM exits.
 
 ## Persisted keys (`PreferencesRepository`)
 

@@ -39,6 +39,7 @@ Three tables: `Account`, `` `Transaction` `` (backticked because `Transaction` i
 | `getRelatedTransfer` | Finds the sibling leg of a transfer (used when editing/deleting one leg, see [[domain]]). |
 | `getInvestmentAccountsMissingThisWeek` | Drives the missing-snapshot banner on the Dashboard. Takes the current Monday epoch as parameter. |
 | `getAllBankCashTransactions` / `getAllSnapshots` | Used by the Dashboard analysis card and account history feeds. |
+| `deleteTransactionsForAccount` / `deleteSnapshotsForAccount` | Per-account wipes. Used by the destructive account type change in `CreateAccountViewModel.applyTypeChange` (see [[domain]] § Account type change). |
 
 If you add a column to a table, you also need to add an `ALTER TABLE … ADD COLUMN …` step in `DatabaseDriverFactory.openOrCreate()` (`desktopMain`) so existing installs migrate. SQLDelight does not auto-migrate.
 

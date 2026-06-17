@@ -64,4 +64,14 @@ Week key is the Monday of the week at 00:00 in the user's local timezone, expres
 
 Banner on `App.kt` startup (`MissingSnapshotBanner`) lists investment accounts that are missing the current week's snapshot, driven by the `getInvestmentAccountsMissingThisWeek` query.
 
+### Account type change
+
+Editing an account's type works across all three values, but crossing the boundary between the **transaction-based family** (`BANK`, `CASH`) and the **snapshot-based family** (`INVESTMENT`) is destructive and requires user confirmation:
+
+- `BANK`/`CASH` → `INVESTMENT`: the current balance is collapsed into a single synthetic `InvestmentSnapshot` for this week, then every `Transaction` belonging to the account is deleted. Transfer legs on *other* accounts that pointed to this one are left untouched (they remain valid `Transaction`s on those other accounts with their original `relatedAccountId`).
+- `INVESTMENT` → `BANK`/`CASH`: every snapshot for the account is deleted. Any transactions on the account (typically transfer deposits into the investment) are kept.
+- `BANK` ↔ `CASH`: no data change, just the type field; no confirmation dialog.
+
+The plan is computed by `CreateAccountViewModel.planTypeChange` and shown as a hard warning with row counts before any mutation. Applied atomically inside `saveEdit` so a partial state is impossible.
+
 See [[data-layer]] for the SQL backing these rules.
