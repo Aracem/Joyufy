@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.data.cloud.AuthState
 import com.aracem.joyufy.data.repository.BackupDiff
 import com.aracem.joyufy.data.repository.PreferencesRepository
+import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.account.AccountDetailScreen
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.strings.StringsEn
@@ -67,6 +68,7 @@ fun App() {
         Surface(modifier = Modifier.fillMaxSize()) {
             var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
             var showCreateAccount by remember { mutableStateOf(false) }
+            var createAccountInitialType by remember { mutableStateOf<AccountType?>(null) }
             val dashboardViewModel: DashboardViewModel = koinInject()
             val backupViewModel: BackupViewModel = koinInject()
             val driveViewModel: DriveViewModel = koinInject()
@@ -189,7 +191,10 @@ fun App() {
                     currentScreen = currentScreen,
                     accounts = dashboardState.accountSummaries,
                     onScreenSelected = { currentScreen = it },
-                    onAddAccount = { showCreateAccount = true },
+                    onAddAccount = {
+                        createAccountInitialType = null
+                        showCreateAccount = true
+                    },
                     onAccountClick = { account -> currentScreen = Screen.AccountDetail(account.id) },
                     onReorderAccounts = dashboardViewModel::reorderAccounts,
                     darkMode = darkMode,
@@ -228,6 +233,10 @@ fun App() {
                                     if (json != null) backupViewModel.importFromJson(json)
                                 }
                             },
+                            onCreateAccount = { type ->
+                                createAccountInitialType = type
+                                showCreateAccount = true
+                            },
                         )
                         is Screen.AccountDetail -> AccountDetailScreen(
                             accountId = screen.accountId,
@@ -254,8 +263,15 @@ fun App() {
             if (showCreateAccount) {
                 CreateAccountDialog(
                     existingCount = dashboardState.accountSummaries.size,
-                    onDismiss = { showCreateAccount = false },
-                    onCreated = { showCreateAccount = false },
+                    onDismiss = {
+                        showCreateAccount = false
+                        createAccountInitialType = null
+                    },
+                    onCreated = {
+                        showCreateAccount = false
+                        createAccountInitialType = null
+                    },
+                    initialType = createAccountInitialType,
                 )
             }
 

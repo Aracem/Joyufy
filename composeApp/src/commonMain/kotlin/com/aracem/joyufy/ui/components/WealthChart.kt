@@ -293,20 +293,20 @@ private fun DrawScope.drawTooltipBackground(
 }
 
 /**
- * Computes the percentage change from baseline to current, formatted with sign
- * and a colored visual (Positive / Negative / secondary if zero or no baseline).
+ * Computes the absolute and percentage change from baseline to current,
+ * formatted with sign and a colored visual.
  * Returns null when baseline is null or zero (no meaningful change to show).
  */
-private data class PctChange(val label: String, val color: Color)
+private data class ValueChange(val label: String, val color: Color)
 
-private fun pctChange(baseline: Double?, current: Double, secondaryColor: Color): PctChange? {
+private fun valueChange(baseline: Double?, current: Double, secondaryColor: Color): ValueChange? {
     if (baseline == null || baseline == 0.0) return null
+    val delta = current - baseline
     val pct = (current - baseline) / baseline * 100.0
-    // Hide truly negligible movement so the badge stays meaningful.
-    if (kotlin.math.abs(pct) < 0.005) return PctChange("0.00%", secondaryColor)
-    val sign = if (pct > 0) "+" else ""
-    val color = if (pct >= 0) Positive else Negative
-    return PctChange("$sign${pct.formatPercent()}", color)
+    if (kotlin.math.abs(delta) < 0.005) return ValueChange("0,00 € (0.00%)", secondaryColor)
+    val sign = if (delta > 0) "+" else ""
+    val color = if (delta >= 0) Positive else Negative
+    return ValueChange("$sign${delta.formatCurrency()} ($sign${pct.formatPercent()})", color)
 }
 
 /**
@@ -344,8 +344,8 @@ private fun DrawScope.drawWealthTooltip(
 
     val dateLr = measurer.measure(point.weekDate.toLongDate(), dateStyle, constraints = constraints)
     val totalLr = if (showTotal) measurer.measure(point.totalWealth.formatCurrency(), totalStyle, constraints = constraints) else null
-    val totalPct = if (showTotal) pctChange(totalBaseline, point.totalWealth, secondaryColor) else null
-    val totalPctLr = totalPct?.let {
+    val totalChange = if (showTotal) valueChange(totalBaseline, point.totalWealth, secondaryColor) else null
+    val totalChangeLr = totalChange?.let {
         measurer.measure(it.label, TextStyle(color = it.color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold), constraints = constraints)
     }
 
@@ -353,23 +353,23 @@ private fun DrawScope.drawWealthTooltip(
         val color: Color,
         val nameLr: androidx.compose.ui.text.TextLayoutResult,
         val valueLr: androidx.compose.ui.text.TextLayoutResult,
-        val pctLr: androidx.compose.ui.text.TextLayoutResult?,
+        val changeLr: androidx.compose.ui.text.TextLayoutResult?,
     )
     val rows = point.byAccount.map { ap ->
-        val pct = pctChange(accountBaselines[ap.account.id], ap.balance, secondaryColor)
+        val change = valueChange(accountBaselines[ap.account.id], ap.balance, secondaryColor)
         RowLr(
             ap.account.color,
             measurer.measure(ap.account.name, rowLabelStyle, constraints = constraints),
             measurer.measure(ap.balance.formatCurrency(), rowValueStyle, constraints = constraints),
-            pct?.let { measurer.measure(it.label, TextStyle(color = it.color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold), constraints = constraints) },
+            change?.let { measurer.measure(it.label, TextStyle(color = it.color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold), constraints = constraints) },
         )
     }
 
     val totalLineW = (totalLr?.size?.width?.toFloat() ?: 0f) +
-        (totalPctLr?.let { pctGap + it.size.width } ?: 0f)
+        (totalChangeLr?.let { pctGap + it.size.width } ?: 0f)
     val maxRowContentW = rows.maxOfOrNull {
         dotSize + dotTextGap + it.nameLr.size.width + colGap + it.valueLr.size.width +
-            (it.pctLr?.let { p -> pctGap + p.size.width } ?: 0f)
+            (it.changeLr?.let { p -> pctGap + p.size.width } ?: 0f)
     } ?: 0f
     val contentW = maxOf(dateLr.size.width.toFloat(), totalLineW, maxRowContentW)
     val tooltipW = contentW + paddingH * 2
@@ -401,11 +401,11 @@ private fun DrawScope.drawWealthTooltip(
     if (totalLr != null) {
         curY += 4.dp.toPx()
         drawText(totalLr, topLeft = Offset(tooltipX + paddingH, curY))
-        if (totalPctLr != null) {
+        if (totalChangeLr != null) {
             // Right-align the % badge on the same row as the total value, sharing baseline.
-            val pctX = tooltipX + tooltipW - paddingH - totalPctLr.size.width
-            val pctY = curY + (totalLr.size.height - totalPctLr.size.height) / 2f
-            drawText(totalPctLr, topLeft = Offset(pctX, pctY))
+            val pctX = tooltipX + tooltipW - paddingH - totalChangeLr.size.width
+            val pctY = curY + (totalLr.size.height - totalChangeLr.size.height) / 2f
+            drawText(totalChangeLr, topLeft = Offset(pctX, pctY))
         }
         curY += totalLr.size.height
     }
@@ -417,11 +417,11 @@ private fun DrawScope.drawWealthTooltip(
             drawCircle(color = row.color, radius = dotSize / 2f, center = Offset(tooltipX + paddingH + dotSize / 2f, rowMidY))
             drawText(row.nameLr, topLeft = Offset(tooltipX + paddingH + dotSize + dotTextGap, rowMidY - row.nameLr.size.height / 2f))
             // Right edge: % badge first, then value with a gap, so layout reads "name … value  +1.2%"
-            val pctW = row.pctLr?.size?.width ?: 0
+            val pctW = row.changeLr?.size?.width ?: 0
             val pctX = tooltipX + tooltipW - paddingH - pctW
-            val valX = pctX - (if (row.pctLr != null) pctGap else 0f) - row.valueLr.size.width
+            val valX = pctX - (if (row.changeLr != null) pctGap else 0f) - row.valueLr.size.width
             drawText(row.valueLr, topLeft = Offset(valX, rowMidY - row.valueLr.size.height / 2f))
-            row.pctLr?.let { drawText(it, topLeft = Offset(pctX, rowMidY - it.size.height / 2f)) }
+            row.changeLr?.let { drawText(it, topLeft = Offset(pctX, rowMidY - it.size.height / 2f)) }
             curY += rowHeight
         }
     }
@@ -454,12 +454,12 @@ private fun DrawScope.drawSingleTooltip(
 
     val dateLr = measurer.measure(weekDate.toLongDate(), dateStyle, constraints = constraints)
     val valueLr = measurer.measure(balance.formatCurrency(), valueStyle, constraints = constraints)
-    val pct = pctChange(baseline, balance, secondaryColor)
-    val pctLr = pct?.let {
+    val change = valueChange(baseline, balance, secondaryColor)
+    val changeLr = change?.let {
         measurer.measure(it.label, TextStyle(color = it.color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold), constraints = constraints)
     }
 
-    val valueRowW = dotSize + dotTextGap + valueLr.size.width + (pctLr?.let { pctGap + it.size.width } ?: 0f)
+    val valueRowW = dotSize + dotTextGap + valueLr.size.width + (changeLr?.let { pctGap + it.size.width } ?: 0f)
     val contentW = maxOf(dateLr.size.width.toFloat(), valueRowW)
     val tooltipW = contentW + paddingH * 2
     val tooltipH = paddingV + dateLr.size.height + 4.dp.toPx() + dotSize + paddingV
@@ -481,7 +481,7 @@ private fun DrawScope.drawSingleTooltip(
     val rowMidY = curY + dotSize / 2f
     drawCircle(color = accountColor, radius = dotSize / 2f, center = Offset(tooltipX + paddingH + dotSize / 2f, rowMidY))
     drawText(valueLr, topLeft = Offset(tooltipX + paddingH + dotSize + dotTextGap, rowMidY - valueLr.size.height / 2f))
-    pctLr?.let {
+    changeLr?.let {
         val pctX = tooltipX + tooltipW - paddingH - it.size.width
         drawText(it, topLeft = Offset(pctX, rowMidY - it.size.height / 2f))
     }

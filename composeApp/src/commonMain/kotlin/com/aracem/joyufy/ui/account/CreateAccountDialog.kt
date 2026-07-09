@@ -43,6 +43,7 @@ fun CreateAccountDialog(
     onDismiss: () -> Unit,
     onCreated: () -> Unit,
     editingAccount: Account? = null,
+    initialType: AccountType? = null,
     viewModel: CreateAccountViewModel = koinInject(),
 ) {
     val strings = LocalStrings.current
@@ -51,9 +52,12 @@ fun CreateAccountDialog(
     var pendingTypeChange by remember { mutableStateOf<TypeChangePlan?>(null) }
 
     // Reset / pre-populate on first composition
-    LaunchedEffect(Unit) {
+    LaunchedEffect(editingAccount, initialType) {
         if (editingAccount != null) viewModel.resetForEdit(editingAccount)
-        else viewModel.reset()
+        else {
+            viewModel.reset()
+            initialType?.let(viewModel::onTypeChange)
+        }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -438,4 +442,3 @@ private fun BankPresetChip(
         )
     }
 }
-

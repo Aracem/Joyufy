@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
+import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.openUrl
 import com.aracem.joyufy.ui.components.*
 import com.aracem.joyufy.ui.strings.LocalStrings
@@ -57,6 +58,7 @@ fun DashboardScreen(
     onAccountClick: (Account) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onCreateAccount: (AccountType) -> Unit,
     viewModel: DashboardViewModel = koinInject(),
 ) {
     val strings = LocalStrings.current
@@ -189,10 +191,11 @@ fun DashboardScreen(
                 accounts = state.accountSummaries,
                 hiddenAccountIds = state.hiddenAccountIds,
                 showTotal = state.showTotal,
-                onToggleMode = viewModel::toggleChartMode,
+                onModeChange = viewModel::setChartMode,
                 onRangeChange = viewModel::setChartRange,
                 onToggleAccount = viewModel::toggleAccountVisibility,
                 onToggleTotal = viewModel::toggleTotal,
+                onVisibilityPreset = viewModel::setChartVisibilityPreset,
             )
         }
 
@@ -245,6 +248,24 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.6f),
                         )
+                        Spacer(Modifier.height(18.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            EmptyAccountButton(
+                                label = strings.createBankAccount,
+                                color = AccountPalette[1],
+                                onClick = { onCreateAccount(AccountType.BANK) },
+                            )
+                            EmptyAccountButton(
+                                label = strings.createInvestmentAccount,
+                                color = Positive,
+                                onClick = { onCreateAccount(AccountType.INVESTMENT) },
+                            )
+                            EmptyAccountButton(
+                                label = strings.createCashAccount,
+                                color = AccountPalette[3],
+                                onClick = { onCreateAccount(AccountType.CASH) },
+                            )
+                        }
                     }
                 }
             }
@@ -258,6 +279,33 @@ fun DashboardScreen(
 }
 
 @Composable
+private fun EmptyAccountButton(
+    label: String,
+    color: Color,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.6f)),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+        modifier = Modifier.height(34.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color),
+        )
+        Spacer(Modifier.width(7.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
 private fun WealthChartCard(
     points: List<WealthPoint>,
     mode: ChartMode,
@@ -265,12 +313,16 @@ private fun WealthChartCard(
     accounts: List<AccountSummary>,
     hiddenAccountIds: Set<Long>,
     showTotal: Boolean,
-    onToggleMode: () -> Unit,
+    onModeChange: (ChartMode) -> Unit,
     onRangeChange: (ChartRange) -> Unit,
     onToggleAccount: (Long) -> Unit,
     onToggleTotal: () -> Unit,
+    onVisibilityPreset: (ChartVisibilityPreset) -> Unit,
 ) {
     val strings = LocalStrings.current
+    val visibilityPreset = remember(accounts, hiddenAccountIds) {
+        selectedVisibilityPreset(accounts, hiddenAccountIds)
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -287,17 +339,17 @@ private fun WealthChartCard(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onToggleMode, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    imageVector = if (mode == ChartMode.AREA) Icons.AutoMirrored.Filled.List else Icons.Default.DateRange,
-                    contentDescription = strings.changeView,
-                    tint = MaterialTheme.joyufyColors.contentSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+            ChartModeSelector(selected = mode, onSelect = onModeChange)
         }
         Spacer(Modifier.height(12.dp))
         ChartRangeSelector(selected = range, onSelect = onRangeChange)
+        if (accounts.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            ChartVisibilitySelector(
+                selected = visibilityPreset,
+                onSelect = onVisibilityPreset,
+            )
+        }
         Spacer(Modifier.height(12.dp))
         WealthChart(
             points = points,
@@ -314,7 +366,246 @@ private fun WealthChartCard(
                 onToggleAccount = onToggleAccount,
                 onToggleTotal = onToggleTotal,
             )
+            Spacer(Modifier.height(14.dp))
+            CompositionView(accounts = accounts)
         }
+    }
+}
+
+@Composable
+private fun ChartModeSelector(
+    selected: ChartMode,
+    onSelect: (ChartMode) -> Unit,
+) {
+    val strings = LocalStrings.current
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        ChartModeChip(
+            label = strings.chartModeArea,
+            selected = selected == ChartMode.AREA,
+            onClick = { onSelect(ChartMode.AREA) },
+        )
+        ChartModeChip(
+            label = strings.chartModeBars,
+            selected = selected == ChartMode.BARS,
+            onClick = { onSelect(ChartMode.BARS) },
+        )
+    }
+}
+
+@Composable
+private fun ChartModeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val bgAlpha by animateFloatAsState(
+        targetValue = if (selected) 0.18f else 0.06f,
+        animationSpec = tween(180),
+    )
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        color = if (selected) Accent else MaterialTheme.joyufyColors.contentSecondary,
+        modifier = Modifier
+            .height(28.dp)
+            .clip(MaterialTheme.shapes.small)
+            .background(if (selected) Accent.copy(alpha = bgAlpha) else MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChartVisibilitySelector(
+    selected: ChartVisibilityPreset?,
+    onSelect: (ChartVisibilityPreset) -> Unit,
+) {
+    val strings = LocalStrings.current
+    val items = listOf(
+        ChartVisibilityPreset.ALL to strings.chartVisibilityAll,
+        ChartVisibilityPreset.LIQUID to strings.chartVisibilityLiquid,
+        ChartVisibilityPreset.INVESTMENTS to strings.chartVisibilityInvestments,
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = strings.chartVisibility,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            items.forEach { (preset, label) ->
+                FilterChip(
+                    selected = selected == preset,
+                    onClick = { onSelect(preset) },
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Accent.copy(alpha = 0.15f),
+                        selectedLabelColor = Accent,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        labelColor = MaterialTheme.joyufyColors.contentSecondary,
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = selected == preset,
+                        selectedBorderColor = Accent,
+                        borderColor = MaterialTheme.joyufyColors.border,
+                    ),
+                    modifier = Modifier.height(28.dp),
+                )
+            }
+            if (selected == null) {
+                FilterChip(
+                    selected = true,
+                    onClick = {},
+                    label = { Text(strings.chartVisibilityCustom, style = MaterialTheme.typography.labelSmall) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Accent.copy(alpha = 0.10f),
+                        selectedLabelColor = Accent,
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = true,
+                        selectedBorderColor = Accent.copy(alpha = 0.5f),
+                    ),
+                    modifier = Modifier.height(28.dp),
+                )
+            }
+        }
+    }
+}
+
+private fun selectedVisibilityPreset(
+    accounts: List<AccountSummary>,
+    hiddenAccountIds: Set<Long>,
+): ChartVisibilityPreset? {
+    if (accounts.isEmpty()) return ChartVisibilityPreset.ALL
+    val investmentIds = accounts
+        .filter { it.account.type == AccountType.INVESTMENT }
+        .map { it.account.id }
+        .toSet()
+    val liquidIds = accounts
+        .filter { it.account.type != AccountType.INVESTMENT }
+        .map { it.account.id }
+        .toSet()
+    return when (hiddenAccountIds) {
+        emptySet<Long>() -> ChartVisibilityPreset.ALL
+        investmentIds -> ChartVisibilityPreset.LIQUID
+        liquidIds -> ChartVisibilityPreset.INVESTMENTS
+        else -> null
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CompositionView(accounts: List<AccountSummary>) {
+    val strings = LocalStrings.current
+    val positiveAccounts = remember(accounts) {
+        accounts.filter { it.balance > 0.0 }
+    }
+    val total = positiveAccounts.sumOf { it.balance }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = strings.composition,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (total <= 0.0) {
+            Text(
+                text = strings.compositionEmpty,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+            )
+            return@Column
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            positiveAccounts.forEach { summary ->
+                Box(
+                    modifier = Modifier
+                        .weight(summary.balance.toFloat().coerceAtLeast(0.01f))
+                        .fillMaxHeight()
+                        .background(summary.account.color),
+                )
+            }
+        }
+
+        listOf(AccountType.BANK, AccountType.INVESTMENT, AccountType.CASH).forEach { type ->
+            val group = positiveAccounts.filter { it.account.type == type }
+            if (group.isEmpty()) return@forEach
+            val groupTotal = group.sumOf { it.balance }
+            val fraction = groupTotal / total
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = when (type) {
+                            AccountType.BANK -> strings.accountTypeBank
+                            AccountType.INVESTMENT -> strings.accountTypeInvestment
+                            AccountType.CASH -> strings.accountTypeCash
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = "${groupTotal.formatCurrency()} · ${(fraction * 100).formatPercent()}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    group.forEach { summary ->
+                        val accountPct = summary.balance / total * 100.0
+                        CompositionAccountChip(
+                            name = summary.account.name,
+                            color = summary.account.color,
+                            percent = accountPct,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompositionAccountChip(
+    name: String,
+    color: Color,
+    percent: Double,
+) {
+    Row(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(color),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = "$name · ${percent.formatPercent()}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+        )
     }
 }
 

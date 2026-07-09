@@ -89,6 +89,8 @@ data class WealthPoint(
 
 enum class ChartMode { AREA, BARS }
 
+enum class ChartVisibilityPreset { ALL, LIQUID, INVESTMENTS }
+
 enum class ChartRange(val weeks: Int?) {
     ONE_WEEK(1),
     ONE_MONTH(4),
@@ -483,6 +485,10 @@ class DashboardViewModel(
         _uiState.value = _uiState.value.copy(chartMode = next)
     }
 
+    fun setChartMode(mode: ChartMode) {
+        _uiState.value = _uiState.value.copy(chartMode = mode)
+    }
+
     fun setChartRange(range: ChartRange) {
         ChartRangePreference.set(range)
         // uiState.chartRange se actualiza reactivamente vía observeChartRange()
@@ -497,6 +503,22 @@ class DashboardViewModel(
         _uiState.value = _uiState.value.copy(
             hiddenAccountIds = if (accountId in current) current - accountId else current + accountId
         )
+    }
+
+    fun setChartVisibilityPreset(preset: ChartVisibilityPreset) {
+        val summaries = _uiState.value.accountSummaries
+        val hiddenIds = when (preset) {
+            ChartVisibilityPreset.ALL -> emptySet()
+            ChartVisibilityPreset.LIQUID -> summaries
+                .filter { it.account.type == AccountType.INVESTMENT }
+                .map { it.account.id }
+                .toSet()
+            ChartVisibilityPreset.INVESTMENTS -> summaries
+                .filter { it.account.type != AccountType.INVESTMENT }
+                .map { it.account.id }
+                .toSet()
+        }
+        _uiState.value = _uiState.value.copy(hiddenAccountIds = hiddenIds, showTotal = true)
     }
 
     fun toggleTotal() {
