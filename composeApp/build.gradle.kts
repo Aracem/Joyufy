@@ -112,6 +112,15 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
         }
+
+        val desktopTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.sqldelight.driver.sqlite)
+                implementation(libs.sqlite.jdbc)
+            }
+        }
     }
 }
 

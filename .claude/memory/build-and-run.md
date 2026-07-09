@@ -12,6 +12,7 @@ metadata:
 ```bash
 ./gradlew :composeApp:run                 # Run the desktop app in dev
 ./gradlew :composeApp:compileKotlinDesktop # Just compile (fastest sanity check)
+./gradlew :composeApp:desktopTest         # Run JVM/Desktop unit tests
 ./gradlew :composeApp:packageDmg          # macOS installer
 ./gradlew :composeApp:packageMsi          # Windows installer
 ./gradlew :composeApp:packageDeb          # Linux installer
@@ -19,14 +20,14 @@ metadata:
 ./gradlew clean
 ```
 
-There are no JUnit/UI tests yet, so there's no `:test` task that does anything useful.
+Desktop tests live in `composeApp/src/desktopTest/`. The first suite, `JoyufyDataIntegrityTest`, uses an in-memory SQLDelight `JdbcSqliteDriver` to cover backup restore, account type migration, transfer sibling matching, and wealth aggregate behavior without touching the user's real `~/.joyufy/joyufy.db`.
 
 ## Version source-of-truth
 
-Single string `val appVersion = "1.3.1"` near the top of `composeApp/build.gradle.kts`. This drives:
+Single string `val appVersion = "1.3.2"` near the top of `composeApp/build.gradle.kts`. This drives:
 
 1. `packageVersion = appVersion` in the `nativeDistributions` block (the installer version).
-2. The `generateAppVersion` task that writes `AppVersion.kt` into `build/generated/appversion/commonMain/kotlin/` before compilation. The generated `object AppVersion { const val NAME = "1.3.1" }` is what Settings shows in the footer.
+2. The `generateAppVersion` task that writes `AppVersion.kt` into `build/generated/appversion/commonMain/kotlin/` before compilation. The generated `object AppVersion { const val NAME = "1.3.2" }` is what Settings shows in the footer.
 
 **To bump the version**: change `appVersion`, commit, tag, package. Never edit `AppVersion.kt` directly — it's regenerated.
 
@@ -47,9 +48,11 @@ composeApp/src/
 ├── commonMain/
 │   ├── kotlin/com/aracem/joyufy/...
 │   └── sqldelight/com/aracem/joyufy/db/JoyufyDatabase.sq
-└── desktopMain/
+├── desktopMain/
+│   ├── kotlin/com/aracem/joyufy/...
+│   └── resources/icon.{icns,ico,png}
+└── desktopTest/
     ├── kotlin/com/aracem/joyufy/...
-    └── resources/icon.{icns,ico,png}
 ```
 
 `commonMain` is the default — every new file goes there unless it needs JVM-only APIs ([[architecture]] § commonMain vs desktopMain).
