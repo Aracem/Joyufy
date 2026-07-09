@@ -28,13 +28,16 @@ getAccountById:
 SELECT * FROM Account WHERE id = ?;
 
 updateAccount:
-UPDATE Account SET name = ?, color_hex = ?, logo_url = ?, position = ? WHERE id = ?;
+UPDATE Account SET name = ?, type = ?, color_hex = ?, logo_url = ?, position = ? WHERE id = ?;
 
 archiveAccount:
 UPDATE Account SET is_archived = 1 WHERE id = ?;
 
 deleteAccount:
 DELETE FROM Account WHERE id = ?;
+
+deleteAllAccounts:
+DELETE FROM Account;
 
 lastInsertRowId:
 SELECT last_insert_rowid();
@@ -61,6 +64,10 @@ insertTransaction:
 INSERT INTO `Transaction` (account_id, type, amount, category, description, related_account_id, date)
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
+insertTransactionWithId:
+INSERT INTO `Transaction` (id, account_id, type, amount, category, description, related_account_id, date)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
 getTransactionsForAccount:
 SELECT * FROM `Transaction` WHERE account_id = ? ORDER BY date DESC;
 
@@ -79,7 +86,10 @@ SELECT * FROM `Transaction` WHERE id = ?;
 -- la que tiene account_id = relatedAccountId Y related_account_id = originAccountId
 getRelatedTransfer:
 SELECT * FROM `Transaction`
-WHERE account_id = ? AND related_account_id = ?
+WHERE account_id = ?
+  AND related_account_id = ?
+  AND amount = ?
+  AND type = ?
 ORDER BY ABS(date - ?) ASC
 LIMIT 1;
 
@@ -116,6 +126,10 @@ CREATE TABLE InvestmentSnapshot (
 insertSnapshot:
 INSERT OR REPLACE INTO InvestmentSnapshot (account_id, total_value, week_date)
 VALUES (?, ?, ?);
+
+insertSnapshotWithId:
+INSERT OR REPLACE INTO InvestmentSnapshot (id, account_id, total_value, week_date)
+VALUES (?, ?, ?, ?);
 
 updateSnapshot:
 UPDATE InvestmentSnapshot SET total_value = ?, week_date = ? WHERE id = ?;

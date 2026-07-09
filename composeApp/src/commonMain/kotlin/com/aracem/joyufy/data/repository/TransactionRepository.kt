@@ -93,6 +93,28 @@ class TransactionRepository(private val db: JoyufyDatabase) {
         )
     }
 
+    suspend fun insertTransactionWithId(
+        id: Long,
+        accountId: Long,
+        type: TransactionType,
+        amount: Double,
+        category: String?,
+        description: String?,
+        relatedAccountId: Long?,
+        date: Long,
+    ): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.insertTransactionWithId(
+            id = id,
+            account_id = accountId,
+            type = type.name,
+            amount = amount,
+            category = category,
+            description = description,
+            related_account_id = relatedAccountId,
+            date = date,
+        )
+    }
+
     suspend fun updateTransaction(
         id: Long,
         type: TransactionType,
@@ -117,10 +139,22 @@ class TransactionRepository(private val db: JoyufyDatabase) {
         db.joyufyDatabaseQueries.getTransactionById(id).executeAsOneOrNull()?.toDomain()
     }
 
-    suspend fun getRelatedTransfer(relatedAccountId: Long, originAccountId: Long, date: Long): Transaction? =
+    suspend fun getRelatedTransfer(
+        relatedAccountId: Long,
+        originAccountId: Long,
+        amount: Double,
+        type: TransactionType,
+        date: Long,
+    ): Transaction? =
         withContext(Dispatchers.IO) {
             db.joyufyDatabaseQueries
-                .getRelatedTransfer(relatedAccountId, originAccountId, date)
+                .getRelatedTransfer(
+                    account_id = relatedAccountId,
+                    related_account_id = originAccountId,
+                    amount = amount,
+                    type = type.name,
+                    date = date,
+                )
                 .executeAsOneOrNull()
                 ?.toDomain()
         }

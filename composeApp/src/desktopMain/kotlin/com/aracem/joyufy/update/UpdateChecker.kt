@@ -7,7 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 
 actual suspend fun checkForUpdate(): UpdateInfo? = UpdateChecker.check()
 
@@ -17,7 +17,7 @@ private object UpdateChecker {
 
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
         runCatching {
-            val conn = URL(API_URL).openConnection() as HttpURLConnection
+            val conn = URI(API_URL).toURL().openConnection() as HttpURLConnection
             conn.apply {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/vnd.github+json")

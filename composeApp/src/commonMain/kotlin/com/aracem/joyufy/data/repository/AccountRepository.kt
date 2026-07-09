@@ -71,6 +71,7 @@ class AccountRepository(private val db: JoyufyDatabase) {
     suspend fun updateAccount(account: Account): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.updateAccount(
             name = account.name,
+            type = account.type.name,
             color_hex = account.toColorHex(),
             logo_url = account.logoUrl,
             position = account.position.toLong(),
@@ -84,5 +85,9 @@ class AccountRepository(private val db: JoyufyDatabase) {
 
     suspend fun deleteAccount(id: Long): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.deleteAccount(id)
+    }
+
+    suspend fun deleteAllAccounts(): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.deleteAllAccounts()
     }
 }

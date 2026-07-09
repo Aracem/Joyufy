@@ -149,7 +149,7 @@ class BackupRepository(
         // Delete all existing data — cascade deletes transactions and snapshots
         transactionRepository.deleteAllTransactions()
         snapshotRepository.deleteAllSnapshots()
-        accountRepository.getAllAccounts().forEach { accountRepository.deleteAccount(it.id) }
+        accountRepository.deleteAllAccounts()
 
         // Restore accounts preserving original IDs so foreign keys in transactions/snapshots remain valid
         backup.accounts.forEach { a ->
@@ -166,7 +166,8 @@ class BackupRepository(
 
         // Restore transactions
         backup.transactions.forEach { t ->
-            transactionRepository.insertTransaction(
+            transactionRepository.insertTransactionWithId(
+                id = t.id,
                 accountId = t.accountId,
                 type = TransactionType.valueOf(t.type),
                 amount = t.amount,
@@ -179,7 +180,8 @@ class BackupRepository(
 
         // Restore snapshots
         backup.snapshots.forEach { s ->
-            snapshotRepository.insertSnapshot(
+            snapshotRepository.insertSnapshotWithId(
+                id = s.id,
                 accountId = s.accountId,
                 totalValue = s.totalValue,
                 weekDate = s.weekDate,

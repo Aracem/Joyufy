@@ -71,6 +71,20 @@ class InvestmentSnapshotRepository(private val db: JoyufyDatabase) {
         )
     }
 
+    suspend fun insertSnapshotWithId(
+        id: Long,
+        accountId: Long,
+        totalValue: Double,
+        weekDate: Long,
+    ): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.insertSnapshotWithId(
+            id = id,
+            account_id = accountId,
+            total_value = totalValue,
+            week_date = weekDate,
+        )
+    }
+
     suspend fun updateSnapshot(id: Long, totalValue: Double, weekDate: Long): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.updateSnapshot(total_value = totalValue, week_date = weekDate, id = id)
     }

@@ -57,6 +57,10 @@ This applies to **everything** including dialogs, snackbars, expand/collapse, an
 - **Comments are sparse.** Only write a comment when the *why* isn't obvious from the code. Don't restate what the code does.
 - **No `LiveData` / `mutableStateOf` inside ViewModels** — always `StateFlow` / `MutableStateFlow`. See [[architecture]].
 
+## Agent memory coordination
+
+When durable memory is created or updated, mirror the relevant information between Codex memory and Claude memory. Use the matching scope: global/cross-project preferences belong in global memory; Joyufy-specific architecture, domain, workflow, or convention notes belong in `.claude/memory/`. Never persist secrets, tokens, credentials, or transient command output.
+
 ## Future hooks (not implemented yet)
 
 The data layer is designed to be source-agnostic:

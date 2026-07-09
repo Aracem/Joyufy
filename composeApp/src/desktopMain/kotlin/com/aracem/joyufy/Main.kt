@@ -5,7 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.loadImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.aracem.joyufy.di.initKoin
@@ -15,6 +17,7 @@ import java.awt.Taskbar
 import java.awt.Toolkit
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.context.GlobalContext
+import org.jetbrains.skia.Image
 
 fun main() {
     initKoin()
@@ -61,15 +64,20 @@ fun main() {
 }
 
 private fun setAppIcon() {
-    val stream = Thread.currentThread().contextClassLoader?.getResourceAsStream("icon.png") ?: return
-    val image = Toolkit.getDefaultToolkit().createImage(stream.readBytes())
+    val bytes = Thread.currentThread().contextClassLoader
+        ?.getResourceAsStream("icon.png")
+        ?.use { it.readBytes() }
+        ?: return
+    val image = Toolkit.getDefaultToolkit().createImage(bytes)
     if (Taskbar.isTaskbarSupported()) {
         runCatching { Taskbar.getTaskbar().iconImage = image }
     }
 }
 
-private fun loadWindowIcon(): androidx.compose.ui.graphics.painter.Painter? {
-    val stream = Thread.currentThread().contextClassLoader?.getResourceAsStream("icon.png")
+private fun loadWindowIcon(): Painter? {
+    val bytes = Thread.currentThread().contextClassLoader
+        ?.getResourceAsStream("icon.png")
+        ?.use { it.readBytes() }
         ?: return null
-    return androidx.compose.ui.graphics.painter.BitmapPainter(loadImageBitmap(stream))
+    return BitmapPainter(Image.makeFromEncoded(bytes).toComposeImageBitmap())
 }

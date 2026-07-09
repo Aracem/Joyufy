@@ -14,6 +14,7 @@ import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -155,6 +156,7 @@ class DashboardViewModel(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeBalances() {
         scope.launch {
             // Observe accounts list — when it changes, set up per-account flows

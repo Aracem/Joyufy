@@ -47,7 +47,7 @@ class SettingsViewModel(
         scope.launch(Dispatchers.IO) {
             transactionRepository.deleteAllTransactions()
             snapshotRepository.deleteAllSnapshots()
-            accountRepository.getAllAccounts().forEach { accountRepository.deleteAccount(it.id) }
+            accountRepository.deleteAllAccounts()
             onDone()
         }
     }

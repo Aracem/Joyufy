@@ -39,7 +39,9 @@ Three tables: `Account`, `` `Transaction` `` (backticked because `Transaction` i
 | `getRelatedTransfer` | Finds the sibling leg of a transfer (used when editing/deleting one leg, see [[domain]]). |
 | `getInvestmentAccountsMissingThisWeek` | Drives the missing-snapshot banner on the Dashboard. Takes the current Monday epoch as parameter. |
 | `getAllBankCashTransactions` / `getAllSnapshots` | Used by the Dashboard analysis card and account history feeds. |
+| `insertAccountWithId` / `insertTransactionWithId` / `insertSnapshotWithId` | ID-preserving restore paths used only by backup import/cloud restore. Keep these in sync with backup DTO fields. |
 | `deleteTransactionsForAccount` / `deleteSnapshotsForAccount` | Per-account wipes. Used by the destructive account type change in `CreateAccountViewModel.applyTypeChange` (see [[domain]] § Account type change). |
+| `deleteAllAccounts` | Full account-table purge used by backup import and Settings "delete all data"; unlike `getAllAccounts()`, it also covers archived rows. |
 
 If you add a column to a table, you also need to add an `ALTER TABLE … ADD COLUMN …` step in `DatabaseDriverFactory.openOrCreate()` (`desktopMain`) so existing installs migrate. SQLDelight does not auto-migrate.
 
@@ -63,6 +65,6 @@ Serialised by `BackupRepository.export()` with `kotlinx.serialization.json` (`pr
 }
 ```
 
-`import()` is destructive: delete all transactions → delete all snapshots → delete all accounts → re-insert in the same order with original IDs (`insertAccountWithId`) to preserve FK relationships. There is no schema migration on import; if `version` changes, that's where to branch.
+`import()` is destructive: delete all transactions → delete all snapshots → delete all accounts → re-insert in the same order with original IDs (`insertAccountWithId`, `insertTransactionWithId`, `insertSnapshotWithId`) to preserve FK relationships and keep cloud diff idempotent. There is no schema migration on import; if `version` changes, that's where to branch.
 
 Same JSON is the payload for [[cloud-sync]].

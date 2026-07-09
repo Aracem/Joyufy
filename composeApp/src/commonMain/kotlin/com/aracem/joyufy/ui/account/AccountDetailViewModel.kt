@@ -335,6 +335,8 @@ class AccountDetailViewModel(
                 val sister = transactionRepository.getRelatedTransfer(
                     relatedAccountId = accountId,
                     originAccountId = originalRelatedId,
+                    amount = original.amount,
+                    type = original.oppositeTransferLegType(),
                     date = original.date,
                 )
                 transactionRepository.deleteTransaction(id)
@@ -412,6 +414,8 @@ class AccountDetailViewModel(
                 val sister = transactionRepository.getRelatedTransfer(
                     relatedAccountId = accountId,
                     originAccountId = tx.relatedAccountId,
+                    amount = tx.amount,
+                    type = tx.oppositeTransferLegType(),
                     date = tx.date,
                 )
                 if (sister != null) transactionRepository.deleteTransaction(sister.id)
@@ -434,5 +438,12 @@ class AccountDetailViewModel(
         val change = periodChange(history) ?: return null
         return (change / first) * 100.0
     }
+
+    private fun Transaction.oppositeTransferLegType(): TransactionType =
+        when (type) {
+            TransactionType.INCOME -> TransactionType.EXPENSE
+            TransactionType.EXPENSE,
+            TransactionType.TRANSFER -> TransactionType.INCOME
+        }
 
 }
