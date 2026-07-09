@@ -7,22 +7,22 @@ metadata:
 
 # UI Backlog
 
-## Implemented in dashboard iteration
+## Implemented
 
 1. Dashboard chart tooltip/crosshair: hover shows exact date, total wealth, per-account breakdown, and absolute + percentage movement.
 2. Dashboard empty state: first-run actions to create Bank, Investment, or Cash accounts directly.
 3. Explicit chart mode control: visible Area/Bars selector instead of icon-only toggle.
 4. Net worth composition view: allocation bar and grouped account percentages by Bank, Investment, and Cash.
 5. Chart visibility presets: All, Liquid only, Investments only, plus Custom state when manual account toggles diverge.
+6. Missing snapshot task card: stale investment accounts show last snapshot date and a direct Update value action.
+7. Account detail sticky balance/action header while scrolling transactions.
+8. Account detail richer filters: date range, category, amount range, transaction type, and transfers only.
+9. Transaction and snapshot rows hide edit/delete actions until hover/focus while reserving layout space.
+10. Transaction dialog date picker with manual dd/MM/yyyy entry fallback.
+11. Transaction dialog disables submit for transfers until a destination account is selected.
 
 ## Remaining UI/UX ideas
 
-6. Improve missing snapshot banner into a task card with each stale investment account, last snapshot date, and direct "Update value".
-7. Account detail: add sticky balance/action header while scrolling transactions.
-8. Account detail: add richer filters: date range, category, amount range, transaction type, transfers only.
-9. Transaction rows: hide edit/delete until hover/focus to reduce visual noise while preserving keyboard accessibility.
-10. Transaction dialog: replace free-text date input with a date picker plus manual entry fallback.
-11. Transaction dialog: disable submit for transfers until destination account is selected.
 12. Category input: show recent custom categories first, with frequency or last-used ordering.
 13. Settings: make Cloud Sync status more scannable with connected account, last sync, auto-sync state, and conflict state as status chips.
 14. Restore-from-cloud dialog: show a clearer diff table with cloud timestamp vs local state before destructive restore.

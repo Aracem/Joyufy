@@ -11,69 +11,112 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.aracem.joyufy.domain.model.Account
+import com.aracem.joyufy.ui.dashboard.MissingSnapshotTask
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.AccentDim
 
 @Composable
 fun MissingSnapshotBanner(
-    accounts: List<Account>,
-    onAccountClick: (Account) -> Unit,
+    tasks: List<MissingSnapshotTask>,
+    onUpdateValue: (MissingSnapshotTask) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (accounts.isEmpty()) return
+    if (tasks.isEmpty()) return
+    val strings = LocalStrings.current
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .background(AccentDim)
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(
-            imageVector = Icons.Default.Warning,
-            contentDescription = null,
-            tint = Accent,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Actualización semanal pendiente",
-                style = MaterialTheme.typography.labelLarge,
-                color = Accent,
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = Accent,
+                modifier = Modifier.size(18.dp),
             )
-            Spacer(Modifier.height(2.dp))
-            val names = accounts.joinToString(", ") { it.name }
-            Text(
-                text = names,
-                style = MaterialTheme.typography.bodySmall,
-                color = Accent.copy(alpha = 0.75f),
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        // Quick links per account
-        accounts.forEach { account ->
-            TextButton(
-                onClick = { onAccountClick(account) },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-            ) {
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = account.name.take(12),
-                    style = MaterialTheme.typography.labelSmall,
+                    text = strings.missingSnapshotTitle,
+                    style = MaterialTheme.typography.labelLarge,
                     color = Accent,
+                )
+                Text(
+                    text = strings.missingSnapshotSubtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Accent.copy(alpha = 0.75f),
+                )
+            }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = strings.close,
+                    tint = Accent,
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
-        Spacer(Modifier.width(4.dp))
-        IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Cerrar",
-                tint = Accent,
-                modifier = Modifier.size(16.dp),
+
+        tasks.forEach { task ->
+            MissingSnapshotTaskRow(
+                task = task,
+                onUpdateValue = { onUpdateValue(task) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MissingSnapshotTaskRow(
+    task: MissingSnapshotTask,
+    onUpdateValue: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.58f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(9.dp)
+                .clip(MaterialTheme.shapes.extraSmall)
+                .background(task.account.color),
+        )
+        Spacer(Modifier.width(9.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = task.account.name,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = strings.missingSnapshotLastValue.format(
+                    task.lastSnapshotDate?.formatWeekRange(strings.week) ?: strings.missingSnapshotNever,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = Accent.copy(alpha = 0.74f),
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        TextButton(
+            onClick = onUpdateValue,
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+        ) {
+            Text(
+                text = strings.updateValue,
+                style = MaterialTheme.typography.labelSmall,
+                color = Accent,
             )
         }
     }

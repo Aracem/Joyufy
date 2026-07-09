@@ -17,6 +17,22 @@ fun Long.formatDate(): String {
     return "%02d/%02d/%04d".format(local.dayOfMonth, local.monthNumber, local.year)
 }
 
+fun parseDateInputToMillis(
+    text: String,
+    dayOffsetMillis: Long = 12 * 3600_000L,
+): Long? {
+    val parts = text.trim().split("/")
+    if (parts.size != 3) return null
+    val day = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val year = parts[2].toIntOrNull() ?: return null
+    return runCatching<Long> {
+        LocalDate(year, month, day)
+            .atStartOfDayIn(TimeZone.currentSystemDefault())
+            .toEpochMilliseconds() + dayOffsetMillis
+    }.getOrNull()
+}
+
 fun Long.formatShortDate(): String {
     val local = Instant.fromEpochMilliseconds(this).toLocalDateTime(TimeZone.currentSystemDefault())
     return "%d/%02d".format(local.dayOfMonth, local.monthNumber)

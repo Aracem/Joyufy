@@ -13,14 +13,14 @@ Implemented:
 - Explicit Area/Bars chart mode selector.
 - Net worth composition allocation view grouped by Bank, Investment, and Cash.
 - Chart visibility presets: All, Liquid only, Investments only, Custom.
-
-Remaining:
 - Missing snapshot task card with stale accounts and direct update action.
 - Sticky account-detail balance/action header.
 - Richer account-detail filters.
 - Lower-noise transaction row actions on hover/focus.
 - Date picker in transaction dialog.
 - Transfer submit disabled until destination is selected.
+
+Remaining:
 - Recent/frequent category ordering.
 - Cloud Sync status chips in Settings.
 - Clearer cloud restore diff table.

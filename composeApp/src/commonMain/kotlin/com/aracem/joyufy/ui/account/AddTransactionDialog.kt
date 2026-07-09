@@ -5,6 +5,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,15 +27,15 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.ui.components.formatDate
 import com.aracem.joyufy.ui.components.formatInputAmount
+import com.aracem.joyufy.ui.components.parseDateInputToMillis
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +57,12 @@ fun AddTransactionDialog(
         AccountType.INVESTMENT -> listOf(TransactionType.INCOME, TransactionType.TRANSFER)
         AccountType.BANK, AccountType.CASH -> listOf(TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.TRANSFER)
     }
-    var selectedType by remember { mutableStateOf(editingTransaction?.type ?: allowedTypes.first()) }
+    val initialType = if (editingTransaction?.relatedAccountId != null) {
+        TransactionType.TRANSFER
+    } else {
+        editingTransaction?.type ?: allowedTypes.first()
+    }
+    var selectedType by remember { mutableStateOf(initialType) }
     var amountText by remember { mutableStateOf(editingTransaction?.amount?.formatInputAmount() ?: "") }
     var amountError by remember { mutableStateOf<String?>(null) }
     var category by remember { mutableStateOf(editingTransaction?.category ?: "") }
@@ -66,6 +72,7 @@ fun AddTransactionDialog(
     }
     var categoryExpanded by remember { mutableStateOf(false) }
     var relatedExpanded by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     // Date field — default today or editing transaction date
     val todayLocal = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -157,6 +164,23 @@ fun AddTransactionDialog(
                     out
                 }
 
+                val destinationAccounts = if (selectedType == TransactionType.TRANSFER) {
+                    when (accountType) {
+                        AccountType.INVESTMENT -> availableAccounts.filter {
+                            it.type == AccountType.BANK || it.type == AccountType.CASH
+                        }
+                        AccountType.BANK, AccountType.CASH -> availableAccounts
+                    }
+                } else emptyList()
+
+                LaunchedEffect(selectedType, destinationAccounts) {
+                    if (selectedType == TransactionType.TRANSFER &&
+                        selectedRelatedAccount?.id !in destinationAccounts.map { it.id }
+                    ) {
+                        selectedRelatedAccount = null
+                    }
+                }
+
                 // Importe
                 OutlinedTextField(
                     value = amountText,
@@ -183,6 +207,19 @@ fun AddTransactionDialog(
                     placeholder = { Text(todayFormatted) },
                     isError = dateError != null,
                     supportingText = dateError?.let { { Text(it) } },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { showDatePicker = true },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.DateRange,
+                                contentDescription = strings.selectDate,
+                                tint = MaterialTheme.joyufyColors.contentSecondary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
@@ -298,15 +335,6 @@ fun AddTransactionDialog(
                 )
 
                 // Cuenta destino (solo para transferencias)
-                val destinationAccounts = if (selectedType == TransactionType.TRANSFER) {
-                    when (accountType) {
-                        AccountType.INVESTMENT -> availableAccounts.filter {
-                            it.type == AccountType.BANK || it.type == AccountType.CASH
-                        }
-                        AccountType.BANK, AccountType.CASH -> availableAccounts
-                    }
-                } else emptyList()
-
                 if (selectedType == TransactionType.TRANSFER && destinationAccounts.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     ExposedDropdownMenuBox(
@@ -335,11 +363,28 @@ fun AddTransactionDialog(
                             }
                         }
                     }
+                } else if (selectedType == TransactionType.TRANSFER) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = strings.noDestinationAccounts,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                }
+
+                if (selectedType == TransactionType.TRANSFER && selectedRelatedAccount == null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = strings.selectDestinationAccount,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                    )
                 }
 
                 Spacer(Modifier.height(24.dp))
 
                 // Actions
+                val canSubmit = selectedType != TransactionType.TRANSFER || selectedRelatedAccount != null
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) {
                         Text(strings.cancel, color = MaterialTheme.joyufyColors.contentSecondary)
@@ -352,7 +397,7 @@ fun AddTransactionDialog(
                                 amountError = strings.amountError
                                 return@Button
                             }
-                            val dateMs = parseDateToMillis(dateText)
+                            val dateMs = parseDateInputToMillis(dateText)
                             if (dateMs == null) {
                                 dateError = strings.dateError
                                 return@Button
@@ -367,6 +412,7 @@ fun AddTransactionDialog(
                             )
                             onDismiss()
                         },
+                        enabled = canSubmit,
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     ) {
                         Text(when {
@@ -379,18 +425,33 @@ fun AddTransactionDialog(
             }
         }
     }
-}
 
-/** Parses "dd/MM/yyyy" → epoch millis at noon local time, or null if invalid. */
-private fun parseDateToMillis(text: String): Long? {
-    val parts = text.trim().split("/")
-    if (parts.size != 3) return null
-    val day = parts[0].toIntOrNull() ?: return null
-    val month = parts[1].toIntOrNull() ?: return null
-    val year = parts[2].toIntOrNull() ?: return null
-    return runCatching<Long> {
-        val date = LocalDate(year, month, day)
-        date.atStartOfDayIn(TimeZone.currentSystemDefault()).toEpochMilliseconds() + 12 * 3600_000L
-    }.getOrNull()
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = parseDateInputToMillis(dateText),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { selected ->
+                            dateText = selected.formatDate()
+                            dateError = null
+                        }
+                        showDatePicker = false
+                    },
+                ) {
+                    Text(strings.save)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(strings.cancel)
+                }
+            },
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }
-

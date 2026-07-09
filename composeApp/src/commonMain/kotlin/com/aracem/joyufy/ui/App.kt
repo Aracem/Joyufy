@@ -223,9 +223,6 @@ fun App() {
                     when (screen) {
                         is Screen.Dashboard -> DashboardScreen(
                             viewModel = dashboardViewModel,
-                            onAccountClick = { account ->
-                                currentScreen = Screen.AccountDetail(account.id)
-                            },
                             onExport = { backupViewModel.requestExport() },
                             onImport = {
                                 scope.launch {
@@ -237,9 +234,16 @@ fun App() {
                                 createAccountInitialType = type
                                 showCreateAccount = true
                             },
+                            onUpdateMissingSnapshot = { account ->
+                                currentScreen = Screen.AccountDetail(
+                                    accountId = account.id,
+                                    openSnapshotDialog = true,
+                                )
+                            },
                         )
                         is Screen.AccountDetail -> AccountDetailScreen(
                             accountId = screen.accountId,
+                            openSnapshotDialog = screen.openSnapshotDialog,
                             onBack = { currentScreen = Screen.Dashboard },
                         )
                         is Screen.Settings -> SettingsScreen(

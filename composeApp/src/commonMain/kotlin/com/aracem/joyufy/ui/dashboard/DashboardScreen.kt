@@ -55,10 +55,10 @@ import org.koin.compose.koinInject
 
 @Composable
 fun DashboardScreen(
-    onAccountClick: (Account) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
     onCreateAccount: (AccountType) -> Unit,
+    onUpdateMissingSnapshot: (Account) -> Unit,
     viewModel: DashboardViewModel = koinInject(),
 ) {
     val strings = LocalStrings.current
@@ -96,11 +96,11 @@ fun DashboardScreen(
         }
 
         // Banner de snapshots pendientes
-        if (state.accountsMissingSnapshot.isNotEmpty()) {
+        if (state.missingSnapshotTasks.isNotEmpty()) {
             item {
                 MissingSnapshotBanner(
-                    accounts = state.accountsMissingSnapshot,
-                    onAccountClick = onAccountClick,
+                    tasks = state.missingSnapshotTasks,
+                    onUpdateValue = { task -> onUpdateMissingSnapshot(task.account) },
                     onDismiss = viewModel::dismissMissingSnapshotBanner,
                 )
             }

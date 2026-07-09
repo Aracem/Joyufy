@@ -87,6 +87,11 @@ data class WealthPoint(
     val byAccount: List<AccountPoint> = emptyList(),
 )
 
+data class MissingSnapshotTask(
+    val account: Account,
+    val lastSnapshotDate: Long?,
+)
+
 enum class ChartMode { AREA, BARS }
 
 enum class ChartVisibilityPreset { ALL, LIQUID, INVESTMENTS }
@@ -106,7 +111,7 @@ data class DashboardUiState(
     val totalWealth: Double = 0.0,
     val wealthHistory: List<WealthPoint> = emptyList(),
     val accountSummaries: List<AccountSummary> = emptyList(),
-    val accountsMissingSnapshot: List<Account> = emptyList(),
+    val missingSnapshotTasks: List<MissingSnapshotTask> = emptyList(),
     val chartMode: ChartMode = ChartMode.AREA,
     val chartRange: ChartRange = ChartRange.ONE_YEAR,
     val periodChange: Double? = null,
@@ -475,8 +480,14 @@ class DashboardViewModel(
             // Banner only shown on Fridays (dayOfWeek ordinal: Mon=0 … Fri=4)
             if (local.dayOfWeek.ordinal != 4) return@launch
             val weekDate = currentWeekStartMillis()
-            val missing = snapshotRepository.getAccountsMissingThisWeek(weekDate)
-            _uiState.value = _uiState.value.copy(accountsMissingSnapshot = missing)
+            val tasks = snapshotRepository.getAccountsMissingThisWeek(weekDate)
+                .map { account ->
+                    MissingSnapshotTask(
+                        account = account,
+                        lastSnapshotDate = snapshotRepository.getLatestSnapshot(account.id)?.weekDate,
+                    )
+                }
+            _uiState.value = _uiState.value.copy(missingSnapshotTasks = tasks)
         }
     }
 
@@ -495,7 +506,7 @@ class DashboardViewModel(
     }
 
     fun dismissMissingSnapshotBanner() {
-        _uiState.value = _uiState.value.copy(accountsMissingSnapshot = emptyList())
+        _uiState.value = _uiState.value.copy(missingSnapshotTasks = emptyList())
     }
 
     fun toggleAccountVisibility(accountId: Long) {

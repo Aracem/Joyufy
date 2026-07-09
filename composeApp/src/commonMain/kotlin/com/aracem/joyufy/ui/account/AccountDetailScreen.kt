@@ -1,10 +1,19 @@
 package com.aracem.joyufy.ui.account
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,15 +34,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
+import com.aracem.joyufy.ui.components.MILLIS_IN_DAY
 import com.aracem.joyufy.ui.components.SingleAccountChart
 import com.aracem.joyufy.ui.components.formatCurrency
 import com.aracem.joyufy.ui.components.formatPercent
+import com.aracem.joyufy.ui.components.parseDateInputToMillis
 import com.aracem.joyufy.ui.dashboard.ChartMode
 import com.aracem.joyufy.ui.dashboard.ChartRange
 import com.aracem.joyufy.ui.dashboard.ChartRangeSelector
@@ -47,9 +59,11 @@ import com.aracem.joyufy.ui.components.formatWeekRange
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AccountDetailScreen(
     accountId: Long,
+    openSnapshotDialog: Boolean = false,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -68,35 +82,106 @@ fun AccountDetailScreen(
     var searchQuery by remember { mutableStateOf("") }
     var filterType by remember { mutableStateOf<TransactionType?>(null) }
     var filterCategory by remember { mutableStateOf<String?>(null) }
+    var filterDateFrom by remember { mutableStateOf("") }
+    var filterDateTo by remember { mutableStateOf("") }
+    var filterAmountMin by remember { mutableStateOf("") }
+    var filterAmountMax by remember { mutableStateOf("") }
+    var transfersOnly by remember { mutableStateOf(false) }
 
-    val availableCategories by remember {
-        derivedStateOf {
-            state.transactions
-                .mapNotNull { it.category?.ifBlank { null } }
-                .distinct()
-                .sorted()
-        }
+    val availableCategories = remember(state.transactions) {
+        state.transactions
+            .mapNotNull { it.category?.ifBlank { null } }
+            .distinct()
+            .sorted()
     }
 
-    val filteredTransactions by remember {
-        derivedStateOf {
-            state.transactions
-                .let { txs -> if (filterType != null) txs.filter { it.type == filterType } else txs }
-                .let { txs -> if (filterCategory != null) txs.filter { it.category == filterCategory } else txs }
-                .let { txs ->
-                    if (searchQuery.isBlank()) txs
-                    else {
-                        val q = searchQuery.trim().lowercase()
-                        txs.filter {
-                            it.description?.lowercase()?.contains(q) == true ||
-                            it.category?.lowercase()?.contains(q) == true
-                        }
-                    }
+    fun clearFilters() {
+        searchQuery = ""
+        filterType = null
+        filterCategory = null
+        filterDateFrom = ""
+        filterDateTo = ""
+        filterAmountMin = ""
+        filterAmountMax = ""
+        transfersOnly = false
+    }
+
+    fun transactionMatchesFilters(tx: Transaction): Boolean {
+        val fromDate = filterDateFrom.takeIf { it.isNotBlank() }?.let {
+            parseDateInputToMillis(it, dayOffsetMillis = 0L)
+        }
+        val toDate = filterDateTo.takeIf { it.isNotBlank() }?.let {
+            parseDateInputToMillis(it, dayOffsetMillis = MILLIS_IN_DAY - 1)
+        }
+        val minAmount = filterAmountMin.replace(",", ".").toDoubleOrNull()
+        val maxAmount = filterAmountMax.replace(",", ".").toDoubleOrNull()
+        val q = searchQuery.trim().lowercase()
+        val matchesSearch = q.isBlank() ||
+            tx.description?.lowercase()?.contains(q) == true ||
+            tx.category?.lowercase()?.contains(q) == true
+        val isTransfer = tx.relatedAccountId != null || tx.type == TransactionType.TRANSFER
+        val matchesType = when (filterType) {
+            null -> true
+            TransactionType.TRANSFER -> isTransfer
+            else -> tx.type == filterType
+        }
+        return matchesSearch &&
+            matchesType &&
+            (filterCategory == null || tx.category == filterCategory) &&
+            (fromDate == null || tx.date >= fromDate) &&
+            (toDate == null || tx.date <= toDate) &&
+            (minAmount == null || tx.amount >= minAmount) &&
+            (maxAmount == null || tx.amount <= maxAmount) &&
+            (!transfersOnly || isTransfer)
+    }
+
+    val isFiltered = searchQuery.isNotBlank() ||
+        filterType != null ||
+        filterCategory != null ||
+        filterDateFrom.isNotBlank() ||
+        filterDateTo.isNotBlank() ||
+        filterAmountMin.isNotBlank() ||
+        filterAmountMax.isNotBlank() ||
+        transfersOnly
+
+    val filteredTransactions = remember(
+        state.transactions,
+        searchQuery,
+        filterType,
+        filterCategory,
+        filterDateFrom,
+        filterDateTo,
+        filterAmountMin,
+        filterAmountMax,
+        transfersOnly,
+    ) {
+        state.transactions.filter(::transactionMatchesFilters)
+    }
+
+    val filteredInvestmentFeed = remember(
+        state.investmentFeed,
+        isFiltered,
+        searchQuery,
+        filterType,
+        filterCategory,
+        filterDateFrom,
+        filterDateTo,
+        filterAmountMin,
+        filterAmountMax,
+        transfersOnly,
+    ) {
+        if (!isFiltered) {
+            state.investmentFeed
+        } else {
+            state.investmentFeed.mapNotNull { item ->
+                when (item) {
+                    is InvestmentListItem.Snapshot -> null
+                    is InvestmentListItem.Tx ->
+                        if (transactionMatchesFilters(item.transaction)) item else null
                 }
+            }
         }
     }
-
-    val isFiltered = searchQuery.isNotBlank() || filterType != null || filterCategory != null
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -107,6 +192,12 @@ fun AccountDetailScreen(
 
     val account = state.account ?: return
 
+    LaunchedEffect(account.id, openSnapshotDialog) {
+        if (openSnapshotDialog && account.type == AccountType.INVESTMENT) {
+            showAddSnapshot = true
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -114,101 +205,19 @@ fun AccountDetailScreen(
         contentPadding = PaddingValues(horizontal = 28.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // ── Header ────────────────────────────────────────────────────────
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = strings.goBack,
-                        tint = MaterialTheme.joyufyColors.contentSecondary,
-                    )
-                }
-                Spacer(Modifier.width(4.dp))
-                if (account.logoUrl != null) {
-                    AccountLogo(logoUrl = account.logoUrl, size = 32.dp, bgColor = account.color.copy(alpha = 0.25f))
-                } else {
-                    AccountLogoInitials(color = account.color, name = account.name, size = 32.dp)
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = account.name,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = when (account.type) {
-                        AccountType.BANK -> strings.accountTypeBank
-                        AccountType.INVESTMENT -> strings.accountTypeInvestment
-                        AccountType.CASH -> strings.accountTypeCash
-                    },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.joyufyColors.contentSecondary,
-                    )
-                }
-                // Buttons — investment accounts have both actions
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(onClick = { showEditAccount = true }, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = strings.editAccount,
-                            tint = MaterialTheme.joyufyColors.contentSecondary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                    if (account.type == AccountType.INVESTMENT) {
-                        OutlinedButton(
-                            onClick = { showAddSnapshot = true },
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Accent),
-                        ) {
-                            Text(strings.updateValue, color = Accent)
-                        }
-                    }
-                    Button(
-                        onClick = { showAddTransaction = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(strings.addTransaction)
-                    }
-                }
-            }
-        }
-
-        // ── Balance ───────────────────────────────────────────────────────
-        item {
-            Column(modifier = Modifier.padding(start = 48.dp)) {
-                Text(
-                    text = strings.currentBalance,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.joyufyColors.contentSecondary,
-                )
-                Spacer(Modifier.height(2.dp))
-                val animatedBalance by animateFloatAsState(
-                    targetValue = state.balance.toFloat(),
-                    animationSpec = tween(600, easing = FastOutSlowInEasing),
-                )
-                Text(
-                    text = animatedBalance.toDouble().formatCurrency(),
-                    style = MaterialTheme.typography.displayLarge,
-                    color = if (state.balance >= 0) Positive else Negative,
-                    modifier = if (account.type == AccountType.INVESTMENT)
-                        Modifier.clickable { showAddSnapshot = true }
-                    else Modifier,
-                )
-                val change = state.periodChange
-                val changePct = state.periodChangePct
-                if (change != null && changePct != null) {
-                    Spacer(Modifier.height(4.dp))
-                    AccountPeriodChangeBadge(
-                        change = change,
-                        changePct = changePct,
-                        range = state.chartRange,
-                    )
-                }
-            }
+        // ── Sticky balance/action header ─────────────────────────────────
+        stickyHeader {
+            AccountDetailStickyHeader(
+                account = account,
+                balance = state.balance,
+                periodChange = state.periodChange,
+                periodChangePct = state.periodChangePct,
+                chartRange = state.chartRange,
+                onBack = onBack,
+                onEditAccount = { showEditAccount = true },
+                onAddSnapshot = { showAddSnapshot = true },
+                onAddTransaction = { showAddTransaction = true },
+            )
         }
 
         item { HorizontalDivider(color = MaterialTheme.joyufyColors.border) }
@@ -228,17 +237,52 @@ fun AccountDetailScreen(
         if (account.type == AccountType.INVESTMENT) {
             // ── Investment feed: snapshots + transacciones intercaladas ────
             item {
-                Text(
-                    text = strings.weeklyValue,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = strings.weeklyValue,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f).padding(start = 4.dp),
+                    )
+                    if (state.transactions.isNotEmpty() && isFiltered) {
+                        TextButton(onClick = ::clearFilters) {
+                            Text(strings.clearFilters, color = MaterialTheme.joyufyColors.contentSecondary)
+                        }
+                    }
+                }
+            }
+            if (state.transactions.isNotEmpty()) {
+                item {
+                    TransactionFilterBar(
+                        searchQuery = searchQuery,
+                        onSearchChange = { searchQuery = it },
+                        filterType = filterType,
+                        onTypeChange = { filterType = if (filterType == it) null else it },
+                        filterCategory = filterCategory,
+                        onCategoryChange = { filterCategory = if (filterCategory == it) null else it },
+                        filterDateFrom = filterDateFrom,
+                        onDateFromChange = { filterDateFrom = it },
+                        filterDateTo = filterDateTo,
+                        onDateToChange = { filterDateTo = it },
+                        filterAmountMin = filterAmountMin,
+                        onAmountMinChange = { filterAmountMin = it },
+                        filterAmountMax = filterAmountMax,
+                        onAmountMaxChange = { filterAmountMax = it },
+                        transfersOnly = transfersOnly,
+                        onTransfersOnlyChange = { transfersOnly = it },
+                        availableCategories = availableCategories,
+                    )
+                }
             }
             if (state.investmentFeed.isEmpty()) {
                 item { EmptyListHint(strings.noWeeklyRecords, strings.noWeeklyRecordsHint, Icons.Default.DateRange) }
+            } else if (filteredInvestmentFeed.isEmpty()) {
+                item { EmptyListHint(strings.noSearchResults, strings.noSearchResultsHint, Icons.Default.Search) }
             } else {
-                items(state.investmentFeed, key = { item ->
+                items(filteredInvestmentFeed, key = { item ->
                     when (item) {
                         is InvestmentListItem.Snapshot -> "snap_${item.snapshot.id}"
                         is InvestmentListItem.Tx -> "tx_${item.transaction.id}"
@@ -275,7 +319,7 @@ fun AccountDetailScreen(
                     )
                     if (state.transactions.isNotEmpty() && isFiltered) {
                         TextButton(
-                            onClick = { searchQuery = ""; filterType = null; filterCategory = null },
+                            onClick = ::clearFilters,
                         ) {
                             Text(strings.clearFilters, color = MaterialTheme.joyufyColors.contentSecondary)
                         }
@@ -292,6 +336,16 @@ fun AccountDetailScreen(
                         onTypeChange = { filterType = if (filterType == it) null else it },
                         filterCategory = filterCategory,
                         onCategoryChange = { filterCategory = if (filterCategory == it) null else it },
+                        filterDateFrom = filterDateFrom,
+                        onDateFromChange = { filterDateFrom = it },
+                        filterDateTo = filterDateTo,
+                        onDateToChange = { filterDateTo = it },
+                        filterAmountMin = filterAmountMin,
+                        onAmountMinChange = { filterAmountMin = it },
+                        filterAmountMax = filterAmountMax,
+                        onAmountMaxChange = { filterAmountMax = it },
+                        transfersOnly = transfersOnly,
+                        onTransfersOnlyChange = { transfersOnly = it },
                         availableCategories = availableCategories,
                     )
                 }
@@ -378,6 +432,117 @@ fun AccountDetailScreen(
     }
 }
 
+@Composable
+private fun AccountDetailStickyHeader(
+    account: Account,
+    balance: Double,
+    periodChange: Double?,
+    periodChangePct: Double?,
+    chartRange: ChartRange,
+    onBack: () -> Unit,
+    onEditAccount: () -> Unit,
+    onAddSnapshot: () -> Unit,
+    onAddTransaction: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background,
+        shadowElevation = 0.dp,
+    ) {
+        Column(modifier = Modifier.padding(bottom = 6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = strings.goBack,
+                        tint = MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                }
+                Spacer(Modifier.width(4.dp))
+                if (account.logoUrl != null) {
+                    AccountLogo(logoUrl = account.logoUrl, size = 32.dp, bgColor = account.color.copy(alpha = 0.25f))
+                } else {
+                    AccountLogoInitials(color = account.color, name = account.name, size = 32.dp)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = account.name,
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = when (account.type) {
+                            AccountType.BANK -> strings.accountTypeBank
+                            AccountType.INVESTMENT -> strings.accountTypeInvestment
+                            AccountType.CASH -> strings.accountTypeCash
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconButton(onClick = onEditAccount, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = strings.editAccount,
+                            tint = MaterialTheme.joyufyColors.contentSecondary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    if (account.type == AccountType.INVESTMENT) {
+                        OutlinedButton(
+                            onClick = onAddSnapshot,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Accent),
+                        ) {
+                            Text(strings.updateValue, color = Accent)
+                        }
+                    }
+                    Button(
+                        onClick = onAddTransaction,
+                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(strings.addTransaction)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Column(modifier = Modifier.padding(start = 48.dp)) {
+                Text(
+                    text = strings.currentBalance,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
+                Spacer(Modifier.height(2.dp))
+                val animatedBalance by animateFloatAsState(
+                    targetValue = balance.toFloat(),
+                    animationSpec = tween(600, easing = FastOutSlowInEasing),
+                )
+                Text(
+                    text = animatedBalance.toDouble().formatCurrency(),
+                    style = MaterialTheme.typography.displayLarge,
+                    color = if (balance >= 0) Positive else Negative,
+                    modifier = if (account.type == AccountType.INVESTMENT)
+                        Modifier.clickable { onAddSnapshot() }
+                    else Modifier,
+                )
+                if (periodChange != null && periodChangePct != null) {
+                    Spacer(Modifier.height(4.dp))
+                    AccountPeriodChangeBadge(
+                        change = periodChange,
+                        changePct = periodChangePct,
+                        range = chartRange,
+                    )
+                }
+            }
+        }
+    }
+}
+
 // ── Account history card ───────────────────────────────────────────────────
 
 @Composable
@@ -440,6 +605,16 @@ private fun TransactionFilterBar(
     onTypeChange: (TransactionType) -> Unit,
     filterCategory: String?,
     onCategoryChange: (String) -> Unit,
+    filterDateFrom: String,
+    onDateFromChange: (String) -> Unit,
+    filterDateTo: String,
+    onDateToChange: (String) -> Unit,
+    filterAmountMin: String,
+    onAmountMinChange: (String) -> Unit,
+    filterAmountMax: String,
+    onAmountMaxChange: (String) -> Unit,
+    transfersOnly: Boolean,
+    onTransfersOnlyChange: (Boolean) -> Unit,
     availableCategories: List<String>,
 ) {
     val strings = LocalStrings.current
@@ -473,11 +648,61 @@ private fun TransactionFilterBar(
             textStyle = MaterialTheme.typography.bodySmall,
         )
 
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CompactFilterField(
+                value = filterDateFrom,
+                onValueChange = onDateFromChange,
+                label = strings.dateFrom,
+                placeholder = "01/01/2026",
+                modifier = Modifier.weight(1f),
+            )
+            CompactFilterField(
+                value = filterDateTo,
+                onValueChange = onDateToChange,
+                label = strings.dateTo,
+                placeholder = "31/12/2026",
+                modifier = Modifier.weight(1f),
+            )
+            CompactFilterField(
+                value = filterAmountMin,
+                onValueChange = onAmountMinChange,
+                label = strings.amountMin,
+                placeholder = strings.placeholderAmount,
+                modifier = Modifier.weight(1f),
+            )
+            CompactFilterField(
+                value = filterAmountMax,
+                onValueChange = onAmountMaxChange,
+                label = strings.amountMax,
+                placeholder = strings.placeholderAmount,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
         // Type chips
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            FilterChip(
+                selected = transfersOnly,
+                onClick = { onTransfersOnlyChange(!transfersOnly) },
+                label = { Text(strings.transfersOnly, style = MaterialTheme.typography.labelSmall) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Accent.copy(alpha = 0.15f),
+                    selectedLabelColor = Accent,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.joyufyColors.contentSecondary,
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = transfersOnly,
+                    selectedBorderColor = Accent,
+                    borderColor = MaterialTheme.joyufyColors.border,
+                ),
+                modifier = Modifier.height(28.dp),
+            )
+
             listOf(TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.TRANSFER).forEach { type ->
                 val selected = filterType == type
                 FilterChip(
@@ -531,6 +756,30 @@ private fun TransactionFilterBar(
 }
 
 @Composable
+private fun CompactFilterField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+        placeholder = { Text(placeholder, style = MaterialTheme.typography.labelSmall) },
+        singleLine = true,
+        modifier = modifier,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Accent,
+            focusedLabelColor = Accent,
+            unfocusedBorderColor = MaterialTheme.joyufyColors.border,
+        ),
+        textStyle = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
 private fun TransactionRow(
     transaction: Transaction,
     allAccounts: List<com.aracem.joyufy.domain.model.Account>,
@@ -539,6 +788,10 @@ private fun TransactionRow(
     indented: Boolean = false,
 ) {
     val strings = LocalStrings.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val actionsVisible = hovered || focused
     val relatedAccount = allAccounts.find { it.id == transaction.relatedAccountId }
     val relatedName = relatedAccount?.name
     // Transfers and investment deposits are stored as EXPENSE/INCOME with a relatedAccountId
@@ -566,6 +819,8 @@ private fun TransactionRow(
                 if (indented) MaterialTheme.colorScheme.surface
                 else MaterialTheme.colorScheme.surfaceVariant
             )
+            .hoverable(interactionSource)
+            .focusable(interactionSource = interactionSource)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -608,17 +863,11 @@ private fun TransactionRow(
             style = MaterialTheme.typography.titleMedium,
             color = amountColor,
         )
-        Spacer(Modifier.width(4.dp))
-        IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Edit, contentDescription = strings.edit,
-                tint = MaterialTheme.joyufyColors.contentSecondary,
-                modifier = Modifier.size(16.dp))
-        }
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = strings.delete,
-                tint = MaterialTheme.joyufyColors.contentDisabled,
-                modifier = Modifier.size(16.dp))
-        }
+        RowActions(
+            visible = actionsVisible,
+            onEdit = onEdit,
+            onDelete = onDelete,
+        )
     }
 }
 
@@ -629,11 +878,17 @@ private fun SnapshotRow(
     onDelete: () -> Unit,
 ) {
     val strings = LocalStrings.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val focused by interactionSource.collectIsFocusedAsState()
+    val actionsVisible = hovered || focused
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .hoverable(interactionSource)
+            .focusable(interactionSource = interactionSource)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -649,16 +904,51 @@ private fun SnapshotRow(
             style = MaterialTheme.typography.titleMedium,
             color = Positive,
         )
-        Spacer(Modifier.width(4.dp))
-        IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Edit, contentDescription = strings.edit,
-                tint = MaterialTheme.joyufyColors.contentSecondary,
-                modifier = Modifier.size(16.dp))
-        }
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = strings.delete,
-                tint = MaterialTheme.joyufyColors.contentDisabled,
-                modifier = Modifier.size(16.dp))
+        RowActions(
+            visible = actionsVisible,
+            onEdit = onEdit,
+            onDelete = onDelete,
+        )
+    }
+}
+
+@Composable
+private fun RowActions(
+    visible: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    Spacer(Modifier.width(4.dp))
+    Box(
+        modifier = Modifier
+            .width(68.dp)
+            .height(32.dp),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(120)),
+            exit = fadeOut(tween(120)),
+        ) {
+            Row {
+                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = strings.edit,
+                        tint = MaterialTheme.joyufyColors.contentSecondary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = strings.delete,
+                        tint = MaterialTheme.joyufyColors.contentDisabled,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -756,4 +1046,3 @@ private fun DeleteConfirmDialog(
         },
     )
 }
-
