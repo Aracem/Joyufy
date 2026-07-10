@@ -66,6 +66,6 @@ When durable memory is created or updated, mirror the relevant information betwe
 The data layer is designed to be source-agnostic:
 - A future per-account "remote provider" could populate weekly investment snapshots automatically (Indexa, DeGiro, TradeRepublic).
 - The model is single-user; if multi-profile lands later, it should slot in at the DB level (add a `profileId` column) rather than at the UI.
-- CSV/OFX import is a planned alternative to manual bank-transaction entry.
+- Bank-statement import is implemented for CSV/TSV/OFX plus ING text exports; true binary `.xlsx` import remains future work if needed.
 
 Don't pre-build for these. Mention them when relevant and otherwise leave them alone.

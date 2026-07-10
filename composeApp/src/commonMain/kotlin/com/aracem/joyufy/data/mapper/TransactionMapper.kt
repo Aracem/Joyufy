@@ -2,6 +2,7 @@ package com.aracem.joyufy.data.mapper
 
 import com.aracem.joyufy.db.Transaction as TransactionEntity
 import com.aracem.joyufy.domain.model.Transaction
+import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
 
 fun TransactionEntity.toDomain(): Transaction = Transaction(
@@ -13,4 +14,7 @@ fun TransactionEntity.toDomain(): Transaction = Transaction(
     description = description,
     relatedAccountId = related_account_id,
     date = date,
+    reviewStatus = runCatching { TransactionReviewStatus.valueOf(review_status) }
+        .getOrDefault(TransactionReviewStatus.REVIEWED),
+    importBatch = import_batch,
 )

@@ -33,6 +33,9 @@ UPDATE Account SET name = ?, type = ?, color_hex = ?, logo_url = ?, position = ?
 archiveAccount:
 UPDATE Account SET is_archived = 1 WHERE id = ?;
 
+unarchiveAccount:
+UPDATE Account SET is_archived = 0 WHERE id = ?;
+
 deleteAccount:
 DELETE FROM Account WHERE id = ?;
 
@@ -56,6 +59,8 @@ CREATE TABLE `Transaction` (
     description        TEXT,
     related_account_id INTEGER,
     date               INTEGER NOT NULL,
+    review_status      TEXT    NOT NULL DEFAULT 'REVIEWED',
+    import_batch       TEXT,
     FOREIGN KEY (account_id) REFERENCES Account(id) ON DELETE CASCADE,
     FOREIGN KEY (related_account_id) REFERENCES Account(id) ON DELETE SET NULL
 );
@@ -65,8 +70,12 @@ INSERT INTO `Transaction` (account_id, type, amount, category, description, rela
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
 insertTransactionWithId:
-INSERT INTO `Transaction` (id, account_id, type, amount, category, description, related_account_id, date)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO `Transaction` (id, account_id, type, amount, category, description, related_account_id, date, review_status, import_batch)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+insertImportedTransaction:
+INSERT INTO `Transaction` (account_id, type, amount, category, description, related_account_id, date, review_status, import_batch)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 getTransactionsForAccount:
 SELECT * FROM `Transaction` WHERE account_id = ? ORDER BY date DESC;
@@ -78,6 +87,12 @@ updateTransaction:
 UPDATE `Transaction`
 SET type = ?, amount = ?, category = ?, description = ?, related_account_id = ?, date = ?
 WHERE id = ?;
+
+updateTransactionAccount:
+UPDATE `Transaction` SET account_id = ? WHERE id = ?;
+
+updateTransactionReviewStatus:
+UPDATE `Transaction` SET review_status = ? WHERE id = ?;
 
 getTransactionById:
 SELECT * FROM `Transaction` WHERE id = ?;

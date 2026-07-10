@@ -50,14 +50,17 @@ fun SettingsScreen(
     onLanguageChange: (String) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onImportCsv: () -> Unit,
     cloudConflictPending: Boolean = false,
     viewModel: SettingsViewModel = koinInject(),
     driveViewModel: DriveViewModel = koinInject(),
 ) {
     val strings = LocalStrings.current
     val state by viewModel.uiState.collectAsState()
+    val settingsEvent by viewModel.event.collectAsState()
     val driveState by driveViewModel.uiState.collectAsState()
     val driveEvent by driveViewModel.event.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var accountToDelete by remember { mutableStateOf<Account?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
@@ -67,6 +70,40 @@ fun SettingsScreen(
     var burstOrigin by remember { mutableStateOf<Offset?>(null) }
     var burstKey by remember { mutableStateOf(0) }
     var selectedTab by remember { mutableStateOf(SettingsTab.GENERAL) }
+
+    LaunchedEffect(settingsEvent) {
+        when (val ev = settingsEvent) {
+            is SettingsEvent.AccountDeleted -> {
+                val result = snackbarHostState.showSnackbar(
+                    message = strings.accountDeleted.format(ev.name),
+                    actionLabel = strings.undo,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.undoLastAccountDelete()
+                }
+                viewModel.resetEvent()
+            }
+            is SettingsEvent.AccountArchived -> {
+                val result = snackbarHostState.showSnackbar(
+                    message = strings.accountArchived.format(ev.name),
+                    actionLabel = strings.undo,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.undoLastAccountArchive()
+                }
+                viewModel.resetEvent()
+            }
+            is SettingsEvent.Restored -> {
+                snackbarHostState.showSnackbar(strings.accountRestored.format(ev.name))
+                viewModel.resetEvent()
+            }
+            is SettingsEvent.Error -> {
+                snackbarHostState.showSnackbar(ev.message.ifBlank { "Error" })
+                viewModel.resetEvent()
+            }
+            SettingsEvent.Idle -> Unit
+        }
+    }
 
     // Confirm delete single account
     if (accountToDelete != null) {
@@ -240,6 +277,8 @@ fun SettingsScreen(
                     SettingsButton(label = strings.exportBackup, onClick = onExport)
                     HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsButton(label = strings.importBackup, onClick = onImport)
+                    HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsButton(label = strings.csvImportTitle, onClick = onImportCsv)
                 }
             }
         }
@@ -348,6 +387,10 @@ fun SettingsScreen(
             }
         }
     }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
+    )
     } // end Box
 }
 

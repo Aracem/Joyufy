@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.aracem.joyufy.db.JoyufyDatabase
 import com.aracem.joyufy.domain.model.AccountType
+import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.account.CreateAccountViewModel
 import kotlin.test.Test
@@ -70,6 +71,8 @@ class JoyufyDataIntegrityTest {
                         amount = 1_000.0,
                         category = "Salary",
                         date = 20L,
+                        reviewStatus = TransactionReviewStatus.DRAFT.name,
+                        importBatch = "csv-1",
                     ),
                 ),
                 snapshots = listOf(
@@ -87,9 +90,44 @@ class JoyufyDataIntegrityTest {
 
             assertNull(repos.accounts.getAccountById(999L))
             assertEquals(listOf(41L, 42L), repos.accounts.getAllAccounts().map { it.id })
-            assertEquals(91L, repos.transactions.getAllTransactions().single().id)
+            val restoredTransaction = repos.transactions.getAllTransactions().single()
+            assertEquals(91L, restoredTransaction.id)
+            assertEquals(TransactionReviewStatus.DRAFT, restoredTransaction.reviewStatus)
+            assertEquals("csv-1", restoredTransaction.importBatch)
             assertEquals(92L, repos.snapshots.getAllSnapshots().single().id)
             assertFalse(repos.backups.diffAgainstLocal(json).hasChanges)
+        }
+    }
+
+    @Test
+    fun importedTransactionsKeepDraftMetadata() = runTest {
+        inMemoryRepositories().use { repos ->
+            val accountId = repos.accounts.insertAccount(
+                name = "Bank",
+                type = AccountType.BANK,
+                colorHex = "#7B6EF6",
+                logoUrl = null,
+                position = 0,
+            )
+
+            repos.transactions.insertImportedTransaction(
+                accountId = accountId,
+                type = TransactionType.EXPENSE,
+                amount = 42.0,
+                category = "Food",
+                description = "Lunch",
+                relatedAccountId = null,
+                date = 10L,
+                reviewStatus = TransactionReviewStatus.DRAFT,
+                importBatch = "csv-123",
+            )
+
+            val imported = repos.transactions.getAllTransactions().single()
+            assertEquals(TransactionReviewStatus.DRAFT, imported.reviewStatus)
+            assertEquals("csv-123", imported.importBatch)
+
+            repos.transactions.updateTransactionReviewStatus(imported.id, TransactionReviewStatus.REVIEWED)
+            assertEquals(TransactionReviewStatus.REVIEWED, repos.transactions.getTransactionById(imported.id)?.reviewStatus)
         }
     }
 

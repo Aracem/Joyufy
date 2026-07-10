@@ -41,27 +41,31 @@ metadata:
 30. Data quality panel: detects missing categories, empty descriptions, possible duplicates, broken transfer pairs, unusual amounts, stale accounts, and stale investment snapshots.
 31. Undo affordance: ledger bulk delete shows snackbar undo and restores deleted transaction rows with original IDs.
 32. Local backup import preview: manual JSON import shows the backup-vs-local diff table before destructive restore.
+33. Transaction review metadata: transactions can be REVIEWED, NEEDS_REVIEW, or DRAFT; imported rows are committed as DRAFT and can be marked reviewed from the ledger.
+34. Ledger bulk actions expanded with move-account for non-transfer rows and mark-reviewed.
+35. Account-detail undo affordances for single transaction deletes, transfer-pair deletes, and snapshot deletes.
+36. Settings account delete/archive undo affordances; account delete undo restores owned rows and transfer legs that referenced the deleted account.
+37. Bank-statement import preview: CSV/TSV/OFX plus ING text export parsing, column mapping, editable draft rows, validation, blocking duplicate detection, and commit/cancel before writing valid rows.
 
 ## Remaining UI/UX ideas
 
-1. Expand ledger bulk actions with move-account and mark-reviewed once the domain has a reviewed/draft state.
-2. Add undo affordances to account-detail single transaction deletes, snapshot deletes, and account archive/delete where safe.
-3. Full CSV/OFX import preview UI: editable row table, column mapping, row-level validation, duplicate hints, and commit/cancel step before writes.
+1. Add a persisted "review notes" or "ignore duplicate warning" state if users need to dismiss data-quality warnings without changing transaction data.
+2. Add richer OFX coverage if real bank files expose additional variants beyond `STMTTRN` blocks.
+3. Add true binary `.xlsx` import if banks only provide spreadsheet files; current statement import is text-based (CSV/TSV/OFX/ING text export).
 
 ## Product feature ideas
 
-1. CSV/OFX bank statement import with column mapping, editable preview, duplicate detection, and rollback-safe commit.
-2. Categorization rules engine: match by description/payee/amount/account and auto-assign category, type, or tags during import/manual entry.
-3. Recurring transactions for salary, rent, subscriptions, cash withdrawals, and scheduled transfers, with generated pending instances.
-4. Monthly category budgets with burn-rate, remaining amount, and overspend warnings.
-5. Cash-flow forecast: projected month-end balances using recurring transactions, budgets, and expected investment contributions.
-6. Savings goals: target amount/date, linked accounts, progress, and suggested monthly contribution.
-7. Investment snapshot annotations separating deposits, withdrawals, fees, dividends, and market performance.
-8. Investment performance metrics: contribution-adjusted gain, time-weighted return approximation, and per-account performance chart.
-9. Broker/import adapters: CSV import presets for Indexa, DeGiro, Trade Republic, and similar providers before any API/scraping work.
-10. Archived account management: list archived accounts, restore them, or permanently delete with typed confirmation.
-11. Cloud backup history: keep recent cloud/local backup versions and allow restore to a chosen timestamp instead of only latest.
-12. Conflict-aware cloud restore: merge or selectively keep local/cloud entities instead of full destructive replace.
-13. Export reports: CSV/PDF monthly summary, category breakdown, net-worth history, and tax/investment movement report.
-14. Tags and notes: free-form tags plus richer notes/receipt reference for transactions, independent from category.
-15. Split transactions: one bank transaction distributed across multiple categories.
+1. Categorization rules engine: match by description/payee/amount/account and auto-assign category, type, or tags during import/manual entry.
+2. Recurring transactions for salary, rent, subscriptions, cash withdrawals, and scheduled transfers, with generated pending instances.
+3. Monthly category budgets with burn-rate, remaining amount, and overspend warnings.
+4. Cash-flow forecast: projected month-end balances using recurring transactions, budgets, and expected investment contributions.
+5. Savings goals: target amount/date, linked accounts, progress, and suggested monthly contribution.
+6. Investment snapshot annotations separating deposits, withdrawals, fees, dividends, and market performance.
+7. Investment performance metrics: contribution-adjusted gain, time-weighted return approximation, and per-account performance chart.
+8. Broker/import adapters: CSV import presets for Indexa, DeGiro, Trade Republic, and similar providers before any API/scraping work.
+9. Archived account management: list archived accounts, restore them, or permanently delete with typed confirmation.
+10. Cloud backup history: keep recent cloud/local backup versions and allow restore to a chosen timestamp instead of only latest.
+11. Conflict-aware cloud restore: merge or selectively keep local/cloud entities instead of full destructive replace.
+12. Export reports: CSV/PDF monthly summary, category breakdown, net-worth history, and tax/investment movement report.
+13. Tags and notes: free-form tags plus richer notes/receipt reference for transactions, independent from category.
+14. Split transactions: one bank transaction distributed across multiple categories.

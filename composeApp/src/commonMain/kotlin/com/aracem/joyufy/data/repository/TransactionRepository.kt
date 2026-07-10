@@ -5,6 +5,7 @@ import app.cash.sqldelight.coroutines.mapToList
 import com.aracem.joyufy.data.mapper.toDomain
 import com.aracem.joyufy.db.JoyufyDatabase
 import com.aracem.joyufy.domain.model.Transaction
+import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,13 @@ class TransactionRepository(private val db: JoyufyDatabase) {
     ): List<Transaction> = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries
             .getTransactionsBetween(accountId, from, to)
+            .executeAsList()
+            .map { it.toDomain() }
+    }
+
+    suspend fun getTransactionsForAccount(accountId: Long): List<Transaction> = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries
+            .getTransactionsForAccount(accountId)
             .executeAsList()
             .map { it.toDomain() }
     }
@@ -102,6 +110,8 @@ class TransactionRepository(private val db: JoyufyDatabase) {
         description: String?,
         relatedAccountId: Long?,
         date: Long,
+        reviewStatus: TransactionReviewStatus = TransactionReviewStatus.REVIEWED,
+        importBatch: String? = null,
     ): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.insertTransactionWithId(
             id = id,
@@ -112,6 +122,32 @@ class TransactionRepository(private val db: JoyufyDatabase) {
             description = description,
             related_account_id = relatedAccountId,
             date = date,
+            review_status = reviewStatus.name,
+            import_batch = importBatch,
+        )
+    }
+
+    suspend fun insertImportedTransaction(
+        accountId: Long,
+        type: TransactionType,
+        amount: Double,
+        category: String?,
+        description: String?,
+        relatedAccountId: Long?,
+        date: Long,
+        reviewStatus: TransactionReviewStatus,
+        importBatch: String,
+    ): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.insertImportedTransaction(
+            account_id = accountId,
+            type = type.name,
+            amount = amount,
+            category = category,
+            description = description,
+            related_account_id = relatedAccountId,
+            date = date,
+            review_status = reviewStatus.name,
+            import_batch = importBatch,
         )
     }
 
@@ -133,6 +169,14 @@ class TransactionRepository(private val db: JoyufyDatabase) {
             date = date,
             id = id,
         )
+    }
+
+    suspend fun updateTransactionAccount(id: Long, accountId: Long): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.updateTransactionAccount(account_id = accountId, id = id)
+    }
+
+    suspend fun updateTransactionReviewStatus(id: Long, status: TransactionReviewStatus): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.updateTransactionReviewStatus(review_status = status.name, id = id)
     }
 
     suspend fun getTransactionById(id: Long): Transaction? = withContext(Dispatchers.IO) {

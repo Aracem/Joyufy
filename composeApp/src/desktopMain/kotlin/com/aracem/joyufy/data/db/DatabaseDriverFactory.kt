@@ -35,6 +35,8 @@ actual class DatabaseDriverFactory actual constructor() {
 
             // Migraciones incrementales
             runCatching { driver.execute(null, "ALTER TABLE Account ADD COLUMN logo_url TEXT", 0) }
+            runCatching { driver.execute(null, "ALTER TABLE `Transaction` ADD COLUMN review_status TEXT NOT NULL DEFAULT 'REVIEWED'", 0) }
+            runCatching { driver.execute(null, "ALTER TABLE `Transaction` ADD COLUMN import_batch TEXT", 0) }
         }
         return driver
     }

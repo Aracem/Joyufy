@@ -80,6 +80,8 @@ fun AccountDetailScreen(
     val strings = LocalStrings.current
     val viewModel: AccountDetailViewModel = koinInject { parametersOf(accountId) }
     val state by viewModel.uiState.collectAsState()
+    val event by viewModel.event.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var showAddTransaction by remember { mutableStateOf(false) }
     var showAddSnapshot by remember { mutableStateOf(false) }
@@ -210,6 +212,40 @@ fun AccountDetailScreen(
 
     val account = state.account ?: return
 
+    LaunchedEffect(event) {
+        when (val ev = event) {
+            is AccountDetailEvent.TransactionsDeleted -> {
+                val result = snackbarHostState.showSnackbar(
+                    message = strings.ledgerDeletedTransactions.format(ev.count),
+                    actionLabel = strings.undo,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.undoLastTransactionDelete()
+                }
+                viewModel.resetEvent()
+            }
+            is AccountDetailEvent.SnapshotDeleted -> {
+                val result = snackbarHostState.showSnackbar(
+                    message = strings.snapshotDeleted,
+                    actionLabel = strings.undo,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.undoLastSnapshotDelete()
+                }
+                viewModel.resetEvent()
+            }
+            is AccountDetailEvent.Restored -> {
+                snackbarHostState.showSnackbar(strings.ledgerRestoredTransactions.format(ev.count))
+                viewModel.resetEvent()
+            }
+            is AccountDetailEvent.Error -> {
+                snackbarHostState.showSnackbar(ev.message.ifBlank { "Error" })
+                viewModel.resetEvent()
+            }
+            AccountDetailEvent.Idle -> Unit
+        }
+    }
+
     LaunchedEffect(account.id, launchRequestId) {
         if (openSnapshotDialog && account.type == AccountType.INVESTMENT) {
             showAddSnapshot = true
@@ -224,13 +260,14 @@ fun AccountDetailScreen(
         }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         // ── Sticky balance/action header ─────────────────────────────────
         stickyHeader {
             AccountDetailStickyHeader(
@@ -400,6 +437,12 @@ fun AccountDetailScreen(
                 }
             }
         }
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
+        )
     }
 
     // ── Dialogs ───────────────────────────────────────────────────────────

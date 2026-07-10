@@ -2,6 +2,8 @@ package com.aracem.joyufy.domain.model
 
 enum class TransactionType { INCOME, EXPENSE, TRANSFER }
 
+enum class TransactionReviewStatus { REVIEWED, NEEDS_REVIEW, DRAFT }
+
 // Suggested categories — user can also type freely
 enum class TransactionCategory(val label: String) {
     SALARY("Nómina"),
@@ -30,4 +32,6 @@ data class Transaction(
     val description: String?,
     val relatedAccountId: Long?,
     val date: Long,
+    val reviewStatus: TransactionReviewStatus = TransactionReviewStatus.REVIEWED,
+    val importBatch: String? = null,
 )

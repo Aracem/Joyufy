@@ -27,15 +27,15 @@ Navigation is a `sealed interface Screen { Dashboard; AccountDetail(accountId); 
 
 No `stringResource()`. The pattern is:
 
-1. `ui/strings/Strings.kt` — `data class Strings(val foo: String, val bar: String, …)` with every string the app needs as a typed property; `val LocalStrings = compositionLocalOf { StringsEn }`.
-2. `ui/strings/StringsEn.kt` and `StringsEs.kt` — full instances of the data class.
+1. `ui/strings/Strings.kt` — `interface Strings` with every string the app needs as a typed property; `val LocalStrings = compositionLocalOf { StringsEn }`.
+2. `ui/strings/StringsEn.kt` and `StringsEs.kt` — singleton objects implementing `Strings`.
 3. `App.kt` reads `prefsRepo.getLanguage()` (`""` = system, `"en"`, `"es"`) and wraps the tree in `CompositionLocalProvider(LocalStrings provides chosenStrings)`.
 4. Inside any composable: `val strings = LocalStrings.current`.
 5. For non-composable helpers (e.g. `buildRecentWeeks(...)`), pass the required string fields as parameters.
 
 Language switch is instant — no app restart needed because the `CompositionLocalProvider` value changes and triggers recomposition.
 
-When adding a new string: add the property to `Strings.kt`, add the value to BOTH `StringsEn` and `StringsEs`. The compiler will catch missing translations because the data class enforces it.
+When adding a new string: add the property to `Strings.kt`, add the value to BOTH `StringsEn` and `StringsEs`. The compiler will catch missing translations because both objects must implement the interface. Do not turn this back into a data class: the number of strings can exceed the JVM method-argument limit and crash at startup with `ClassFormatError`.
 
 ## Shared components
 

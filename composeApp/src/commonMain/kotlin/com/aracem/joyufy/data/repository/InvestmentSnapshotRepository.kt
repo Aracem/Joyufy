@@ -34,6 +34,13 @@ class InvestmentSnapshotRepository(private val db: JoyufyDatabase) {
             ?.toDomain()
     }
 
+    suspend fun getSnapshotsForAccount(accountId: Long): List<InvestmentSnapshot> = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries
+            .getSnapshotsForAccount(accountId)
+            .executeAsList()
+            .map { it.toDomain() }
+    }
+
     suspend fun getSnapshotsBetween(
         accountId: Long,
         from: Long,

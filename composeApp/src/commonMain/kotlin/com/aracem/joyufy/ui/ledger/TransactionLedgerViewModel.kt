@@ -7,6 +7,7 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
+import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.components.MILLIS_IN_DAY
 import com.aracem.joyufy.ui.components.currentWeekStartMillis
@@ -26,6 +27,7 @@ enum class LedgerPreset {
     UNCATEGORIZED,
     DUPLICATES,
     TRANSFERS,
+    IMPORTED_DRAFTS,
     DATA_QUALITY,
 }
 
@@ -35,6 +37,7 @@ enum class LedgerWarning {
     POSSIBLE_DUPLICATE,
     BROKEN_TRANSFER,
     UNUSUAL_AMOUNT,
+    IMPORTED_DRAFT,
 }
 
 enum class LedgerQualityType {
@@ -45,6 +48,7 @@ enum class LedgerQualityType {
     UNUSUAL_AMOUNTS,
     STALE_ACCOUNTS,
     STALE_SNAPSHOTS,
+    IMPORTED_DRAFTS,
 }
 
 data class LedgerQualityMetric(
@@ -85,6 +89,7 @@ sealed interface LedgerEvent {
     data object Idle : LedgerEvent
     data class Deleted(val count: Int) : LedgerEvent
     data class Restored(val count: Int) : LedgerEvent
+    data class Updated(val count: Int) : LedgerEvent
     data class Error(val message: String) : LedgerEvent
 }
 
@@ -110,6 +115,7 @@ private data class QualitySets(
     val unusualAmountIds: Set<Long>,
     val staleAccountIds: Set<Long>,
     val staleSnapshotAccountIds: Set<Long>,
+    val importedDraftIds: Set<Long>,
     val duplicateGroupSizes: Map<Long, Int>,
 )
 
@@ -200,8 +206,51 @@ class TransactionLedgerViewModel(
                         date = tx.date,
                     )
                 }
+                ids.size
             }.onSuccess {
                 clearSelection()
+                _event.value = LedgerEvent.Updated(it)
+            }.onFailure {
+                _event.value = LedgerEvent.Error(it.message.orEmpty())
+            }
+        }
+    }
+
+    fun bulkMoveToAccount(accountId: Long) {
+        val ids = selectedIds.value
+        if (ids.isEmpty()) return
+        scope.launch {
+            runCatching {
+                var movedCount = 0
+                ids.forEach { id ->
+                    val tx = transactionRepository.getTransactionById(id) ?: return@forEach
+                    if (!tx.isTransfer() && tx.accountId != accountId) {
+                        transactionRepository.updateTransactionAccount(id = tx.id, accountId = accountId)
+                        movedCount++
+                    }
+                }
+                movedCount
+            }.onSuccess { count ->
+                clearSelection()
+                _event.value = LedgerEvent.Updated(count)
+            }.onFailure {
+                _event.value = LedgerEvent.Error(it.message.orEmpty())
+            }
+        }
+    }
+
+    fun bulkMarkReviewed() {
+        val ids = selectedIds.value
+        if (ids.isEmpty()) return
+        scope.launch {
+            runCatching {
+                ids.forEach { id ->
+                    transactionRepository.updateTransactionReviewStatus(id, TransactionReviewStatus.REVIEWED)
+                }
+                ids.size
+            }.onSuccess { count ->
+                clearSelection()
+                _event.value = LedgerEvent.Updated(count)
             }.onFailure {
                 _event.value = LedgerEvent.Error(it.message.orEmpty())
             }
@@ -255,6 +304,8 @@ class TransactionLedgerViewModel(
                         description = tx.description,
                         relatedAccountId = tx.relatedAccountId,
                         date = tx.date,
+                        reviewStatus = tx.reviewStatus,
+                        importBatch = tx.importBatch,
                     )
                 }
                 transactions.size
@@ -350,6 +401,7 @@ class TransactionLedgerViewModel(
             LedgerQualityMetric(LedgerQualityType.UNUSUAL_AMOUNTS, quality.unusualAmountIds.size),
             LedgerQualityMetric(LedgerQualityType.STALE_ACCOUNTS, quality.staleAccountIds.size),
             LedgerQualityMetric(LedgerQualityType.STALE_SNAPSHOTS, quality.staleSnapshotAccountIds.size),
+            LedgerQualityMetric(LedgerQualityType.IMPORTED_DRAFTS, quality.importedDraftIds.size),
         )
 
         return LedgerUiState(
@@ -369,6 +421,7 @@ class TransactionLedgerViewModel(
             uncategorizedCount = quality.missingCategoryIds.size,
             duplicateCount = quality.duplicateIds.size,
             staleSnapshotCount = quality.staleSnapshotAccountIds.size,
+            importedDraftCount = quality.importedDraftIds.size,
             qualityMetrics = qualityMetrics,
         )
     }
@@ -425,6 +478,13 @@ class TransactionLedgerViewModel(
             .filter { it.amount >= unusualThreshold }
             .map { it.id }
             .toSet()
+        val importedDraftIds = source.transactions
+            .filter {
+                it.reviewStatus == TransactionReviewStatus.DRAFT ||
+                    it.reviewStatus == TransactionReviewStatus.NEEDS_REVIEW
+            }
+            .map { it.id }
+            .toSet()
 
         val now = System.currentTimeMillis()
         val staleSince = now - 90 * MILLIS_IN_DAY
@@ -456,6 +516,7 @@ class TransactionLedgerViewModel(
             unusualAmountIds = unusualAmountIds,
             staleAccountIds = staleAccountIds,
             staleSnapshotAccountIds = staleSnapshotAccountIds,
+            importedDraftIds = importedDraftIds,
             duplicateGroupSizes = duplicateGroupSizes,
         )
     }
@@ -466,6 +527,7 @@ class TransactionLedgerViewModel(
         if (tx.id in quality.duplicateIds) add(LedgerWarning.POSSIBLE_DUPLICATE)
         if (tx.id in quality.brokenTransferIds) add(LedgerWarning.BROKEN_TRANSFER)
         if (tx.id in quality.unusualAmountIds) add(LedgerWarning.UNUSUAL_AMOUNT)
+        if (tx.id in quality.importedDraftIds) add(LedgerWarning.IMPORTED_DRAFT)
     }
 
     private fun LedgerTransactionRow.matchesPreset(value: LedgerPreset): Boolean =
@@ -474,6 +536,7 @@ class TransactionLedgerViewModel(
             LedgerPreset.UNCATEGORIZED -> LedgerWarning.MISSING_CATEGORY in warnings
             LedgerPreset.DUPLICATES -> LedgerWarning.POSSIBLE_DUPLICATE in warnings
             LedgerPreset.TRANSFERS -> transaction.isTransfer()
+            LedgerPreset.IMPORTED_DRAFTS -> LedgerWarning.IMPORTED_DRAFT in warnings
             LedgerPreset.DATA_QUALITY -> warnings.isNotEmpty()
         }
 

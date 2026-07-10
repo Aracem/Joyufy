@@ -28,8 +28,15 @@ actual fun openUrl(url: String) {
 
 /** Shows a native open dialog and returns the content of the chosen file, or null if cancelled. */
 actual fun showOpenFileDialog(): String? {
-    val dialog = FileDialog(null as Frame?, "Abrir backup", FileDialog.LOAD).apply {
-        filenameFilter = FilenameFilter { _, name -> name.endsWith(".json") }
+    return showOpenTextFileDialog("Abrir backup", listOf("json"))
+}
+
+actual fun showOpenTextFileDialog(title: String, allowedExtensions: List<String>): String? {
+    val normalizedExtensions = allowedExtensions.map { it.lowercase().removePrefix(".") }
+    val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD).apply {
+        filenameFilter = FilenameFilter { _, name ->
+            normalizedExtensions.any { ext -> name.lowercase().endsWith(".$ext") }
+        }
         isVisible = true
     }
     val dir = dialog.directory ?: return null

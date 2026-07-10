@@ -61,6 +61,9 @@ import com.aracem.joyufy.ui.dashboard.DashboardScreen
 import com.aracem.joyufy.ui.dashboard.DashboardViewModel
 import com.aracem.joyufy.ui.drive.DriveEvent
 import com.aracem.joyufy.ui.drive.DriveViewModel
+import com.aracem.joyufy.ui.importer.CsvImportDialog
+import com.aracem.joyufy.ui.importer.CsvImportEvent
+import com.aracem.joyufy.ui.importer.CsvImportViewModel
 import com.aracem.joyufy.ui.ledger.TransactionLedgerScreen
 import com.aracem.joyufy.ui.navigation.LedgerInitialFilter
 import com.aracem.joyufy.ui.navigation.Screen
@@ -135,9 +138,12 @@ fun App() {
             val dashboardViewModel: DashboardViewModel = koinInject()
             val backupViewModel: BackupViewModel = koinInject()
             val driveViewModel: DriveViewModel = koinInject()
+            val csvImportViewModel: CsvImportViewModel = koinInject()
             val scope = rememberCoroutineScope()
             val backupEvent by backupViewModel.event.collectAsState()
             val driveEvent by driveViewModel.event.collectAsState()
+            val csvImportState by csvImportViewModel.uiState.collectAsState()
+            val csvImportEvent by csvImportViewModel.event.collectAsState()
             val snackbarHostState = remember { SnackbarHostState() }
             var localImportPrompt by remember { mutableStateOf<Pair<BackupDiff, String>?>(null) }
             var cloudRestorePrompt by remember { mutableStateOf<Pair<BackupDiff, String>?>(null) }
@@ -190,6 +196,20 @@ fun App() {
                     is BackupEvent.Success -> { snackbarHostState.showSnackbar(ev.message); backupViewModel.reset() }
                     is BackupEvent.Error -> { snackbarHostState.showSnackbar(ev.message); backupViewModel.reset() }
                     else -> {}
+                }
+            }
+
+            LaunchedEffect(csvImportEvent) {
+                when (val ev = csvImportEvent) {
+                    is CsvImportEvent.Imported -> {
+                        snackbarHostState.showSnackbar(strings.csvImportSuccess.format(ev.count))
+                        csvImportViewModel.resetEvent()
+                    }
+                    is CsvImportEvent.Error -> {
+                        snackbarHostState.showSnackbar(ev.message.ifBlank { "Error" })
+                        csvImportViewModel.resetEvent()
+                    }
+                    CsvImportEvent.Idle -> Unit
                 }
             }
 
@@ -318,6 +338,14 @@ fun App() {
                                     if (json != null) backupViewModel.importFromJson(json)
                                 }
                             },
+                            onImportCsv = {
+                                scope.launch {
+                                    val csv = withContext(Dispatchers.IO) {
+                                        showOpenTextFileDialog("Import bank statement", listOf("csv", "tsv", "txt", "ofx"))
+                                    }
+                                    if (csv != null) csvImportViewModel.loadCsv(csv)
+                                }
+                            },
                             cloudConflictPending = cloudRestorePrompt != null,
                         )
                     }
@@ -390,6 +418,19 @@ fun App() {
                         )
                         showCommandPalette = false
                     },
+                )
+            }
+
+            if (csvImportState.isOpen) {
+                CsvImportDialog(
+                    state = csvImportState,
+                    onDismiss = csvImportViewModel::close,
+                    onCommit = csvImportViewModel::commitValidRows,
+                    onDefaultAccount = csvImportViewModel::setDefaultAccount,
+                    onMapping = csvImportViewModel::setMapping,
+                    onToggleRow = csvImportViewModel::toggleRow,
+                    onRowAccount = csvImportViewModel::updateRowAccount,
+                    onRowField = csvImportViewModel::updateRowField,
                 )
             }
 

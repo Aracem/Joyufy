@@ -83,6 +83,10 @@ class AccountRepository(private val db: JoyufyDatabase) {
         db.joyufyDatabaseQueries.archiveAccount(id)
     }
 
+    suspend fun unarchiveAccount(id: Long): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.unarchiveAccount(id)
+    }
+
     suspend fun deleteAccount(id: Long): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.deleteAccount(id)
     }

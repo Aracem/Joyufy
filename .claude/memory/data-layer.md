@@ -30,6 +30,12 @@ Generated package: `com.aracem.joyufy.db`.
 
 Three tables: `Account`, `` `Transaction` `` (backticked because `Transaction` is a SQL keyword), `InvestmentSnapshot`. Foreign keys cascade on delete from `Account` so wiping an account drops its transactions and snapshots automatically.
 
+`Transaction` also carries review/import metadata:
+- `review_status`: `REVIEWED`, `NEEDS_REVIEW`, or `DRAFT`. Manual transactions default to `REVIEWED`; bank-statement imports are committed as `DRAFT` so the ledger can surface them for review.
+- `import_batch`: optional batch identifier for imported rows. Preserve it in backup/export/undo paths.
+
+Bank-statement imports currently support CSV, TSV, OFX, ING text exports, and ING semicolon CSV conversions with Excel-style preamble rows such as `Tabla 1` before the real `F. VALOR` header. Imported duplicate detection is blocking, not advisory: duplicate key = account + local date + type + amount cents + normalized description. The importer blocks matches against existing DB rows and repeated rows inside the same import batch.
+
 ### Important queries
 
 | Query | Purpose |
@@ -60,7 +66,7 @@ Serialised by `BackupRepository.export()` with `kotlinx.serialization.json` (`pr
   "version": 1,
   "exportedAt": <epoch_ms>,
   "accounts":     [ { id, name, type, colorHex, logoUrl?, position, createdAt } ],
-  "transactions": [ { id, accountId, type, amount, category?, description?, relatedAccountId?, date } ],
+  "transactions": [ { id, accountId, type, amount, category?, description?, relatedAccountId?, date, reviewStatus, importBatch? } ],
   "snapshots":    [ { id, accountId, totalValue, weekDate } ]
 }
 ```

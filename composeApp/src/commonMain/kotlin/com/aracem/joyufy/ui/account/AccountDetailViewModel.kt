@@ -51,6 +51,14 @@ data class AccountDetailUiState(
     val customCategories: List<String> = emptyList(),
 )
 
+sealed interface AccountDetailEvent {
+    data object Idle : AccountDetailEvent
+    data class TransactionsDeleted(val count: Int) : AccountDetailEvent
+    data class SnapshotDeleted(val count: Int) : AccountDetailEvent
+    data class Restored(val count: Int) : AccountDetailEvent
+    data class Error(val message: String) : AccountDetailEvent
+}
+
 class AccountDetailViewModel(
     private val accountId: Long,
     private val accountRepository: AccountRepository,
@@ -61,6 +69,12 @@ class AccountDetailViewModel(
 
     private val _uiState = MutableStateFlow(AccountDetailUiState())
     val uiState: StateFlow<AccountDetailUiState> = _uiState.asStateFlow()
+
+    private val _event = MutableStateFlow<AccountDetailEvent>(AccountDetailEvent.Idle)
+    val event: StateFlow<AccountDetailEvent> = _event.asStateFlow()
+
+    private var lastDeletedTransactions: List<Transaction> = emptyList()
+    private var lastDeletedSnapshot: InvestmentSnapshot? = null
 
     init {
         load()
@@ -413,23 +427,95 @@ class AccountDetailViewModel(
 
     fun deleteTransaction(id: Long) {
         scope.launch {
-            val tx = transactionRepository.getTransactionById(id)
-            transactionRepository.deleteTransaction(id)
-            if (tx?.relatedAccountId != null) {
-                val sister = transactionRepository.getRelatedTransfer(
-                    relatedAccountId = accountId,
-                    originAccountId = tx.relatedAccountId,
-                    amount = tx.amount,
-                    type = tx.oppositeTransferLegType(),
-                    date = tx.date,
-                )
-                if (sister != null) transactionRepository.deleteTransaction(sister.id)
+            runCatching {
+                val tx = transactionRepository.getTransactionById(id) ?: return@runCatching emptyList<Transaction>()
+                val deleted = linkedMapOf(tx.id to tx)
+                if (tx.relatedAccountId != null) {
+                    val sister = transactionRepository.getRelatedTransfer(
+                        relatedAccountId = accountId,
+                        originAccountId = tx.relatedAccountId,
+                        amount = tx.amount,
+                        type = tx.oppositeTransferLegType(),
+                        date = tx.date,
+                    )
+                    if (sister != null) deleted[sister.id] = sister
+                }
+                deleted.keys.forEach { transactionRepository.deleteTransaction(it) }
+                deleted.values.toList()
+            }.onSuccess { deleted ->
+                lastDeletedTransactions = deleted
+                if (deleted.isNotEmpty()) _event.value = AccountDetailEvent.TransactionsDeleted(deleted.size)
+            }.onFailure {
+                _event.value = AccountDetailEvent.Error(it.message.orEmpty())
             }
         }
     }
 
     fun deleteSnapshot(id: Long) {
-        scope.launch { snapshotRepository.deleteSnapshot(id) }
+        scope.launch {
+            runCatching {
+                val snapshot = _uiState.value.snapshots.firstOrNull { it.id == id }
+                snapshotRepository.deleteSnapshot(id)
+                snapshot
+            }.onSuccess { snapshot ->
+                lastDeletedSnapshot = snapshot
+                if (snapshot != null) _event.value = AccountDetailEvent.SnapshotDeleted(1)
+            }.onFailure {
+                _event.value = AccountDetailEvent.Error(it.message.orEmpty())
+            }
+        }
+    }
+
+    fun undoLastTransactionDelete() {
+        val transactions = lastDeletedTransactions
+        if (transactions.isEmpty()) return
+        scope.launch {
+            runCatching {
+                transactions.sortedBy { it.id }.forEach { tx ->
+                    transactionRepository.insertTransactionWithId(
+                        id = tx.id,
+                        accountId = tx.accountId,
+                        type = tx.type,
+                        amount = tx.amount,
+                        category = tx.category,
+                        description = tx.description,
+                        relatedAccountId = tx.relatedAccountId,
+                        date = tx.date,
+                        reviewStatus = tx.reviewStatus,
+                        importBatch = tx.importBatch,
+                    )
+                }
+                transactions.size
+            }.onSuccess { count ->
+                lastDeletedTransactions = emptyList()
+                _event.value = AccountDetailEvent.Restored(count)
+            }.onFailure {
+                _event.value = AccountDetailEvent.Error(it.message.orEmpty())
+            }
+        }
+    }
+
+    fun undoLastSnapshotDelete() {
+        val snapshot = lastDeletedSnapshot ?: return
+        scope.launch {
+            runCatching {
+                snapshotRepository.insertSnapshotWithId(
+                    id = snapshot.id,
+                    accountId = snapshot.accountId,
+                    totalValue = snapshot.totalValue,
+                    weekDate = snapshot.weekDate,
+                )
+            }.onSuccess {
+                lastDeletedSnapshot = null
+                _event.value = AccountDetailEvent.Restored(1)
+            }.onFailure {
+                _event.value = AccountDetailEvent.Error(it.message.orEmpty())
+            }
+        }
+    }
+
+    fun resetEvent() {
+        _event.value = AccountDetailEvent.Idle
     }
 
     private fun periodChange(history: List<SingleAccountPoint>): Double? {

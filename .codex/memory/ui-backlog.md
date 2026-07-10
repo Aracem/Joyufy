@@ -40,14 +40,18 @@ Implemented:
 - Data quality panel for missing categories, empty descriptions, possible duplicates, broken transfer pairs, unusual amounts, stale accounts, and stale snapshots.
 - Ledger snackbar undo for bulk delete, restoring transactions with original IDs.
 - Manual JSON backup import preview with local-vs-file diff before destructive restore.
+- Transaction review metadata: REVIEWED / NEEDS_REVIEW / DRAFT; imported rows are DRAFT and can be marked reviewed from the ledger.
+- Ledger bulk move-account for non-transfer rows and mark-reviewed.
+- Account-detail undo for single transaction deletes, transfer-pair deletes, and snapshot deletes.
+- Settings account delete/archive undo; delete undo restores owned rows and transfer legs that referenced the deleted account.
+- Bank-statement import preview with CSV/TSV/OFX plus ING text export parsing, column mapping, editable draft rows, validation, blocking duplicate detection, and commit/cancel.
 
 Remaining:
-- Expand ledger bulk actions with move-account and mark-reviewed once the domain has a reviewed/draft state.
-- Add undo affordances to account-detail single transaction deletes, snapshot deletes, and account archive/delete where safe.
-- Full CSV/OFX import preview UI with editable rows, column mapping, validation, duplicate hints, and commit/cancel.
+- Persisted review notes or "ignore duplicate warning" if users need to dismiss quality warnings without changing transaction data.
+- Richer OFX coverage if real bank files expose variants beyond `STMTTRN` blocks.
+- True binary `.xlsx` import if banks only provide spreadsheet files; current statement import is text-based.
 
 Product ideas:
-- CSV/OFX import with mapping, editable preview, duplicate detection, and rollback-safe commit.
 - Categorization rules engine.
 - Recurring transactions and scheduled transfers.
 - Monthly category budgets with burn-rate and warnings.

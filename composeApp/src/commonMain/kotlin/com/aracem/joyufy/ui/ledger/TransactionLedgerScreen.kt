@@ -108,6 +108,10 @@ fun TransactionLedgerScreen(
                 snackbarHostState.showSnackbar(strings.ledgerRestoredTransactions.format(ev.count))
                 viewModel.resetEvent()
             }
+            is LedgerEvent.Updated -> {
+                snackbarHostState.showSnackbar(strings.ledgerUpdatedTransactions.format(ev.count))
+                viewModel.resetEvent()
+            }
             is LedgerEvent.Error -> {
                 snackbarHostState.showSnackbar(ev.message.ifBlank { "Error" })
                 viewModel.resetEvent()
@@ -168,6 +172,8 @@ fun TransactionLedgerScreen(
                     BulkToolbar(
                         state = state,
                         onApplyCategory = viewModel::bulkSetCategory,
+                        onMoveToAccount = viewModel::bulkMoveToAccount,
+                        onMarkReviewed = viewModel::bulkMarkReviewed,
                         onDelete = viewModel::bulkDeleteSelected,
                         onClearSelection = viewModel::clearSelection,
                         onSelectAll = viewModel::selectAllVisible,
@@ -182,6 +188,7 @@ fun TransactionLedgerScreen(
                         when (metric.type) {
                             LedgerQualityType.MISSING_CATEGORIES -> viewModel.setPreset(LedgerPreset.UNCATEGORIZED)
                             LedgerQualityType.POSSIBLE_DUPLICATES -> viewModel.setPreset(LedgerPreset.DUPLICATES)
+                            LedgerQualityType.IMPORTED_DRAFTS -> viewModel.setPreset(LedgerPreset.IMPORTED_DRAFTS)
                             else -> viewModel.setPreset(LedgerPreset.DATA_QUALITY)
                         }
                     },
@@ -270,7 +277,7 @@ private fun ReviewInboxCard(
                 ReviewMetricPill(
                     label = strings.ledgerImportedDrafts,
                     value = state.importedDraftCount,
-                    onClick = { onPreset(LedgerPreset.DATA_QUALITY) },
+                    onClick = { onPreset(LedgerPreset.IMPORTED_DRAFTS) },
                 )
             }
         }
@@ -448,12 +455,15 @@ private fun TypeDropdown(
 private fun BulkToolbar(
     state: LedgerUiState,
     onApplyCategory: (String?) -> Unit,
+    onMoveToAccount: (Long) -> Unit,
+    onMarkReviewed: () -> Unit,
     onDelete: () -> Unit,
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
 ) {
     val strings = LocalStrings.current
     var category by remember(state.selectedCount) { mutableStateOf("") }
+    var moveMenuExpanded by remember { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Accent.copy(alpha = 0.10f),
@@ -494,6 +504,28 @@ private fun BulkToolbar(
                     colors = ButtonDefaults.buttonColors(containerColor = Accent),
                 ) {
                     Text(strings.ledgerApplyCategory)
+                }
+                Box {
+                    OutlinedButton(onClick = { moveMenuExpanded = true }) {
+                        Text(strings.ledgerMoveToAccount)
+                    }
+                    DropdownMenu(
+                        expanded = moveMenuExpanded,
+                        onDismissRequest = { moveMenuExpanded = false },
+                    ) {
+                        state.accounts.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    moveMenuExpanded = false
+                                    onMoveToAccount(account.id)
+                                },
+                            )
+                        }
+                    }
+                }
+                OutlinedButton(onClick = onMarkReviewed) {
+                    Text(strings.ledgerMarkReviewed)
                 }
                 Button(
                     onClick = onDelete,
@@ -773,6 +805,7 @@ private fun LedgerPreset.label(strings: Strings): String = when (this) {
     LedgerPreset.UNCATEGORIZED -> strings.uncategorized
     LedgerPreset.DUPLICATES -> strings.ledgerPossibleDuplicates
     LedgerPreset.TRANSFERS -> strings.transactionTransfer
+    LedgerPreset.IMPORTED_DRAFTS -> strings.ledgerImportedDrafts
     LedgerPreset.DATA_QUALITY -> strings.ledgerDataQuality
 }
 
@@ -790,6 +823,7 @@ private fun LedgerQualityType.label(strings: Strings): String = when (this) {
     LedgerQualityType.UNUSUAL_AMOUNTS -> strings.ledgerUnusualAmounts
     LedgerQualityType.STALE_ACCOUNTS -> strings.ledgerStaleAccounts
     LedgerQualityType.STALE_SNAPSHOTS -> strings.ledgerStaleSnapshots
+    LedgerQualityType.IMPORTED_DRAFTS -> strings.ledgerImportedDrafts
 }
 
 private fun LedgerWarning.label(strings: Strings, duplicateGroupSize: Int): String = when (this) {
@@ -798,6 +832,7 @@ private fun LedgerWarning.label(strings: Strings, duplicateGroupSize: Int): Stri
     LedgerWarning.POSSIBLE_DUPLICATE -> strings.ledgerDuplicateHint.format(duplicateGroupSize)
     LedgerWarning.BROKEN_TRANSFER -> strings.ledgerBrokenTransfer
     LedgerWarning.UNUSUAL_AMOUNT -> strings.ledgerUnusualAmount
+    LedgerWarning.IMPORTED_DRAFT -> strings.ledgerImportedDraft
 }
 
 private fun Transaction.primaryText(row: LedgerTransactionRow, strings: Strings): String =

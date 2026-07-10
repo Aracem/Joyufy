@@ -5,6 +5,7 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
+import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,6 +35,8 @@ data class TransactionBackup(
     val description: String? = null,
     val relatedAccountId: Long? = null,
     val date: Long,
+    val reviewStatus: String = TransactionReviewStatus.REVIEWED.name,
+    val importBatch: String? = null,
 )
 
 @Serializable
@@ -175,6 +178,9 @@ class BackupRepository(
                 description = t.description,
                 relatedAccountId = t.relatedAccountId,
                 date = t.date,
+                reviewStatus = runCatching { TransactionReviewStatus.valueOf(t.reviewStatus) }
+                    .getOrDefault(TransactionReviewStatus.REVIEWED),
+                importBatch = t.importBatch,
             )
         }
 
@@ -210,6 +216,8 @@ class BackupRepository(
         description = description,
         relatedAccountId = relatedAccountId,
         date = date,
+        reviewStatus = reviewStatus.name,
+        importBatch = importBatch,
     )
 
     private fun InvestmentSnapshot.toBackup() = SnapshotBackup(

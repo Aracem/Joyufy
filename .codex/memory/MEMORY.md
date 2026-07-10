@@ -4,4 +4,5 @@ Read the matching `.claude/memory/` files for full project context. Codex keeps 
 
 - [Data layer](data-layer.md) — backup restore ID preservation, full account purge, transfer sibling matching
 - [Testing](testing.md) — desktop in-memory SQLDelight tests and Gradle task
+- [UI layer](ui-layer.md) — i18n interface/object pattern to avoid JVM constructor limits
 - [UI backlog](ui-backlog.md) — dashboard/account/settings UX improvements and implementation status
