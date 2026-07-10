@@ -75,6 +75,11 @@ data class AnnualSummary(
     val totalNet: Double,
 )
 
+data class PeriodComparison(
+    val currentMonth: MonthBreakdown,
+    val previousMonth: MonthBreakdown,
+)
+
 data class AccountPoint(
     val account: Account,
     val weekDate: Long,
@@ -120,6 +125,8 @@ data class DashboardUiState(
     val showTotal: Boolean = true,
     val monthlySummary: MonthlySummary? = null,
     val annualSummary: AnnualSummary? = null,
+    val periodComparison: PeriodComparison? = null,
+    val uncategorizedTransactionCount: Int = 0,
     val selectedAnalysisYear: Int = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year,
     val analysisExpanded: Boolean = false,
     val updateInfo: UpdateInfo? = null,
@@ -290,9 +297,18 @@ class DashboardViewModel(
                 accountRepository.observeAccounts(),
             ) { transactions, snapshots, accounts ->
                 val investmentAccountIds = accounts.filter { it.type == AccountType.INVESTMENT }.map { it.id }.toSet()
-                buildMonthlySummary(transactions, snapshots, investmentAccountIds)
-            }.collect { summary ->
-                _uiState.value = _uiState.value.copy(monthlySummary = summary)
+                val summary = buildMonthlySummary(transactions, snapshots, investmentAccountIds)
+                val comparison = buildPeriodComparison(transactions, snapshots, investmentAccountIds)
+                val uncategorizedCount = transactions.count { tx ->
+                    tx.relatedAccountId == null && tx.category.isNullOrBlank()
+                }
+                Triple(summary, comparison, uncategorizedCount)
+            }.collect { (summary, comparison, uncategorizedCount) ->
+                _uiState.value = _uiState.value.copy(
+                    monthlySummary = summary,
+                    periodComparison = comparison,
+                    uncategorizedTransactionCount = uncategorizedCount,
+                )
             }
         }
     }
@@ -332,53 +348,12 @@ class DashboardViewModel(
         val snapshotsByAccount = snapshots.groupBy { it.accountId }
 
         val months = (1..12).map { month ->
-            val monthStart = monthStartMillis(year, month)
-            val monthEnd = monthEndMillis(year, month)
-
-            val monthTxs = thisYear.filter { it.date in monthStart..monthEnd }
-            val monthTxsAll = thisYearAll.filter { it.date in monthStart..monthEnd }
-
-            val income = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-            val expenses = monthTxs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-
-            // Investment delta: latest snapshot this month minus latest snapshot before this month, per account
-            val rawInvestmentDelta = snapshotsByAccount.values.sumOf { accountSnapshots ->
-                val endValue = accountSnapshots.filter { it.weekDate <= monthEnd }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
-                val startValue = accountSnapshots.filter { it.weekDate < monthStart }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
-                endValue - startValue
-            }
-
-            // Capital flows: transfers from BANK/CASH to INVESTMENT inflate delta without being a gain.
-            // From BANK/CASH perspective: EXPENSE tx with relatedAccountId in investmentAccountIds = capital sent in.
-            // INCOME tx with relatedAccountId in investmentAccountIds = capital withdrawn.
-            val capitalIn = monthTxsAll
-                .filter { it.type == TransactionType.EXPENSE && it.relatedAccountId in investmentAccountIds }
-                .sumOf { it.amount }
-            val capitalOut = monthTxsAll
-                .filter { it.type == TransactionType.INCOME && it.relatedAccountId in investmentAccountIds }
-                .sumOf { it.amount }
-
-            val investmentDelta = rawInvestmentDelta - capitalIn + capitalOut
-
-            val topCategories = monthTxs
-                .filter { it.type == TransactionType.EXPENSE }
-                .groupBy { it.category?.ifBlank { null } ?: "Otros" }
-                .mapValues { (_, txs) -> txs.sumOf { it.amount } }
-                .entries.sortedByDescending { it.value }.take(4)
-                .let { entries ->
-                    val max = entries.firstOrNull()?.value ?: 1.0
-                    entries.map { (label, amount) ->
-                        CategoryBreakdown(label, amount, (amount / max).toFloat().coerceIn(0f, 1f))
-                    }
-                }
-
-            MonthBreakdown(
-                monthNumber = month,
-                income = income,
-                expenses = expenses,
-                investmentDelta = investmentDelta,
-                net = income - expenses + investmentDelta,
-                topCategories = topCategories,
+            buildMonthBreakdown(
+                year = year,
+                month = month,
+                transactions = thisYearAll,
+                snapshotsByAccount = snapshotsByAccount,
+                investmentAccountIds = investmentAccountIds,
             )
         }
 
@@ -394,6 +369,24 @@ class DashboardViewModel(
         )
     }
 
+    private fun buildPeriodComparison(
+        transactions: List<Transaction>,
+        snapshots: List<InvestmentSnapshot>,
+        investmentAccountIds: Set<Long>,
+    ): PeriodComparison? {
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val previousYear = if (now.monthNumber == 1) now.year - 1 else now.year
+        val previousMonth = if (now.monthNumber == 1) 12 else now.monthNumber - 1
+        val snapshotsByAccount = snapshots.groupBy { it.accountId }
+        val current = buildMonthBreakdown(now.year, now.monthNumber, transactions, snapshotsByAccount, investmentAccountIds)
+        val previous = buildMonthBreakdown(previousYear, previousMonth, transactions, snapshotsByAccount, investmentAccountIds)
+        return if (!current.hasActivity() && !previous.hasActivity()) {
+            null
+        } else {
+            PeriodComparison(currentMonth = current, previousMonth = previous)
+        }
+    }
+
     private fun buildMonthlySummary(
         transactions: List<Transaction>,
         snapshots: List<InvestmentSnapshot>,
@@ -403,29 +396,55 @@ class DashboardViewModel(
         val monthStart = monthStartMillis(now.year, now.monthNumber)
         val monthEnd = monthEndMillis(now.year, now.monthNumber)
 
-        val thisMonthAll = transactions.filter { it.date in monthStart..monthEnd }
-        // Exclude transfer legs for income/expense counts
-        val thisMonth = thisMonthAll.filter { it.relatedAccountId == null }
+        val thisMonth = transactions.filter { it.date in monthStart..monthEnd && it.relatedAccountId == null }
         if (thisMonth.isEmpty() && snapshots.none { it.weekDate in monthStart..monthEnd }) return null
 
-        val income = thisMonth.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-        val expenses = thisMonth.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        val breakdown = buildMonthBreakdown(
+            year = now.year,
+            month = now.monthNumber,
+            transactions = transactions,
+            snapshotsByAccount = snapshots.groupBy { it.accountId },
+            investmentAccountIds = investmentAccountIds,
+        )
 
-        val snapshotsByAccount = snapshots.groupBy { it.accountId }
+        return MonthlySummary(
+            income = breakdown.income,
+            expenses = breakdown.expenses,
+            net = breakdown.income - breakdown.expenses,
+            investmentDelta = breakdown.investmentDelta,
+            topCategories = breakdown.topCategories,
+        )
+    }
+
+    private fun buildMonthBreakdown(
+        year: Int,
+        month: Int,
+        transactions: List<Transaction>,
+        snapshotsByAccount: Map<Long, List<InvestmentSnapshot>>,
+        investmentAccountIds: Set<Long>,
+    ): MonthBreakdown {
+        val monthStart = monthStartMillis(year, month)
+        val monthEnd = monthEndMillis(year, month)
+        val monthTxsAll = transactions.filter { it.date in monthStart..monthEnd }
+        val monthTxs = monthTxsAll.filter { it.relatedAccountId == null }
+
+        val income = monthTxs.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+        val expenses = monthTxs.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+
         val rawInvestmentDelta = snapshotsByAccount.values.sumOf { accountSnapshots ->
             val endValue = accountSnapshots.filter { it.weekDate <= monthEnd }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
             val startValue = accountSnapshots.filter { it.weekDate < monthStart }.maxByOrNull { it.weekDate }?.totalValue ?: 0.0
             endValue - startValue
         }
-        val capitalIn = thisMonthAll
+        val capitalIn = monthTxsAll
             .filter { it.type == TransactionType.EXPENSE && it.relatedAccountId in investmentAccountIds }
             .sumOf { it.amount }
-        val capitalOut = thisMonthAll
+        val capitalOut = monthTxsAll
             .filter { it.type == TransactionType.INCOME && it.relatedAccountId in investmentAccountIds }
             .sumOf { it.amount }
         val investmentDelta = rawInvestmentDelta - capitalIn + capitalOut
 
-        val topCategories = thisMonth
+        val topCategories = monthTxs
             .filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.category?.ifBlank { null } ?: "Otros" }
             .mapValues { (_, txs) -> txs.sumOf { it.amount } }
@@ -443,14 +462,18 @@ class DashboardViewModel(
                 }
             }
 
-        return MonthlySummary(
+        return MonthBreakdown(
+            monthNumber = month,
             income = income,
             expenses = expenses,
-            net = income - expenses,
             investmentDelta = investmentDelta,
+            net = income - expenses + investmentDelta,
             topCategories = topCategories,
         )
     }
+
+    private fun MonthBreakdown.hasActivity(): Boolean =
+        income != 0.0 || expenses != 0.0 || investmentDelta != 0.0
 
     private fun checkForUpdates() {
         scope.launch {

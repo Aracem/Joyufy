@@ -38,7 +38,14 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class)
+private data class TransactionDialogTemplate(
+    val label: String,
+    val type: TransactionType,
+    val category: String,
+    val description: String,
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddTransactionDialog(
     accountType: AccountType,
@@ -152,6 +159,55 @@ fun AddTransactionDialog(
                 val descriptionFocus = remember { FocusRequester() }
                 LaunchedEffect(Unit) { amountFocus.requestFocus() }
 
+                val templates = buildList {
+                    if (TransactionType.INCOME in allowedTypes) {
+                        add(
+                            TransactionDialogTemplate(
+                                label = strings.templateSalary,
+                                type = TransactionType.INCOME,
+                                category = TransactionCategory.SALARY.label,
+                                description = strings.templateSalary,
+                            ),
+                        )
+                    }
+                    if (TransactionType.EXPENSE in allowedTypes) {
+                        add(
+                            TransactionDialogTemplate(
+                                label = strings.templateGroceries,
+                                type = TransactionType.EXPENSE,
+                                category = TransactionCategory.GROCERIES.label,
+                                description = strings.templateGroceries,
+                            ),
+                        )
+                        add(
+                            TransactionDialogTemplate(
+                                label = strings.templateRent,
+                                type = TransactionType.EXPENSE,
+                                category = TransactionCategory.RENT_EXPENSE.label,
+                                description = strings.templateRent,
+                            ),
+                        )
+                        add(
+                            TransactionDialogTemplate(
+                                label = strings.templateSubscription,
+                                type = TransactionType.EXPENSE,
+                                category = TransactionCategory.SUBSCRIPTIONS.label,
+                                description = strings.templateSubscription,
+                            ),
+                        )
+                    }
+                    if (accountType != AccountType.INVESTMENT && TransactionType.TRANSFER in allowedTypes) {
+                        add(
+                            TransactionDialogTemplate(
+                                label = strings.templateInvestmentTransfer,
+                                type = TransactionType.TRANSFER,
+                                category = TransactionCategory.INVESTMENT.label,
+                                description = strings.templateInvestmentTransfer,
+                            ),
+                        )
+                    }
+                }
+
                 // All available categories: predefined enum labels + any free-text
                 // values the user has used before (case-insensitive dedup, custom
                 // strings get priority casing).
@@ -162,6 +218,51 @@ fun AddTransactionDialog(
                     customCategories.forEach { if (seen.add(it.lowercase())) out += it }
                     preset.forEach { if (seen.add(it.lowercase())) out += it }
                     out
+                }
+
+                if (editingTransaction == null && templates.isNotEmpty()) {
+                    Text(
+                        text = strings.transactionTemplates,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        templates.forEach { template ->
+                            FilterChip(
+                                selected = selectedType == template.type &&
+                                    category == template.category &&
+                                    description == template.description,
+                                onClick = {
+                                    selectedType = template.type
+                                    category = template.category
+                                    description = template.description
+                                    if (template.type != TransactionType.TRANSFER) {
+                                        selectedRelatedAccount = null
+                                    }
+                                },
+                                label = { Text(template.label, style = MaterialTheme.typography.labelSmall) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Accent.copy(alpha = 0.15f),
+                                    selectedLabelColor = Accent,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.joyufyColors.contentSecondary,
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = selectedType == template.type &&
+                                        category == template.category &&
+                                        description == template.description,
+                                    selectedBorderColor = Accent,
+                                    borderColor = MaterialTheme.joyufyColors.border,
+                                ),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
                 }
 
                 val destinationAccounts = if (selectedType == TransactionType.TRANSFER) {

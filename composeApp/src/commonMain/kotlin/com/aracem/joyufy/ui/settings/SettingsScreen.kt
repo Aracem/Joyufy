@@ -2,6 +2,7 @@ package com.aracem.joyufy.ui.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,15 +25,22 @@ import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.components.ConfettiBurst
+import com.aracem.joyufy.ui.drive.DriveEvent
+import com.aracem.joyufy.ui.drive.DriveUiState
 import com.aracem.joyufy.ui.drive.DriveViewModel
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.Negative
+import com.aracem.joyufy.ui.theme.NegativeDim
+import com.aracem.joyufy.ui.theme.Positive
+import com.aracem.joyufy.ui.theme.PositiveDim
 import com.aracem.joyufy.ui.theme.joyufyColors
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
+
+private enum class SettingsTab { GENERAL, ACCOUNTS, DATA, CLOUD, ABOUT }
 
 @Composable
 fun SettingsScreen(
@@ -42,19 +50,23 @@ fun SettingsScreen(
     onLanguageChange: (String) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    cloudConflictPending: Boolean = false,
     viewModel: SettingsViewModel = koinInject(),
     driveViewModel: DriveViewModel = koinInject(),
 ) {
     val strings = LocalStrings.current
     val state by viewModel.uiState.collectAsState()
     val driveState by driveViewModel.uiState.collectAsState()
+    val driveEvent by driveViewModel.event.collectAsState()
 
     var accountToDelete by remember { mutableStateOf<Account?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
+    var deleteAllConfirmationInput by remember { mutableStateOf("") }
     var showRestoreFromDriveConfirm by remember { mutableStateOf(false) }
     var versionClickCount by remember { mutableStateOf(0) }
     var burstOrigin by remember { mutableStateOf<Offset?>(null) }
     var burstKey by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableStateOf(SettingsTab.GENERAL) }
 
     // Confirm delete single account
     if (accountToDelete != null) {
@@ -95,21 +107,52 @@ fun SettingsScreen(
 
     // Confirm delete all data
     if (showDeleteAllConfirm) {
+        val expectedPhrase = strings.confirmDeleteAllPhrase
         AlertDialog(
-            onDismissRequest = { showDeleteAllConfirm = false },
+            onDismissRequest = {
+                showDeleteAllConfirm = false
+                deleteAllConfirmationInput = ""
+            },
             title = { Text(strings.confirmDeleteAll) },
-            text = { Text(strings.confirmDeleteAllText) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(strings.confirmDeleteAllText)
+                    Text(
+                        text = strings.confirmDeleteAllTypedInstruction.format(expectedPhrase),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                    OutlinedTextField(
+                        value = deleteAllConfirmationInput,
+                        onValueChange = { deleteAllConfirmationInput = it },
+                        label = { Text(strings.confirmDeleteAllInputLabel) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Negative,
+                            focusedLabelColor = Negative,
+                            unfocusedBorderColor = MaterialTheme.joyufyColors.border,
+                        ),
+                    )
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         showDeleteAllConfirm = false
+                        deleteAllConfirmationInput = ""
                         viewModel.deleteAllData {}
                     },
+                    enabled = deleteAllConfirmationInput == expectedPhrase,
                     colors = ButtonDefaults.buttonColors(containerColor = Negative),
                 ) { Text(strings.deleteAll) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteAllConfirm = false }) { Text(strings.cancel) }
+                TextButton(
+                    onClick = {
+                        showDeleteAllConfirm = false
+                        deleteAllConfirmationInput = ""
+                    },
+                ) { Text(strings.cancel) }
             },
         )
     }
@@ -131,102 +174,119 @@ fun SettingsScreen(
             )
         }
 
-        // ── Idioma ────────────────────────────────────────────────────────
         item {
-            SettingsSection(title = "Idioma / Language") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    listOf("" to "Sistema / System", "en" to "English", "es" to "Español").forEach { (code, label) ->
-                        val selected = language == code
-                        FilterChip(
-                            selected = selected,
-                            onClick = { onLanguageChange(code) },
-                            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Accent.copy(alpha = 0.15f),
-                                selectedLabelColor = Accent,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.joyufyColors.contentSecondary,
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
+            SettingsTabs(
+                selected = selectedTab,
+                onSelect = { selectedTab = it },
+            )
+        }
+
+        // ── Idioma ────────────────────────────────────────────────────────
+        if (selectedTab == SettingsTab.GENERAL) {
+            item {
+                SettingsSection(title = "Idioma / Language") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf("" to "Sistema / System", "en" to "English", "es" to "Español").forEach { (code, label) ->
+                            val selected = language == code
+                            FilterChip(
                                 selected = selected,
-                                selectedBorderColor = Accent,
-                                borderColor = MaterialTheme.joyufyColors.border,
-                            ),
-                        )
+                                onClick = { onLanguageChange(code) },
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Accent.copy(alpha = 0.15f),
+                                    selectedLabelColor = Accent,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.joyufyColors.contentSecondary,
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = selected,
+                                    selectedBorderColor = Accent,
+                                    borderColor = MaterialTheme.joyufyColors.border,
+                                ),
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // ── Apariencia ────────────────────────────────────────────────────
-        item {
-            SettingsSection(title = strings.appearance) {
-                SettingsRow(
-                    label = if (darkMode) strings.darkMode else strings.lightMode,
-                    description = strings.themeDescription,
-                ) {
-                    Switch(
-                        checked = darkMode,
-                        onCheckedChange = { onToggleTheme() },
-                        colors = SwitchDefaults.colors(checkedThumbColor = Accent, checkedTrackColor = Accent.copy(alpha = 0.4f)),
-                    )
+            // ── Apariencia ────────────────────────────────────────────────────
+            item {
+                SettingsSection(title = strings.appearance) {
+                    SettingsRow(
+                        label = if (darkMode) strings.darkMode else strings.lightMode,
+                        description = strings.themeDescription,
+                    ) {
+                        Switch(
+                            checked = darkMode,
+                            onCheckedChange = { onToggleTheme() },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Accent, checkedTrackColor = Accent.copy(alpha = 0.4f)),
+                        )
+                    }
                 }
             }
         }
 
         // ── Datos ─────────────────────────────────────────────────────────
-        item {
-            SettingsSection(title = strings.data) {
-                SettingsButton(label = strings.exportBackup, onClick = onExport)
-                HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsButton(label = strings.importBackup, onClick = onImport)
+        if (selectedTab == SettingsTab.DATA) {
+            item {
+                SettingsSection(title = strings.data) {
+                    SettingsButton(label = strings.exportBackup, onClick = onExport)
+                    HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsButton(label = strings.importBackup, onClick = onImport)
+                }
             }
         }
 
         // ── Cloud Sync ────────────────────────────────────────────────────
-        item {
-            CloudSyncSection(
-                driveState = driveState,
-                onConnect = { driveViewModel.signIn() },
-                onDisconnect = { driveViewModel.signOut() },
-                onUpload = { driveViewModel.syncToCloud() },
-                onRestore = { showRestoreFromDriveConfirm = true },
-                onAutoSyncChange = { driveViewModel.setAutoSync(it) },
-            )
+        if (selectedTab == SettingsTab.CLOUD) {
+            item {
+                CloudSyncSection(
+                    driveState = driveState,
+                    onConnect = { driveViewModel.signIn() },
+                    onDisconnect = { driveViewModel.signOut() },
+                    onUpload = { driveViewModel.syncToCloud() },
+                    onRestore = { showRestoreFromDriveConfirm = true },
+                    onAutoSyncChange = { driveViewModel.setAutoSync(it) },
+                    driveEvent = driveEvent,
+                    cloudConflictPending = cloudConflictPending,
+                )
+            }
         }
 
         // ── Cuentas ───────────────────────────────────────────────────────
-        item {
-            SettingsSection(title = strings.accounts) {
-                if (state.accounts.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            strings.noAccounts,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.joyufyColors.contentSecondary,
-                        )
-                    }
-                } else {
-                    state.accounts.forEachIndexed { index, account ->
-                        AccountSettingsRow(
-                            account = account,
-                            onDelete = { accountToDelete = account },
-                        )
-                        if (index < state.accounts.lastIndex) {
-                            HorizontalDivider(
-                                color = MaterialTheme.joyufyColors.border,
-                                modifier = Modifier.padding(horizontal = 16.dp),
+        if (selectedTab == SettingsTab.ACCOUNTS) {
+            item {
+                SettingsSection(title = strings.accounts) {
+                    if (state.accounts.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                strings.noAccounts,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.joyufyColors.contentSecondary,
                             )
+                        }
+                    } else {
+                        state.accounts.forEachIndexed { index, account ->
+                            AccountSettingsRow(
+                                account = account,
+                                onDelete = { accountToDelete = account },
+                            )
+                            if (index < state.accounts.lastIndex) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.joyufyColors.border,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -234,42 +294,46 @@ fun SettingsScreen(
         }
 
         // ── Zona de peligro ───────────────────────────────────────────────
-        item {
-            SettingsSection(title = strings.dangerZone) {
-                SettingsButton(
-                    label = strings.deleteAllData,
-                    labelColor = Negative,
-                    onClick = { showDeleteAllConfirm = true },
-                )
+        if (selectedTab == SettingsTab.DATA) {
+            item {
+                DangerZoneSection {
+                    SettingsButton(
+                        label = strings.deleteAllData,
+                        labelColor = Negative,
+                        onClick = { showDeleteAllConfirm = true },
+                    )
+                }
             }
         }
 
         // ── Versión ───────────────────────────────────────────────────────
-        item {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "Joyufy v${AppVersion.NAME}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
-                    modifier = Modifier
-                        .onGloballyPositioned { coords ->
-                            val pos = coords.positionInWindow()
-                            burstOrigin = Offset(
-                                x = pos.x + coords.size.width / 2f,
-                                y = pos.y + coords.size.height / 2f,
-                            )
-                        }
-                        .clickable {
-                            versionClickCount++
-                            if (versionClickCount >= 10) {
-                                burstKey++
-                                versionClickCount = 0
+        if (selectedTab == SettingsTab.ABOUT) {
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Joyufy v${AppVersion.NAME}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .onGloballyPositioned { coords ->
+                                val pos = coords.positionInWindow()
+                                burstOrigin = Offset(
+                                    x = pos.x + coords.size.width / 2f,
+                                    y = pos.y + coords.size.height / 2f,
+                                )
                             }
-                        },
-                )
+                            .clickable {
+                                versionClickCount++
+                                if (versionClickCount >= 10) {
+                                    burstKey++
+                                    versionClickCount = 0
+                                }
+                            },
+                    )
+                }
             }
         }
     }
@@ -287,11 +351,50 @@ fun SettingsScreen(
     } // end Box
 }
 
+@Composable
+private fun SettingsTabs(
+    selected: SettingsTab,
+    onSelect: (SettingsTab) -> Unit,
+) {
+    val strings = LocalStrings.current
+    val tabs = listOf(
+        SettingsTab.GENERAL to strings.settingsTabGeneral,
+        SettingsTab.ACCOUNTS to strings.settingsTabAccounts,
+        SettingsTab.DATA to strings.settingsTabData,
+        SettingsTab.CLOUD to strings.settingsTabCloud,
+        SettingsTab.ABOUT to strings.settingsTabAbout,
+    )
+    ScrollableTabRow(
+        selectedTabIndex = tabs.indexOfFirst { it.first == selected }.coerceAtLeast(0),
+        edgePadding = 0.dp,
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = Accent,
+        divider = {},
+    ) {
+        tabs.forEach { (tab, label) ->
+            Tab(
+                selected = selected == tab,
+                onClick = { onSelect(tab) },
+                text = {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                },
+                selectedContentColor = Accent,
+                unselectedContentColor = MaterialTheme.joyufyColors.contentSecondary,
+            )
+        }
+    }
+}
+
 // ── Cloud Sync section ────────────────────────────────────────────────────────
 
 @Composable
 private fun CloudSyncSection(
-    driveState: com.aracem.joyufy.ui.drive.DriveUiState,
+    driveState: DriveUiState,
+    driveEvent: DriveEvent,
+    cloudConflictPending: Boolean,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onUpload: () -> Unit,
@@ -303,6 +406,12 @@ private fun CloudSyncSection(
     val isAuthenticating = driveState.authState is AuthState.Authenticating
 
     SettingsSection(title = strings.cloudSync) {
+        CloudStatusChips(
+            driveState = driveState,
+            driveEvent = driveEvent,
+            cloudConflictPending = cloudConflictPending,
+        )
+
         AnimatedVisibility(visible = !isAuthenticated) {
             SettingsButton(
                 label = if (isAuthenticating) strings.syncing else strings.connectDrive,
@@ -318,12 +427,7 @@ private fun CloudSyncSection(
                 SettingsRow(
                     label = strings.driveConnected.format(email),
                     description = if (driveState.lastSyncAt > 0L) {
-                        val instant = Instant.fromEpochMilliseconds(driveState.lastSyncAt)
-                        val local = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-                        strings.lastSync.format("%02d/%02d/%d %02d:%02d".format(
-                            local.dayOfMonth, local.monthNumber, local.year,
-                            local.hour, local.minute,
-                        ))
+                        strings.lastSync.format(formatDateTime(driveState.lastSyncAt))
                     } else null,
                 ) {
                     TextButton(onClick = onDisconnect) {
@@ -354,6 +458,86 @@ private fun CloudSyncSection(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CloudStatusChips(
+    driveState: DriveUiState,
+    driveEvent: DriveEvent,
+    cloudConflictPending: Boolean,
+) {
+    val strings = LocalStrings.current
+    val authLabel = when (val auth = driveState.authState) {
+        is AuthState.Authenticated -> strings.cloudStatusConnected
+        AuthState.Authenticating -> strings.cloudStatusConnecting
+        AuthState.Unauthenticated -> strings.cloudStatusDisconnected
+    }
+    val authDescription = (driveState.authState as? AuthState.Authenticated)?.email
+    val syncLabel = when (driveEvent) {
+        DriveEvent.Uploading -> strings.cloudStatusUploading
+        DriveEvent.Downloading -> strings.cloudStatusDownloading
+        is DriveEvent.RestorePrompt -> strings.cloudStatusConflict
+        else -> if (cloudConflictPending) strings.cloudStatusConflict else strings.cloudStatusReady
+    }
+    val syncColor = when {
+        cloudConflictPending || driveEvent is DriveEvent.RestorePrompt -> Negative
+        driveEvent == DriveEvent.Uploading || driveEvent == DriveEvent.Downloading -> Accent
+        else -> Positive
+    }
+    val lastSync = if (driveState.lastSyncAt > 0L) {
+        strings.lastSync.format(formatDateTime(driveState.lastSyncAt))
+    } else {
+        strings.lastSyncNever
+    }
+
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            CloudStatusChip(
+                label = authDescription ?: authLabel,
+                accent = if (driveState.authState is AuthState.Authenticated) Positive else MaterialTheme.joyufyColors.contentSecondary,
+                container = if (driveState.authState is AuthState.Authenticated) PositiveDim else MaterialTheme.colorScheme.surfaceVariant,
+            )
+            CloudStatusChip(
+                label = syncLabel,
+                accent = syncColor,
+                container = syncColor.copy(alpha = 0.12f),
+            )
+            CloudStatusChip(
+                label = if (driveState.autoSync) strings.autoSync else strings.manualSync,
+                accent = if (driveState.autoSync) Accent else MaterialTheme.joyufyColors.contentSecondary,
+                container = if (driveState.autoSync) Accent.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant,
+            )
+        }
+        Text(
+            text = lastSync,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+        )
+    }
+}
+
+@Composable
+private fun CloudStatusChip(
+    label: String,
+    accent: androidx.compose.ui.graphics.Color,
+    container: androidx.compose.ui.graphics.Color,
+) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        color = accent,
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(container)
+            .padding(horizontal = 9.dp, vertical = 5.dp),
+    )
+}
+
 // ── Section container ──────────────────────────────────────────────────────
 
 @Composable
@@ -374,6 +558,37 @@ private fun SettingsSection(
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surface),
         ) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun DangerZoneSection(
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val strings = LocalStrings.current
+    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        Text(
+            text = strings.dangerZone,
+            style = MaterialTheme.typography.labelMedium,
+            color = Negative,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .background(NegativeDim)
+                .border(1.dp, Negative.copy(alpha = 0.35f), MaterialTheme.shapes.medium),
+        ) {
+            Text(
+                text = strings.dangerZoneDescription,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+            HorizontalDivider(color = Negative.copy(alpha = 0.18f), modifier = Modifier.padding(horizontal = 16.dp))
             content()
         }
     }
@@ -473,3 +688,14 @@ private fun AccountSettingsRow(
     }
 }
 
+private fun formatDateTime(epochMillis: Long): String {
+    val instant = Instant.fromEpochMilliseconds(epochMillis)
+    val local = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+    return "%02d/%02d/%d %02d:%02d".format(
+        local.dayOfMonth,
+        local.monthNumber,
+        local.year,
+        local.hour,
+        local.minute,
+    )
+}

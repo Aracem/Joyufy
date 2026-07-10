@@ -8,24 +8,42 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.aracem.joyufy.data.cloud.AuthState
 import com.aracem.joyufy.data.repository.BackupDiff
 import com.aracem.joyufy.data.repository.PreferencesRepository
@@ -38,10 +56,13 @@ import com.aracem.joyufy.ui.account.CreateAccountDialog
 import com.aracem.joyufy.ui.backup.BackupEvent
 import com.aracem.joyufy.ui.backup.BackupViewModel
 import com.aracem.joyufy.ui.components.Sidebar
+import com.aracem.joyufy.ui.dashboard.AccountSummary
 import com.aracem.joyufy.ui.dashboard.DashboardScreen
 import com.aracem.joyufy.ui.dashboard.DashboardViewModel
 import com.aracem.joyufy.ui.drive.DriveEvent
 import com.aracem.joyufy.ui.drive.DriveViewModel
+import com.aracem.joyufy.ui.ledger.TransactionLedgerScreen
+import com.aracem.joyufy.ui.navigation.LedgerInitialFilter
 import com.aracem.joyufy.ui.navigation.Screen
 import com.aracem.joyufy.ui.settings.SettingsScreen
 import com.aracem.joyufy.ui.theme.JoyufyTheme
@@ -50,6 +71,7 @@ import com.aracem.joyufy.ui.theme.joyufyColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 
 @Composable
@@ -65,8 +87,49 @@ fun App() {
 
     CompositionLocalProvider(LocalStrings provides strings) {
     JoyufyTheme(darkMode = darkMode) {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
+        var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
+        var showCommandPalette by remember { mutableStateOf(false) }
+        var accountLaunchRequestId by remember { mutableStateOf(0L) }
+        fun nextAccountLaunchRequestId(): Long {
+            accountLaunchRequestId += 1
+            return accountLaunchRequestId
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .onPreviewKeyEvent { event ->
+                    handleAppShortcut(
+                        event = event,
+                        currentScreen = currentScreen,
+                        onOpenCommandPalette = { showCommandPalette = true },
+                        onOpenDashboard = { currentScreen = Screen.Dashboard },
+                        onOpenLedger = { currentScreen = Screen.Ledger() },
+                        onOpenSettings = { currentScreen = Screen.Settings },
+                        onOpenTransaction = { accountId ->
+                            currentScreen = Screen.AccountDetail(
+                                accountId = accountId,
+                                openTransactionDialog = true,
+                                launchRequestId = nextAccountLaunchRequestId(),
+                            )
+                        },
+                        onOpenSnapshot = { accountId ->
+                            currentScreen = Screen.AccountDetail(
+                                accountId = accountId,
+                                openSnapshotDialog = true,
+                                launchRequestId = nextAccountLaunchRequestId(),
+                            )
+                        },
+                        onFocusSearch = { accountId ->
+                            currentScreen = Screen.AccountDetail(
+                                accountId = accountId,
+                                focusSearch = true,
+                                launchRequestId = nextAccountLaunchRequestId(),
+                            )
+                        },
+                    )
+                },
+        ) {
             var showCreateAccount by remember { mutableStateOf(false) }
             var createAccountInitialType by remember { mutableStateOf<AccountType?>(null) }
             val dashboardViewModel: DashboardViewModel = koinInject()
@@ -76,7 +139,7 @@ fun App() {
             val backupEvent by backupViewModel.event.collectAsState()
             val driveEvent by driveViewModel.event.collectAsState()
             val snackbarHostState = remember { SnackbarHostState() }
-            var showImportConfirm by remember { mutableStateOf<(() -> Unit)?>(null) }
+            var localImportPrompt by remember { mutableStateOf<Pair<BackupDiff, String>?>(null) }
             var cloudRestorePrompt by remember { mutableStateOf<Pair<BackupDiff, String>?>(null) }
             val isSyncingToCloud by driveViewModel.isSyncing.collectAsState()
 
@@ -123,58 +186,38 @@ fun App() {
                         }
                         backupViewModel.reset()
                     }
-                    is BackupEvent.ImportReady -> showImportConfirm = ev.onConfirm
+                    is BackupEvent.ImportPreview -> localImportPrompt = ev.diff to ev.rawJson
                     is BackupEvent.Success -> { snackbarHostState.showSnackbar(ev.message); backupViewModel.reset() }
                     is BackupEvent.Error -> { snackbarHostState.showSnackbar(ev.message); backupViewModel.reset() }
                     else -> {}
                 }
             }
 
-            if (showImportConfirm != null) {
+            localImportPrompt?.let { (diff, rawJson) ->
                 val s = LocalStrings.current
-                AlertDialog(
-                    onDismissRequest = { showImportConfirm = null; backupViewModel.reset() },
-                    title = { Text(s.confirmRestoreBackup) },
-                    text = { Text(s.confirmRestoreBackupText) },
-                    confirmButton = {
-                        Button(
-                            onClick = { showImportConfirm?.invoke(); showImportConfirm = null },
-                            colors = ButtonDefaults.buttonColors(containerColor = Negative),
-                        ) { Text(s.restore) }
+                LocalImportPreviewDialog(
+                    diff = diff,
+                    s = s,
+                    onDismiss = {
+                        localImportPrompt = null
+                        backupViewModel.reset()
                     },
-                    dismissButton = {
-                        TextButton(onClick = { showImportConfirm = null; backupViewModel.reset() }) {
-                            Text(s.cancel)
-                        }
+                    onRestore = {
+                        backupViewModel.applyImport(rawJson)
+                        localImportPrompt = null
                     },
                 )
             }
 
             cloudRestorePrompt?.let { (diff, rawJson) ->
                 val s = LocalStrings.current
-                AlertDialog(
-                    onDismissRequest = { cloudRestorePrompt = null },
-                    title = { Text(s.cloudDiffTitle) },
-                    text = {
-                        Column {
-                            Text(s.cloudDiffSubtitle, style = MaterialTheme.typography.bodyMedium)
-                            Spacer(Modifier.height(12.dp))
-                            DiffRow(s.cloudDiffAccounts, diff.accountsAdded, diff.accountsRemoved, diff.accountsModified, s)
-                            DiffRow(s.cloudDiffTransactions, diff.transactionsAdded, diff.transactionsRemoved, diff.transactionsModified, s)
-                            DiffRow(s.cloudDiffSnapshots, diff.snapshotsAdded, diff.snapshotsRemoved, diff.snapshotsModified, s)
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                driveViewModel.applyCloudBackup(rawJson)
-                                cloudRestorePrompt = null
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Negative),
-                        ) { Text(s.useCloud) }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { cloudRestorePrompt = null }) { Text(s.keepLocal) }
+                CloudRestoreDiffDialog(
+                    diff = diff,
+                    s = s,
+                    onDismiss = { cloudRestorePrompt = null },
+                    onUseCloud = {
+                        driveViewModel.applyCloudBackup(rawJson)
+                        cloudRestorePrompt = null
                     },
                 )
             }
@@ -196,6 +239,13 @@ fun App() {
                         showCreateAccount = true
                     },
                     onAccountClick = { account -> currentScreen = Screen.AccountDetail(account.id) },
+                    onQuickAdd = { account ->
+                        currentScreen = Screen.AccountDetail(
+                            accountId = account.id,
+                            openTransactionDialog = true,
+                            launchRequestId = nextAccountLaunchRequestId(),
+                        )
+                    },
                     onReorderAccounts = dashboardViewModel::reorderAccounts,
                     darkMode = darkMode,
                     onToggleTheme = { darkMode = !darkMode; prefsRepo.setDarkMode(darkMode) },
@@ -234,17 +284,27 @@ fun App() {
                                 createAccountInitialType = type
                                 showCreateAccount = true
                             },
+                            onReviewUncategorized = {
+                                currentScreen = Screen.Ledger(LedgerInitialFilter.UNCATEGORIZED)
+                            },
                             onUpdateMissingSnapshot = { account ->
                                 currentScreen = Screen.AccountDetail(
                                     accountId = account.id,
                                     openSnapshotDialog = true,
+                                    launchRequestId = nextAccountLaunchRequestId(),
                                 )
                             },
                         )
                         is Screen.AccountDetail -> AccountDetailScreen(
                             accountId = screen.accountId,
                             openSnapshotDialog = screen.openSnapshotDialog,
+                            openTransactionDialog = screen.openTransactionDialog,
+                            focusSearch = screen.focusSearch,
+                            launchRequestId = screen.launchRequestId,
                             onBack = { currentScreen = Screen.Dashboard },
+                        )
+                        is Screen.Ledger -> TransactionLedgerScreen(
+                            initialFilter = screen.initialFilter,
                         )
                         is Screen.Settings -> SettingsScreen(
                             darkMode = darkMode,
@@ -258,11 +318,80 @@ fun App() {
                                     if (json != null) backupViewModel.importFromJson(json)
                                 }
                             },
+                            cloudConflictPending = cloudRestorePrompt != null,
                         )
                     }
                 }
             }
             } // end Scaffold
+
+            if (showCommandPalette) {
+                CommandPalette(
+                    accounts = dashboardState.accountSummaries,
+                    currentScreen = currentScreen,
+                    onDismiss = { showCommandPalette = false },
+                    onOpenDashboard = {
+                        currentScreen = Screen.Dashboard
+                        showCommandPalette = false
+                    },
+                    onOpenLedger = {
+                        currentScreen = Screen.Ledger()
+                        showCommandPalette = false
+                    },
+                    onReviewUncategorized = {
+                        currentScreen = Screen.Ledger(LedgerInitialFilter.UNCATEGORIZED)
+                        showCommandPalette = false
+                    },
+                    onOpenSettings = {
+                        currentScreen = Screen.Settings
+                        showCommandPalette = false
+                    },
+                    onCreateAccount = { type ->
+                        createAccountInitialType = type
+                        showCreateAccount = true
+                        showCommandPalette = false
+                    },
+                    onExport = {
+                        backupViewModel.requestExport()
+                        showCommandPalette = false
+                    },
+                    onImport = {
+                        scope.launch {
+                            val json = withContext(Dispatchers.IO) { showOpenFileDialog() }
+                            if (json != null) backupViewModel.importFromJson(json)
+                        }
+                        showCommandPalette = false
+                    },
+                    onOpenAccount = { accountId ->
+                        currentScreen = Screen.AccountDetail(accountId)
+                        showCommandPalette = false
+                    },
+                    onOpenTransaction = { accountId ->
+                        currentScreen = Screen.AccountDetail(
+                            accountId = accountId,
+                            openTransactionDialog = true,
+                            launchRequestId = nextAccountLaunchRequestId(),
+                        )
+                        showCommandPalette = false
+                    },
+                    onOpenSnapshot = { accountId ->
+                        currentScreen = Screen.AccountDetail(
+                            accountId = accountId,
+                            openSnapshotDialog = true,
+                            launchRequestId = nextAccountLaunchRequestId(),
+                        )
+                        showCommandPalette = false
+                    },
+                    onFocusSearch = { accountId ->
+                        currentScreen = Screen.AccountDetail(
+                            accountId = accountId,
+                            focusSearch = true,
+                            launchRequestId = nextAccountLaunchRequestId(),
+                        )
+                        showCommandPalette = false
+                    },
+                )
+            }
 
             if (showCreateAccount) {
                 CreateAccountDialog(
@@ -320,34 +449,382 @@ fun App() {
     } // end CompositionLocalProvider
 }
 
+private data class CommandPaletteItem(
+    val title: String,
+    val subtitle: String? = null,
+    val keywords: String = title,
+    val onClick: () -> Unit,
+)
+
 @Composable
-private fun DiffRow(
+private fun CommandPalette(
+    accounts: List<AccountSummary>,
+    currentScreen: Screen,
+    onDismiss: () -> Unit,
+    onOpenDashboard: () -> Unit,
+    onOpenLedger: () -> Unit,
+    onReviewUncategorized: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onCreateAccount: (AccountType) -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    onOpenAccount: (Long) -> Unit,
+    onOpenTransaction: (Long) -> Unit,
+    onOpenSnapshot: (Long) -> Unit,
+    onFocusSearch: (Long) -> Unit,
+) {
+    val strings = LocalStrings.current
+    var query by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val currentAccountId = (currentScreen as? Screen.AccountDetail)?.accountId
+    val currentAccount = accounts.firstOrNull { it.account.id == currentAccountId }?.account
+    val actions = buildList {
+        add(CommandPaletteItem(strings.sidebarDashboard, onClick = onOpenDashboard))
+        add(CommandPaletteItem(strings.sidebarTransactions, subtitle = strings.data, onClick = onOpenLedger))
+        add(CommandPaletteItem(strings.commandReviewUncategorized, subtitle = strings.transactionLedger, onClick = onReviewUncategorized))
+        add(CommandPaletteItem(strings.sidebarSettings, onClick = onOpenSettings))
+        add(CommandPaletteItem(strings.createBankAccount, subtitle = strings.newAccount, onClick = { onCreateAccount(AccountType.BANK) }))
+        add(CommandPaletteItem(strings.createInvestmentAccount, subtitle = strings.newAccount, onClick = { onCreateAccount(AccountType.INVESTMENT) }))
+        add(CommandPaletteItem(strings.createCashAccount, subtitle = strings.newAccount, onClick = { onCreateAccount(AccountType.CASH) }))
+        add(CommandPaletteItem(strings.exportBackup, subtitle = strings.data, onClick = onExport))
+        add(CommandPaletteItem(strings.importBackup, subtitle = strings.data, onClick = onImport))
+        if (currentAccount != null) {
+            add(
+                CommandPaletteItem(
+                    title = strings.commandNewTransaction,
+                    subtitle = currentAccount.name,
+                    keywords = "${strings.commandNewTransaction} ${strings.addTransaction} ${currentAccount.name}",
+                    onClick = { onOpenTransaction(currentAccount.id) },
+                ),
+            )
+            add(
+                CommandPaletteItem(
+                    title = strings.commandFocusSearch,
+                    subtitle = currentAccount.name,
+                    keywords = "${strings.commandFocusSearch} ${strings.searchDescriptionCategory} ${currentAccount.name}",
+                    onClick = { onFocusSearch(currentAccount.id) },
+                ),
+            )
+            if (currentAccount.type == AccountType.INVESTMENT) {
+                add(
+                    CommandPaletteItem(
+                        title = strings.commandUpdateSnapshot,
+                        subtitle = currentAccount.name,
+                        keywords = "${strings.commandUpdateSnapshot} ${strings.updateValue} ${currentAccount.name}",
+                        onClick = { onOpenSnapshot(currentAccount.id) },
+                    ),
+                )
+            }
+        }
+        accounts.forEach { summary ->
+            add(
+                CommandPaletteItem(
+                    title = strings.commandOpenAccount.format(summary.account.name),
+                    subtitle = when (summary.account.type) {
+                        AccountType.BANK -> strings.accountTypeBank
+                        AccountType.INVESTMENT -> strings.accountTypeInvestment
+                        AccountType.CASH -> strings.accountTypeCash
+                    },
+                    keywords = summary.account.name,
+                    onClick = { onOpenAccount(summary.account.id) },
+                ),
+            )
+        }
+    }
+    val filtered = remember(query, actions) {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) {
+            actions
+        } else {
+            actions.filter { item ->
+                item.title.lowercase().contains(q) ||
+                    item.subtitle?.lowercase()?.contains(q) == true ||
+                    item.keywords.lowercase().contains(q)
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.width(620.dp),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp,
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    text = strings.commandPalette,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text(strings.commandPalettePlaceholder) },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.joyufyColors.border,
+                    ),
+                )
+                Spacer(Modifier.height(12.dp))
+                if (filtered.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = strings.commandPaletteNoResults,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.joyufyColors.contentSecondary,
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        items(filtered, key = { it.title + (it.subtitle ?: "") }) { item ->
+                            CommandPaletteRow(item = item)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommandPaletteRow(item: CommandPaletteItem) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = item.onClick)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        item.subtitle?.let { subtitle ->
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+private fun handleAppShortcut(
+    event: KeyEvent,
+    currentScreen: Screen,
+    onOpenCommandPalette: () -> Unit,
+    onOpenDashboard: () -> Unit,
+    onOpenLedger: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenTransaction: (Long) -> Unit,
+    onOpenSnapshot: (Long) -> Unit,
+    onFocusSearch: (Long) -> Unit,
+): Boolean {
+    if (event.type != KeyEventType.KeyDown || (!event.isMetaPressed && !event.isCtrlPressed)) return false
+    return when (event.key) {
+        Key.One -> {
+            onOpenDashboard()
+            true
+        }
+        Key.Two -> {
+            onOpenLedger()
+            true
+        }
+        Key.Comma -> {
+            onOpenSettings()
+            true
+        }
+        Key.K -> {
+            onOpenCommandPalette()
+            true
+        }
+        Key.N -> {
+            val screen = currentScreen as? Screen.AccountDetail ?: return false
+            onOpenTransaction(screen.accountId)
+            true
+        }
+        Key.U -> {
+            val screen = currentScreen as? Screen.AccountDetail ?: return false
+            onOpenSnapshot(screen.accountId)
+            true
+        }
+        Key.F -> {
+            val screen = currentScreen as? Screen.AccountDetail ?: return false
+            onFocusSearch(screen.accountId)
+            true
+        }
+        else -> false
+    }
+}
+
+@Composable
+private fun LocalImportPreviewDialog(
+    diff: BackupDiff,
+    s: com.aracem.joyufy.ui.strings.Strings,
+    onDismiss: () -> Unit,
+    onRestore: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(s.importPreviewTitle) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(s.importPreviewSubtitle, style = MaterialTheme.typography.bodyMedium)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = s.importPreviewBackupTimestamp.format(formatDateTime(diff.cloudExportedAt)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = if (diff.hasChanges) s.localDataCurrent else s.importPreviewNoChanges,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                }
+                CloudDiffTableHeader(s)
+                CloudDiffTableRow(s.cloudDiffAccounts, diff.accountsAdded, diff.accountsRemoved, diff.accountsModified)
+                CloudDiffTableRow(s.cloudDiffTransactions, diff.transactionsAdded, diff.transactionsRemoved, diff.transactionsModified)
+                CloudDiffTableRow(s.cloudDiffSnapshots, diff.snapshotsAdded, diff.snapshotsRemoved, diff.snapshotsModified)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onRestore,
+                colors = ButtonDefaults.buttonColors(containerColor = Negative),
+            ) { Text(s.importPreviewRestore) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(s.cancel) }
+        },
+    )
+}
+
+@Composable
+private fun CloudRestoreDiffDialog(
+    diff: BackupDiff,
+    s: com.aracem.joyufy.ui.strings.Strings,
+    onDismiss: () -> Unit,
+    onUseCloud: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(s.cloudDiffTitle) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(s.cloudDiffSubtitle, style = MaterialTheme.typography.bodyMedium)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = s.cloudBackupTimestamp.format(formatDateTime(diff.cloudExportedAt)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = s.localDataCurrent,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.joyufyColors.contentSecondary,
+                    )
+                }
+                CloudDiffTableHeader(s)
+                CloudDiffTableRow(s.cloudDiffAccounts, diff.accountsAdded, diff.accountsRemoved, diff.accountsModified)
+                CloudDiffTableRow(s.cloudDiffTransactions, diff.transactionsAdded, diff.transactionsRemoved, diff.transactionsModified)
+                CloudDiffTableRow(s.cloudDiffSnapshots, diff.snapshotsAdded, diff.snapshotsRemoved, diff.snapshotsModified)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onUseCloud,
+                colors = ButtonDefaults.buttonColors(containerColor = Negative),
+            ) { Text(s.useCloud) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(s.keepLocal) }
+        },
+    )
+}
+
+@Composable
+private fun CloudDiffTableHeader(s: com.aracem.joyufy.ui.strings.Strings) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = s.cloudDiffEntity,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+            modifier = Modifier.weight(1f),
+        )
+        Text(s.cloudDiffAdded, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.joyufyColors.contentSecondary, modifier = Modifier.width(70.dp))
+        Text(s.cloudDiffRemoved, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.joyufyColors.contentSecondary, modifier = Modifier.width(78.dp))
+        Text(s.cloudDiffModified, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.joyufyColors.contentSecondary, modifier = Modifier.width(78.dp))
+    }
+}
+
+@Composable
+private fun CloudDiffTableRow(
     label: String,
     added: Int,
     removed: Int,
     modified: Int,
-    s: com.aracem.joyufy.ui.strings.Strings,
 ) {
-    if (added == 0 && removed == 0 && modified == 0) return
-    Row(
-        modifier = Modifier.padding(vertical = 3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(end = 12.dp),
-        )
-        val parts = buildList {
-            if (added > 0) add("+$added ${s.cloudDiffAdded}")
-            if (removed > 0) add("-$removed ${s.cloudDiffRemoved}")
-            if (modified > 0) add("~$modified ${s.cloudDiffModified}")
-        }
-        Text(
-            text = parts.joinToString("  ·  "),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.joyufyColors.contentSecondary,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
         )
+        Text("+$added", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(70.dp))
+        Text("-$removed", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(78.dp))
+        Text("~$modified", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(78.dp))
     }
+}
+
+private fun formatDateTime(epochMillis: Long): String {
+    val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(epochMillis)
+    val local = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+    return "%02d/%02d/%d %02d:%02d".format(
+        local.dayOfMonth,
+        local.monthNumber,
+        local.year,
+        local.hour,
+        local.minute,
+    )
 }

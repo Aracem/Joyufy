@@ -14,6 +14,7 @@ import com.aracem.joyufy.ui.account.CreateAccountViewModel
 import com.aracem.joyufy.ui.backup.BackupViewModel
 import com.aracem.joyufy.ui.dashboard.DashboardViewModel
 import com.aracem.joyufy.ui.drive.DriveViewModel
+import com.aracem.joyufy.ui.ledger.TransactionLedgerViewModel
 import com.aracem.joyufy.ui.settings.SettingsViewModel
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
@@ -34,6 +35,7 @@ val viewModelModule = module {
     factory { DashboardViewModel(get(), get(), get(), get(), get()) }
     factory { CreateAccountViewModel(get(), get(), get()) }
     factory { (accountId: Long) -> AccountDetailViewModel(accountId, get(), get(), get()) }
+    factory { TransactionLedgerViewModel(get(), get(), get()) }
     factory { BackupViewModel(get()) }
     factory { SettingsViewModel(get(), get(), get()) }
     single { DriveViewModel(get(), get(), get()) }

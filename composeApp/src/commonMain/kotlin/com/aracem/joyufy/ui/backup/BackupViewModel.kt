@@ -1,6 +1,7 @@
 package com.aracem.joyufy.ui.backup
 
 import com.aracem.joyufy.data.repository.BackupRepository
+import com.aracem.joyufy.data.repository.BackupDiff
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -15,6 +16,7 @@ sealed interface BackupEvent {
     data object Importing : BackupEvent
     data class ExportReady(val json: String) : BackupEvent   // ready to show file picker
     data class ImportReady(val onConfirm: () -> Unit) : BackupEvent  // ready to show confirm dialog
+    data class ImportPreview(val diff: BackupDiff, val rawJson: String) : BackupEvent
     data class Success(val message: String) : BackupEvent
     data class Error(val message: String) : BackupEvent
 }
@@ -35,13 +37,20 @@ class BackupViewModel(private val backupRepository: BackupRepository) {
     }
 
     fun importFromJson(json: String) {
-        _event.value = BackupEvent.ImportReady {
-            scope.launch {
-                _event.value = BackupEvent.Importing
-                runCatching { backupRepository.import(json) }
-                    .onSuccess { _event.value = BackupEvent.Success("Datos restaurados correctamente") }
-                    .onFailure { _event.value = BackupEvent.Error("Error al importar: ${it.message}") }
-            }
+        _event.value = BackupEvent.Importing
+        scope.launch {
+            runCatching { backupRepository.diffAgainstLocal(json) }
+                .onSuccess { diff -> _event.value = BackupEvent.ImportPreview(diff, json) }
+                .onFailure { _event.value = BackupEvent.Error("Error al importar: ${it.message}") }
+        }
+    }
+
+    fun applyImport(json: String) {
+        _event.value = BackupEvent.Importing
+        scope.launch {
+            runCatching { backupRepository.import(json) }
+                .onSuccess { _event.value = BackupEvent.Success("Datos restaurados correctamente") }
+                .onFailure { _event.value = BackupEvent.Error("Error al importar: ${it.message}") }
         }
     }
 

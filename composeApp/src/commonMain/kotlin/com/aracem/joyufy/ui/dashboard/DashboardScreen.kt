@@ -59,6 +59,7 @@ fun DashboardScreen(
     onImport: () -> Unit,
     onCreateAccount: (AccountType) -> Unit,
     onUpdateMissingSnapshot: (Account) -> Unit,
+    onReviewUncategorized: () -> Unit,
     viewModel: DashboardViewModel = koinInject(),
 ) {
     val strings = LocalStrings.current
@@ -182,6 +183,12 @@ fun DashboardScreen(
             }
         }
 
+        state.periodComparison?.let { comparison ->
+            item {
+                PeriodComparisonCard(comparison = comparison)
+            }
+        }
+
         // Gráfica
         item {
             WealthChartCard(
@@ -210,6 +217,22 @@ fun DashboardScreen(
                     onToggleExpanded = { viewModel.setAnalysisExpanded(!state.analysisExpanded) },
                     onPreviousYear = { viewModel.navigateAnalysisYear(-1) },
                     onNextYear = { viewModel.navigateAnalysisYear(+1) },
+                )
+            }
+        }
+
+        val pendingSnapshotCount = state.missingSnapshotTasks.size
+        val negativeBalanceCount = state.accountSummaries.count { it.balance < 0.0 }
+        if (state.uncategorizedTransactionCount > 0 || pendingSnapshotCount > 0 || negativeBalanceCount > 0) {
+            item {
+                NeedsReviewRow(
+                    uncategorizedCount = state.uncategorizedTransactionCount,
+                    pendingSnapshots = pendingSnapshotCount,
+                    negativeBalances = negativeBalanceCount,
+                    onUncategorizedClick = onReviewUncategorized,
+                    onPendingSnapshotsClick = {
+                        state.missingSnapshotTasks.firstOrNull()?.account?.let(onUpdateMissingSnapshot)
+                    },
                 )
             }
         }
@@ -276,6 +299,193 @@ fun DashboardScreen(
         ConfettiOverlay(modifier = Modifier.matchParentSize())
     }
     } // end Box
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NeedsReviewRow(
+    uncategorizedCount: Int,
+    pendingSnapshots: Int,
+    negativeBalances: Int,
+    onUncategorizedClick: () -> Unit,
+    onPendingSnapshotsClick: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = strings.dashboardActions,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+        )
+        Spacer(Modifier.width(10.dp))
+        FlowRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (uncategorizedCount > 0) {
+                ReviewPill(
+                    label = strings.uncategorized,
+                    value = uncategorizedCount,
+                    color = Accent,
+                    onClick = onUncategorizedClick,
+                )
+            }
+            if (pendingSnapshots > 0) {
+                ReviewPill(
+                    label = strings.pendingSnapshots,
+                    value = pendingSnapshots,
+                    color = Accent,
+                    onClick = onPendingSnapshotsClick,
+                )
+            }
+            if (negativeBalances > 0) {
+                ReviewPill(
+                    label = strings.negativeBalances,
+                    value = negativeBalances,
+                    color = Negative,
+                    onClick = null,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewPill(
+    label: String,
+    value: Int,
+    color: Color,
+    onClick: (() -> Unit)?,
+) {
+    val clickModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    Row(
+        modifier = clickModifier
+            .clip(MaterialTheme.shapes.small)
+            .background(color.copy(alpha = 0.11f))
+            .padding(horizontal = 9.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = value.toString(),
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+        )
+    }
+}
+
+@Composable
+private fun PeriodComparisonCard(
+    comparison: PeriodComparison,
+) {
+    val strings = LocalStrings.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = strings.periodComparison,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = strings.vsPreviousMonth,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ComparisonMetric(
+                label = strings.income,
+                current = comparison.currentMonth.income,
+                previous = comparison.previousMonth.income,
+                positiveIsGood = true,
+                modifier = Modifier.weight(1f),
+            )
+            ComparisonMetric(
+                label = strings.expenses,
+                current = comparison.currentMonth.expenses,
+                previous = comparison.previousMonth.expenses,
+                positiveIsGood = false,
+                modifier = Modifier.weight(1f),
+            )
+            ComparisonMetric(
+                label = strings.investment,
+                current = comparison.currentMonth.investmentDelta,
+                previous = comparison.previousMonth.investmentDelta,
+                positiveIsGood = true,
+                modifier = Modifier.weight(1f),
+            )
+            ComparisonMetric(
+                label = strings.net,
+                current = comparison.currentMonth.net,
+                previous = comparison.previousMonth.net,
+                positiveIsGood = true,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ComparisonMetric(
+    label: String,
+    current: Double,
+    previous: Double,
+    positiveIsGood: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val delta = current - previous
+    val color = when {
+        delta == 0.0 -> MaterialTheme.joyufyColors.contentSecondary
+        (delta > 0) == positiveIsGood -> Positive
+        else -> Negative
+    }
+    val sign = if (delta >= 0.0) "+" else ""
+    Column(
+        modifier = modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = current.formatCurrency(),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = "$sign${delta.formatCurrency()}",
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+        )
+    }
 }
 
 @Composable

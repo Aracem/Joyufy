@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
@@ -33,6 +34,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
@@ -43,6 +47,7 @@ import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.components.MILLIS_IN_DAY
 import com.aracem.joyufy.ui.components.SingleAccountChart
+import com.aracem.joyufy.ui.components.TooltipIconButton
 import com.aracem.joyufy.ui.components.formatCurrency
 import com.aracem.joyufy.ui.components.formatPercent
 import com.aracem.joyufy.ui.components.parseDateInputToMillis
@@ -56,6 +61,9 @@ import com.aracem.joyufy.ui.theme.Positive
 import com.aracem.joyufy.ui.theme.joyufyColors
 import com.aracem.joyufy.ui.components.formatDate
 import com.aracem.joyufy.ui.components.formatWeekRange
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
@@ -64,6 +72,9 @@ import org.koin.core.parameter.parametersOf
 fun AccountDetailScreen(
     accountId: Long,
     openSnapshotDialog: Boolean = false,
+    openTransactionDialog: Boolean = false,
+    focusSearch: Boolean = false,
+    launchRequestId: Long = 0L,
     onBack: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -87,6 +98,7 @@ fun AccountDetailScreen(
     var filterAmountMin by remember { mutableStateOf("") }
     var filterAmountMax by remember { mutableStateOf("") }
     var transfersOnly by remember { mutableStateOf(false) }
+    val searchFocusRequester = remember { FocusRequester() }
 
     val availableCategories = remember(state.transactions) {
         state.transactions
@@ -157,6 +169,12 @@ fun AccountDetailScreen(
     ) {
         state.transactions.filter(::transactionMatchesFilters)
     }
+    val runningBalanceByTransactionId = remember(state.transactions) {
+        buildRunningBalanceByTransactionId(state.transactions)
+    }
+    val filteredTransactionGroups = remember(filteredTransactions) {
+        buildTransactionMonthGroups(filteredTransactions)
+    }
 
     val filteredInvestmentFeed = remember(
         state.investmentFeed,
@@ -192,9 +210,17 @@ fun AccountDetailScreen(
 
     val account = state.account ?: return
 
-    LaunchedEffect(account.id, openSnapshotDialog) {
+    LaunchedEffect(account.id, launchRequestId) {
         if (openSnapshotDialog && account.type == AccountType.INVESTMENT) {
             showAddSnapshot = true
+        }
+        if (openTransactionDialog) {
+            showAddTransaction = true
+        }
+        if (focusSearch) {
+            if (state.transactions.isNotEmpty()) {
+                searchFocusRequester.requestFocus()
+            }
         }
     }
 
@@ -258,6 +284,7 @@ fun AccountDetailScreen(
                 item {
                     TransactionFilterBar(
                         searchQuery = searchQuery,
+                        searchFocusRequester = searchFocusRequester,
                         onSearchChange = { searchQuery = it },
                         filterType = filterType,
                         onTypeChange = { filterType = if (filterType == it) null else it },
@@ -331,6 +358,7 @@ fun AccountDetailScreen(
                 item {
                     TransactionFilterBar(
                         searchQuery = searchQuery,
+                        searchFocusRequester = searchFocusRequester,
                         onSearchChange = { searchQuery = it },
                         filterType = filterType,
                         onTypeChange = { filterType = if (filterType == it) null else it },
@@ -356,13 +384,19 @@ fun AccountDetailScreen(
             } else if (filteredTransactions.isEmpty()) {
                 item { EmptyListHint(strings.noSearchResults, strings.noSearchResultsHint, Icons.Default.Search) }
             } else {
-                items(filteredTransactions, key = { it.id }) { tx ->
-                    TransactionRow(
-                        transaction = tx,
-                        allAccounts = state.allAccounts,
-                        onEdit = { editingTransaction = tx },
-                        onDelete = { confirmDeleteTxId = tx.id },
-                    )
+                filteredTransactionGroups.forEach { group ->
+                    stickyHeader {
+                        TransactionMonthHeader(group = group)
+                    }
+                    items(group.transactions, key = { it.id }) { tx ->
+                        TransactionRow(
+                            transaction = tx,
+                            allAccounts = state.allAccounts,
+                            runningBalance = runningBalanceByTransactionId[tx.id],
+                            onEdit = { editingTransaction = tx },
+                            onDelete = { confirmDeleteTxId = tx.id },
+                        )
+                    }
                 }
             }
         }
@@ -452,13 +486,14 @@ private fun AccountDetailStickyHeader(
     ) {
         Column(modifier = Modifier.padding(bottom = 6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = strings.goBack,
-                        tint = MaterialTheme.joyufyColors.contentSecondary,
-                    )
-                }
+                TooltipIconButton(
+                    label = strings.goBack,
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    onClick = onBack,
+                    tint = MaterialTheme.joyufyColors.contentSecondary,
+                    modifier = Modifier.size(40.dp),
+                    iconSize = 20.dp,
+                )
                 Spacer(Modifier.width(4.dp))
                 if (account.logoUrl != null) {
                     AccountLogo(logoUrl = account.logoUrl, size = 32.dp, bgColor = account.color.copy(alpha = 0.25f))
@@ -483,14 +518,13 @@ private fun AccountDetailStickyHeader(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(onClick = onEditAccount, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = strings.editAccount,
-                            tint = MaterialTheme.joyufyColors.contentSecondary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
+                    TooltipIconButton(
+                        label = strings.editAccount,
+                        icon = Icons.Default.Edit,
+                        onClick = onEditAccount,
+                        tint = MaterialTheme.joyufyColors.contentSecondary,
+                        modifier = Modifier.size(32.dp),
+                    )
                     if (account.type == AccountType.INVESTMENT) {
                         OutlinedButton(
                             onClick = onAddSnapshot,
@@ -571,17 +605,13 @@ private fun AccountHistoryCard(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(
+            TooltipIconButton(
+                label = strings.changeView,
+                icon = if (chartMode == ChartMode.AREA) Icons.AutoMirrored.Filled.List else Icons.Default.DateRange,
                 onClick = { chartMode = if (chartMode == ChartMode.AREA) ChartMode.BARS else ChartMode.AREA },
                 modifier = Modifier.size(32.dp),
-            ) {
-                Icon(
-                    imageVector = if (chartMode == ChartMode.AREA) Icons.AutoMirrored.Filled.List else Icons.Default.DateRange,
-                    contentDescription = strings.changeView,
-                    tint = MaterialTheme.joyufyColors.contentSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+                tint = MaterialTheme.joyufyColors.contentSecondary,
+            )
         }
         Spacer(Modifier.height(8.dp))
         ChartRangeSelector(selected = chartRange, onSelect = onRangeChange)
@@ -596,10 +626,104 @@ private fun AccountHistoryCard(
 
 // ── Subcomponents ─────────────────────────────────────────────────────────
 
+private data class TransactionMonthGroup(
+    val key: Int,
+    val label: String,
+    val income: Double,
+    val expenses: Double,
+    val net: Double,
+    val transactions: List<Transaction>,
+)
+
+private fun buildTransactionMonthGroups(transactions: List<Transaction>): List<TransactionMonthGroup> =
+    transactions
+        .groupBy { transactionMonthKey(it.date) }
+        .toSortedMap(compareByDescending { it })
+        .map { (key, monthTransactions) ->
+            val income = monthTransactions
+                .filter { it.type == TransactionType.INCOME }
+                .sumOf { it.amount }
+            val expenses = monthTransactions
+                .filter { it.type != TransactionType.INCOME }
+                .sumOf { it.amount }
+            TransactionMonthGroup(
+                key = key,
+                label = monthLabel(monthTransactions.first().date),
+                income = income,
+                expenses = expenses,
+                net = income - expenses,
+                transactions = monthTransactions.sortedWith(
+                    compareByDescending<Transaction> { it.date }.thenByDescending { it.id },
+                ),
+            )
+        }
+
+private fun buildRunningBalanceByTransactionId(transactions: List<Transaction>): Map<Long, Double> {
+    var balance = 0.0
+    return transactions
+        .sortedWith(compareBy<Transaction> { it.date }.thenBy { it.id })
+        .associate { tx ->
+            balance += tx.signedAmount()
+            tx.id to balance
+        }
+}
+
+private fun Transaction.signedAmount(): Double =
+    if (type == TransactionType.INCOME) amount else -amount
+
+private fun transactionMonthKey(epochMillis: Long): Int {
+    val local = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
+    return local.year * 100 + local.monthNumber
+}
+
+private fun monthLabel(epochMillis: Long): String {
+    val local = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
+    return "%02d/%04d".format(local.monthNumber, local.year)
+}
+
+@Composable
+private fun TransactionMonthHeader(group: TransactionMonthGroup) {
+    val strings = LocalStrings.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background,
+        shadowElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = group.label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = strings.monthSubtotal,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = group.net.formatCurrency(),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (group.net >= 0.0) Positive else Negative,
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TransactionFilterBar(
     searchQuery: String,
+    searchFocusRequester: FocusRequester,
     onSearchChange: (String) -> Unit,
     filterType: TransactionType?,
     onTypeChange: (TransactionType) -> Unit,
@@ -639,7 +763,7 @@ private fun TransactionFilterBar(
                 }
             },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Accent,
                 focusedLabelColor = Accent,
@@ -783,6 +907,7 @@ private fun CompactFilterField(
 private fun TransactionRow(
     transaction: Transaction,
     allAccounts: List<com.aracem.joyufy.domain.model.Account>,
+    runningBalance: Double? = null,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     indented: Boolean = false,
@@ -818,6 +943,11 @@ private fun TransactionRow(
             .background(
                 if (indented) MaterialTheme.colorScheme.surface
                 else MaterialTheme.colorScheme.surfaceVariant
+            )
+            .border(
+                width = 1.dp,
+                color = if (focused) Accent.copy(alpha = 0.55f) else Color.Transparent,
+                shape = MaterialTheme.shapes.medium,
             )
             .hoverable(interactionSource)
             .focusable(interactionSource = interactionSource)
@@ -858,11 +988,21 @@ private fun TransactionRow(
             )
         }
 
-        Text(
-            text = "$prefix${transaction.amount.formatCurrency()}",
-            style = MaterialTheme.typography.titleMedium,
-            color = amountColor,
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "$prefix${transaction.amount.formatCurrency()}",
+                style = MaterialTheme.typography.titleMedium,
+                color = amountColor,
+            )
+            if (runningBalance != null) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "${strings.runningBalance}: ${runningBalance.formatCurrency()}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
+            }
+        }
         RowActions(
             visible = actionsVisible,
             onEdit = onEdit,
@@ -887,6 +1027,11 @@ private fun SnapshotRow(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(
+                width = 1.dp,
+                color = if (focused) Accent.copy(alpha = 0.55f) else Color.Transparent,
+                shape = MaterialTheme.shapes.medium,
+            )
             .hoverable(interactionSource)
             .focusable(interactionSource = interactionSource)
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -932,22 +1077,22 @@ private fun RowActions(
             exit = fadeOut(tween(120)),
         ) {
             Row {
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = strings.edit,
-                        tint = MaterialTheme.joyufyColors.contentSecondary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = strings.delete,
-                        tint = MaterialTheme.joyufyColors.contentDisabled,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
+                TooltipIconButton(
+                    label = strings.edit,
+                    icon = Icons.Default.Edit,
+                    onClick = onEdit,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.joyufyColors.contentSecondary,
+                    iconSize = 16.dp,
+                )
+                TooltipIconButton(
+                    label = strings.delete,
+                    icon = Icons.Default.Delete,
+                    onClick = onDelete,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.joyufyColors.contentDisabled,
+                    iconSize = 16.dp,
+                )
             }
         }
     }

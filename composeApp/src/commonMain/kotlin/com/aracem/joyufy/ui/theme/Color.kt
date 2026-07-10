@@ -20,13 +20,13 @@ val Dark_ContentSecondary = Color(0xFF9A9A9A)
 val Dark_ContentDisabled = Color(0xFF4A4A4A)
 
 // ── Light palette ─────────────────────────────────────────────────────────
-val Light_Background = Color(0xFFF5F5F7)
+val Light_Background = Color(0xFFF7F8FB)
 val Light_SurfaceDefault = Color(0xFFFFFFFF)
-val Light_SurfaceRaised = Color(0xFFEEEEF2)
-val Light_Border = Color(0xFFDDDDE3)
+val Light_SurfaceRaised = Color(0xFFECEEF4)
+val Light_Border = Color(0xFFD3D7E2)
 val Light_ContentPrimary = Color(0xFF0F0F0F)
-val Light_ContentSecondary = Color(0xFF6B6B7A)
-val Light_ContentDisabled = Color(0xFFB0B0BC)
+val Light_ContentSecondary = Color(0xFF555B6D)
+val Light_ContentDisabled = Color(0xFF9DA4B4)
 
 // ── Account palette (mode-independent) ────────────────────────────────────
 val AccountPalette = listOf(

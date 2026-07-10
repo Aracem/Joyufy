@@ -4,13 +4,18 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
@@ -49,6 +54,7 @@ fun Sidebar(
     onScreenSelected: (Screen) -> Unit,
     onAddAccount: () -> Unit,
     onAccountClick: (Account) -> Unit,
+    onQuickAdd: (Account) -> Unit,
     onReorderAccounts: (fromIndex: Int, toIndex: Int) -> Unit,
     darkMode: Boolean,
     onToggleTheme: () -> Unit,
@@ -79,20 +85,16 @@ fun Sidebar(
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(
+            TooltipIconButton(
+                label = if (expanded) strings.sidebarCollapse else strings.sidebarExpand,
+                icon = Icons.Default.Menu,
                 onClick = {
                     expanded = !expanded
                     if (!expanded) reorderMode = false
                 },
                 modifier = Modifier.size(36.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = if (expanded) strings.sidebarCollapse else strings.sidebarExpand,
-                    tint = MaterialTheme.joyufyColors.contentSecondary,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+                tint = MaterialTheme.joyufyColors.contentSecondary,
+            )
             if (expanded) {
                 Spacer(Modifier.width(4.dp))
                 Text(
@@ -113,6 +115,13 @@ fun Sidebar(
             selected = currentScreen is Screen.Dashboard,
             expanded = expanded,
             onClick = { onScreenSelected(Screen.Dashboard) },
+        )
+        SidebarNavItem(
+            label = strings.sidebarTransactions,
+            icon = Icons.AutoMirrored.Filled.List,
+            selected = currentScreen is Screen.Ledger,
+            expanded = expanded,
+            onClick = { onScreenSelected(Screen.Ledger()) },
         )
 
         Spacer(Modifier.height(8.dp))
@@ -138,6 +147,7 @@ fun Sidebar(
                     isSelected = currentScreen is Screen.AccountDetail &&
                         currentScreen.accountId == summary.account.id,
                     onClick = { onAccountClick(summary.account) },
+                    onQuickAdd = { onQuickAdd(summary.account) },
                     onReorder = onReorderAccounts,
                 )
             }
@@ -177,35 +187,28 @@ fun Sidebar(
                         targetValue = if (reorderMode) 1f else 0f,
                         animationSpec = tween(150),
                     )
-                    IconButton(
+                    TooltipIconButton(
+                        label = if (reorderMode) strings.sidebarReorderExit else strings.sidebarReorderEnter,
+                        icon = Icons.Default.SwapVert,
                         onClick = { reorderMode = !reorderMode },
                         modifier = Modifier.size(32.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapVert,
-                            contentDescription = if (reorderMode) strings.sidebarReorderExit else strings.sidebarReorderEnter,
-                            tint = androidx.compose.ui.graphics.lerp(
-                                MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
-                                Accent,
-                                reorderTint,
-                            ),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
+                        tint = androidx.compose.ui.graphics.lerp(
+                            MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
+                            Accent,
+                            reorderTint,
+                        ),
+                        iconSize = 16.dp,
+                    )
                 }
             }
         } else {
-            IconButton(
+            TooltipIconButton(
+                label = strings.sidebarNewAccount,
+                icon = Icons.Default.Add,
                 onClick = onAddAccount,
                 modifier = Modifier.size(40.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = strings.sidebarNewAccount,
-                    tint = Accent,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+                tint = Accent,
+            )
         }
 
         // ── Bottom: theme + settings ──────────────────────────────────────
@@ -268,11 +271,15 @@ private fun SidebarAccountItem(
     itemCenterY: SnapshotStateMap<Long, Float>,
     isSelected: Boolean,
     onClick: () -> Unit,
+    onQuickAdd: () -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
 ) {
     val strings = LocalStrings.current
     var isDragging by remember { mutableStateOf(false) }
     var cursorY by remember { mutableStateOf(0f) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val showQuickAdd = expanded && isHovered && !reorderMode
     val account = summary.account
 
     Row(
@@ -286,6 +293,14 @@ private fun SidebarAccountItem(
                     else -> Color.Transparent
                 }
             )
+            .then(
+                if (isSelected) {
+                    Modifier.border(1.dp, Accent.copy(alpha = 0.35f), MaterialTheme.shapes.small)
+                } else {
+                    Modifier
+                }
+            )
+            .hoverable(interactionSource)
             .then(if (!reorderMode) Modifier.clickable(onClick = onClick) else Modifier)
             .onGloballyPositioned { coords ->
                 itemCenterY[account.id] = coords.positionInWindow().y + coords.size.height / 2f
@@ -295,10 +310,10 @@ private fun SidebarAccountItem(
         // Color bar
         Box(
             modifier = Modifier
-                .width(3.dp)
+                .width(if (isSelected) 5.dp else 3.dp)
                 .height(40.dp)
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
-                .background(account.color),
+                .background(if (isSelected) Accent else account.color),
         )
 
         Spacer(Modifier.width(if (expanded) 8.dp else 4.dp))
@@ -368,6 +383,21 @@ private fun SidebarAccountItem(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            Box(
+                modifier = Modifier.width(30.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (showQuickAdd) {
+                    TooltipIconButton(
+                        label = strings.sidebarQuickAdd,
+                        icon = Icons.Default.Add,
+                        onClick = onQuickAdd,
+                        modifier = Modifier.size(28.dp),
+                        tint = Accent,
+                        iconSize = 15.dp,
+                    )
+                }
+            }
         } else {
             Spacer(Modifier.width(4.dp))
         }
@@ -428,17 +458,14 @@ private fun SidebarNavItem(
             )
         }
     } else {
-        IconButton(
+        TooltipIconButton(
+            label = label,
+            icon = icon,
             onClick = onClick,
             modifier = Modifier.size(40.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = if (selected) Accent else MaterialTheme.joyufyColors.contentSecondary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+            tint = if (selected) Accent else MaterialTheme.joyufyColors.contentSecondary,
+            iconSize = 20.dp,
+        )
     }
 }
 

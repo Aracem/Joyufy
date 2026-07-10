@@ -7,7 +7,6 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
-import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.dashboard.ChartRange
 import com.aracem.joyufy.ui.dashboard.ChartRangePreference
@@ -46,9 +45,9 @@ data class AccountDetailUiState(
     val chartRange: ChartRange = ChartRangePreference.range.value,
     val periodChange: Double? = null,
     val periodChangePct: Double? = null,
-    // Distinct free-text category strings the user has ever used (across all
-    // accounts), sorted by most-recent first. Fed to AddTransactionDialog so
-    // custom categories become reusable suggestions in future transactions.
+    // Distinct category strings the user has used, ranked by frequency and
+    // recency. Fed to AddTransactionDialog so real habits appear before the
+    // static preset catalog.
     val customCategories: List<String> = emptyList(),
 )
 
@@ -81,21 +80,27 @@ class AccountDetailViewModel(
                 }
             }
 
-            // Distinct categories across all accounts, freshest first. Drives the
-            // "custom categories" autocomplete in AddTransactionDialog so any free
-            // text the user has typed is reusable in future entries.
+            // Distinct categories across all accounts, ranked by frequency and
+            // recency. This includes preset labels too, so the dialog opens with
+            // the user's real categories before the generic catalog.
             launch {
                 transactionRepository.observeAllTransactions().collect { all ->
-                    val presetLower = TransactionCategory.entries.map { it.label.lowercase() }.toSet()
-                    val seen = HashSet<String>()
-                    val out = ArrayList<String>()
-                    all.sortedByDescending { it.date }.forEach { tx ->
-                        val raw = tx.category?.trim().orEmpty()
-                        if (raw.isEmpty()) return@forEach
-                        val lower = raw.lowercase()
-                        if (lower in presetLower) return@forEach
-                        if (seen.add(lower)) out += raw
-                    }
+                    val out = all
+                        .asSequence()
+                        .mapNotNull { tx -> tx.category?.trim()?.takeIf { it.isNotEmpty() }?.let { it to tx.date } }
+                        .groupBy { (label, _) -> label.lowercase() }
+                        .map { (_, entries) ->
+                            val label = entries.maxBy { it.second }.first
+                            val count = entries.size
+                            val lastUsed = entries.maxOf { it.second }
+                            Triple(label, count, lastUsed)
+                        }
+                        .sortedWith(
+                            compareByDescending<Triple<String, Int, Long>> { it.second }
+                                .thenByDescending { it.third }
+                                .thenBy { it.first.lowercase() },
+                        )
+                        .map { it.first }
                     _uiState.value = _uiState.value.copy(customCategories = out)
                 }
             }
