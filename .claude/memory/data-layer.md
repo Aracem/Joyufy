@@ -34,6 +34,17 @@ Three tables: `Account`, `` `Transaction` `` (backticked because `Transaction` i
 - `review_status`: `REVIEWED`, `NEEDS_REVIEW`, or `DRAFT`. Manual transactions default to `REVIEWED`; bank-statement imports are committed as `DRAFT` so the ledger can surface them for review.
 - `import_batch`: optional batch identifier for imported rows. Preserve it in backup/export/undo paths.
 
+`InvestmentSnapshot` carries snapshot annotation metadata:
+- `deposit_amount`, `withdrawal_amount`, `fee_amount`, `dividend_amount`: optional EUR flow fields stored as non-negative `REAL` values with `0.0` defaults.
+- `note`: optional free-form snapshot note.
+
+Account-detail investment metrics use these fields:
+- Contribution-adjusted gain = value change - deposits + withdrawals.
+- Market performance = contribution-adjusted gain + fees - dividends.
+- Time-weighted return is an approximation from compounded snapshot-to-snapshot contribution-adjusted returns.
+- Manual snapshot annotation fields always win. For old snapshots where deposits/withdrawals/fees/dividends are all zero, account-detail performance may derive deposits/withdrawals from transfer transaction legs in the same snapshot week.
+- Settings → Data exposes a guided "Backfill investment flows" action. It previews affected snapshots, then writes derived deposits/withdrawals only into snapshots whose amount annotation fields are all zero; existing manual annotations and notes are preserved.
+
 Bank-statement imports currently support CSV, TSV, OFX, ING text exports, and ING semicolon CSV conversions with Excel-style preamble rows such as `Tabla 1` before the real `F. VALOR` header. Imported duplicate detection is blocking, not advisory: duplicate key = account + local date + type + amount cents + normalized description. The importer blocks matches against existing DB rows and repeated rows inside the same import batch.
 
 ### Important queries
@@ -67,7 +78,7 @@ Serialised by `BackupRepository.export()` with `kotlinx.serialization.json` (`pr
   "exportedAt": <epoch_ms>,
   "accounts":     [ { id, name, type, colorHex, logoUrl?, position, createdAt } ],
   "transactions": [ { id, accountId, type, amount, category?, description?, relatedAccountId?, date, reviewStatus, importBatch? } ],
-  "snapshots":    [ { id, accountId, totalValue, weekDate } ]
+  "snapshots":    [ { id, accountId, totalValue, weekDate, deposits, withdrawals, fees, dividends, note? } ]
 }
 ```
 

@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +27,8 @@ import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.components.ConfettiBurst
+import com.aracem.joyufy.ui.components.formatCurrency
+import com.aracem.joyufy.ui.components.formatWeekRange
 import com.aracem.joyufy.ui.drive.DriveEvent
 import com.aracem.joyufy.ui.drive.DriveUiState
 import com.aracem.joyufy.ui.drive.DriveViewModel
@@ -64,6 +68,7 @@ fun SettingsScreen(
 
     var accountToDelete by remember { mutableStateOf<Account?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
+    var showInvestmentFlowBackfillPreview by remember { mutableStateOf(false) }
     var deleteAllConfirmationInput by remember { mutableStateOf("") }
     var showRestoreFromDriveConfirm by remember { mutableStateOf(false) }
     var versionClickCount by remember { mutableStateOf(0) }
@@ -95,6 +100,10 @@ fun SettingsScreen(
             }
             is SettingsEvent.Restored -> {
                 snackbarHostState.showSnackbar(strings.accountRestored.format(ev.name))
+                viewModel.resetEvent()
+            }
+            is SettingsEvent.InvestmentFlowsBackfilled -> {
+                snackbarHostState.showSnackbar(strings.investmentFlowBackfillApplied.format(ev.count))
                 viewModel.resetEvent()
             }
             is SettingsEvent.Error -> {
@@ -138,6 +147,17 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showRestoreFromDriveConfirm = false }) { Text(strings.cancel) }
+            },
+        )
+    }
+
+    if (showInvestmentFlowBackfillPreview) {
+        InvestmentFlowBackfillDialog(
+            candidates = state.investmentFlowBackfillCandidates,
+            onDismiss = { showInvestmentFlowBackfillPreview = false },
+            onApply = {
+                showInvestmentFlowBackfillPreview = false
+                viewModel.backfillInvestmentFlows()
             },
         )
     }
@@ -279,6 +299,11 @@ fun SettingsScreen(
                     SettingsButton(label = strings.importBackup, onClick = onImport)
                     HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsButton(label = strings.csvImportTitle, onClick = onImportCsv)
+                    HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
+                    InvestmentFlowBackfillRow(
+                        candidates = state.investmentFlowBackfillCandidates,
+                        onPreview = { showInvestmentFlowBackfillPreview = true },
+                    )
                 }
             }
         }
@@ -392,6 +417,141 @@ fun SettingsScreen(
         modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
     )
     } // end Box
+}
+
+@Composable
+private fun InvestmentFlowBackfillRow(
+    candidates: List<InvestmentFlowBackfillCandidateUi>,
+    onPreview: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    val accountCount = candidates.map { it.accountName }.distinct().size
+    val description = if (candidates.isEmpty()) {
+        strings.investmentFlowBackfillNoChanges
+    } else {
+        strings.investmentFlowBackfillDescription.format(candidates.size, accountCount)
+    }
+    SettingsRow(
+        label = strings.investmentFlowBackfillTitle,
+        description = description,
+    ) {
+        TextButton(
+            onClick = onPreview,
+            enabled = candidates.isNotEmpty(),
+        ) {
+            Text(
+                strings.investmentFlowBackfillPreview,
+                color = if (candidates.isNotEmpty()) Accent else MaterialTheme.joyufyColors.contentDisabled,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InvestmentFlowBackfillDialog(
+    candidates: List<InvestmentFlowBackfillCandidateUi>,
+    onDismiss: () -> Unit,
+    onApply: () -> Unit,
+) {
+    val strings = LocalStrings.current
+    val totalDeposits = candidates.sumOf { it.deposits }
+    val totalWithdrawals = candidates.sumOf { it.withdrawals }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(strings.investmentFlowBackfillDialogTitle) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(strings.investmentFlowBackfillDialogText)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    BackfillSummaryChip(strings.depositsEur, totalDeposits, Positive)
+                    BackfillSummaryChip(strings.withdrawalsEur, totalWithdrawals, Negative)
+                }
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    candidates.take(12).forEach { candidate ->
+                        BackfillCandidateRow(candidate)
+                    }
+                    val remaining = candidates.size - 12
+                    if (remaining > 0) {
+                        Text(
+                            text = strings.investmentFlowBackfillMore.format(remaining),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.joyufyColors.contentSecondary,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onApply,
+                enabled = candidates.isNotEmpty(),
+                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+            ) {
+                Text(strings.investmentFlowBackfillApply)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(strings.cancel)
+            }
+        },
+    )
+}
+
+@Composable
+private fun BackfillSummaryChip(
+    label: String,
+    amount: Double,
+    color: androidx.compose.ui.graphics.Color,
+) {
+    Text(
+        text = "$label ${amount.formatCurrency()}",
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(color.copy(alpha = 0.1f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    )
+}
+
+@Composable
+private fun BackfillCandidateRow(candidate: InvestmentFlowBackfillCandidateUi) {
+    val strings = LocalStrings.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "${candidate.accountName} · ${candidate.weekDate.formatWeekRange(strings.week)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "${strings.depositsEur}: ${candidate.deposits.formatCurrency()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = Positive,
+            )
+            Text(
+                text = "${strings.withdrawalsEur}: ${candidate.withdrawals.formatCurrency()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = Negative,
+            )
+        }
+    }
 }
 
 @Composable

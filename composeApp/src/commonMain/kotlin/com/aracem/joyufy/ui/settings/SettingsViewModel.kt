@@ -4,7 +4,9 @@ import com.aracem.joyufy.data.mapper.toColorHex
 import com.aracem.joyufy.data.repository.AccountRepository
 import com.aracem.joyufy.data.repository.InvestmentSnapshotRepository
 import com.aracem.joyufy.data.repository.TransactionRepository
+import com.aracem.joyufy.domain.logic.findInvestmentFlowBackfillCandidates
 import com.aracem.joyufy.domain.model.Account
+import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
 import kotlinx.coroutines.CoroutineScope
@@ -13,10 +15,20 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+
+data class InvestmentFlowBackfillCandidateUi(
+    val snapshotId: Long,
+    val accountName: String,
+    val weekDate: Long,
+    val deposits: Double,
+    val withdrawals: Double,
+)
 
 data class SettingsUiState(
     val accounts: List<Account> = emptyList(),
+    val investmentFlowBackfillCandidates: List<InvestmentFlowBackfillCandidateUi> = emptyList(),
 )
 
 sealed interface SettingsEvent {
@@ -24,6 +36,7 @@ sealed interface SettingsEvent {
     data class AccountDeleted(val name: String) : SettingsEvent
     data class AccountArchived(val name: String) : SettingsEvent
     data class Restored(val name: String) : SettingsEvent
+    data class InvestmentFlowsBackfilled(val count: Int) : SettingsEvent
     data class Error(val message: String) : SettingsEvent
 }
 
@@ -51,8 +64,35 @@ class SettingsViewModel(
 
     init {
         scope.launch {
-            accountRepository.observeAccounts().collect { accounts ->
-                _uiState.value = _uiState.value.copy(accounts = accounts)
+            combine(
+                accountRepository.observeAccounts(),
+                transactionRepository.observeAllTransactions(),
+                snapshotRepository.observeAllSnapshots(),
+            ) { accounts, transactions, snapshots ->
+                val accountById = accounts.associateBy { it.id }
+                val investmentAccountIds = accounts
+                    .filter { it.type == AccountType.INVESTMENT }
+                    .map { it.id }
+                    .toSet()
+                val candidates = findInvestmentFlowBackfillCandidates(
+                    snapshots = snapshots.filter { it.accountId in investmentAccountIds },
+                    transactions = transactions,
+                ).mapNotNull { candidate ->
+                    val accountName = accountById[candidate.snapshot.accountId]?.name ?: return@mapNotNull null
+                    InvestmentFlowBackfillCandidateUi(
+                        snapshotId = candidate.snapshot.id,
+                        accountName = accountName,
+                        weekDate = candidate.snapshot.weekDate,
+                        deposits = candidate.flows.deposits,
+                        withdrawals = candidate.flows.withdrawals,
+                    )
+                }
+                SettingsUiState(
+                    accounts = accounts,
+                    investmentFlowBackfillCandidates = candidates,
+                )
+            }.collect { state ->
+                _uiState.value = state
             }
         }
     }
@@ -140,6 +180,11 @@ class SettingsViewModel(
                         accountId = snapshot.accountId,
                         totalValue = snapshot.totalValue,
                         weekDate = snapshot.weekDate,
+                        deposits = snapshot.deposits,
+                        withdrawals = snapshot.withdrawals,
+                        fees = snapshot.fees,
+                        dividends = snapshot.dividends,
+                        note = snapshot.note,
                     )
                 }
                 backup.account.name
@@ -169,6 +214,41 @@ class SettingsViewModel(
 
     fun resetEvent() {
         _event.value = SettingsEvent.Idle
+    }
+
+    fun backfillInvestmentFlows() {
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val accounts = accountRepository.getAllAccounts()
+                val investmentAccountIds = accounts
+                    .filter { it.type == AccountType.INVESTMENT }
+                    .map { it.id }
+                    .toSet()
+                val transactions = transactionRepository.getAllTransactions()
+                val candidates = findInvestmentFlowBackfillCandidates(
+                    snapshots = snapshotRepository.getAllSnapshots().filter { it.accountId in investmentAccountIds },
+                    transactions = transactions,
+                )
+                candidates.forEach { candidate ->
+                    val snapshot = candidate.snapshot
+                    snapshotRepository.updateSnapshot(
+                        id = snapshot.id,
+                        totalValue = snapshot.totalValue,
+                        weekDate = snapshot.weekDate,
+                        deposits = candidate.flows.deposits,
+                        withdrawals = candidate.flows.withdrawals,
+                        fees = snapshot.fees,
+                        dividends = snapshot.dividends,
+                        note = snapshot.note,
+                    )
+                }
+                candidates.size
+            }.onSuccess { count ->
+                _event.value = SettingsEvent.InvestmentFlowsBackfilled(count)
+            }.onFailure {
+                _event.value = SettingsEvent.Error(it.message.orEmpty())
+            }
+        }
     }
 
     fun deleteAllData(onDone: () -> Unit) {

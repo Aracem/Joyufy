@@ -46,6 +46,8 @@ metadata:
 35. Account-detail undo affordances for single transaction deletes, transfer-pair deletes, and snapshot deletes.
 36. Settings account delete/archive undo affordances; account delete undo restores owned rows and transfer legs that referenced the deleted account.
 37. Bank-statement import preview: CSV/TSV/OFX plus ING text export parsing, column mapping, editable draft rows, validation, blocking duplicate detection, and commit/cancel before writing valid rows.
+38. Investment snapshot annotations: deposits, withdrawals, fees, dividends, and optional note captured on snapshot creation/edit.
+39. Investment performance metrics: account-detail card with contribution-adjusted gain, market performance, cash flows, time-weighted return approximation, and per-snapshot period return.
 
 ## Remaining UI/UX ideas
 
@@ -60,12 +62,13 @@ metadata:
 3. Monthly category budgets with burn-rate, remaining amount, and overspend warnings.
 4. Cash-flow forecast: projected month-end balances using recurring transactions, budgets, and expected investment contributions.
 5. Savings goals: target amount/date, linked accounts, progress, and suggested monthly contribution.
-6. Investment snapshot annotations separating deposits, withdrawals, fees, dividends, and market performance.
-7. Investment performance metrics: contribution-adjusted gain, time-weighted return approximation, and per-account performance chart.
-8. Broker/import adapters: CSV import presets for Indexa, DeGiro, Trade Republic, and similar providers before any API/scraping work.
-9. Archived account management: list archived accounts, restore them, or permanently delete with typed confirmation.
-10. Cloud backup history: keep recent cloud/local backup versions and allow restore to a chosen timestamp instead of only latest.
-11. Conflict-aware cloud restore: merge or selectively keep local/cloud entities instead of full destructive replace.
-12. Export reports: CSV/PDF monthly summary, category breakdown, net-worth history, and tax/investment movement report.
-13. Tags and notes: free-form tags plus richer notes/receipt reference for transactions, independent from category.
-14. Split transactions: one bank transaction distributed across multiple categories.
+6. Archived account management: list archived accounts, restore them, or permanently delete with typed confirmation.
+7. Cloud backup history: keep recent cloud/local backup versions and allow restore to a chosen timestamp instead of only latest.
+8. Conflict-aware cloud restore: merge or selectively keep local/cloud entities instead of full destructive replace.
+9. Export reports: CSV/PDF monthly summary, category breakdown, net-worth history, and tax/investment movement report.
+10. Tags and notes: free-form tags plus richer notes/receipt reference for transactions, independent from category.
+11. Split transactions: one bank transaction distributed across multiple categories.
+
+## Discarded / Low ROI
+
+1. CSV import presets for investment providers (Indexa, DeGiro, Trade Republic): weekly investment tracking is a single manual value, so importing a statement is usually slower than entering the snapshot. Reconsider only if a provider offers a stable public API with low maintenance overhead.

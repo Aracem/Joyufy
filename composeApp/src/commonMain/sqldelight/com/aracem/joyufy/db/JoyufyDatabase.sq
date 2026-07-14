@@ -130,24 +130,41 @@ WHERE account_id = ?;
 -- Un registro por semana (lunes)
 -- ──────────────────────────────────────────
 CREATE TABLE InvestmentSnapshot (
-    id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    account_id  INTEGER NOT NULL,
-    total_value REAL    NOT NULL,
-    week_date   INTEGER NOT NULL,
+    id                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    account_id        INTEGER NOT NULL,
+    total_value       REAL    NOT NULL,
+    week_date         INTEGER NOT NULL,
+    deposit_amount    REAL    NOT NULL DEFAULT 0.0,
+    withdrawal_amount REAL    NOT NULL DEFAULT 0.0,
+    fee_amount        REAL    NOT NULL DEFAULT 0.0,
+    dividend_amount   REAL    NOT NULL DEFAULT 0.0,
+    note              TEXT,
     FOREIGN KEY (account_id) REFERENCES Account(id) ON DELETE CASCADE,
     UNIQUE (account_id, week_date)
 );
 
 insertSnapshot:
-INSERT OR REPLACE INTO InvestmentSnapshot (account_id, total_value, week_date)
-VALUES (?, ?, ?);
+INSERT OR REPLACE INTO InvestmentSnapshot (
+    account_id, total_value, week_date, deposit_amount, withdrawal_amount, fee_amount, dividend_amount, note
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 insertSnapshotWithId:
-INSERT OR REPLACE INTO InvestmentSnapshot (id, account_id, total_value, week_date)
-VALUES (?, ?, ?, ?);
+INSERT OR REPLACE INTO InvestmentSnapshot (
+    id, account_id, total_value, week_date, deposit_amount, withdrawal_amount, fee_amount, dividend_amount, note
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateSnapshot:
-UPDATE InvestmentSnapshot SET total_value = ?, week_date = ? WHERE id = ?;
+UPDATE InvestmentSnapshot
+SET total_value = ?,
+    week_date = ?,
+    deposit_amount = ?,
+    withdrawal_amount = ?,
+    fee_amount = ?,
+    dividend_amount = ?,
+    note = ?
+WHERE id = ?;
 
 getSnapshotsForAccount:
 SELECT * FROM InvestmentSnapshot WHERE account_id = ? ORDER BY week_date DESC;

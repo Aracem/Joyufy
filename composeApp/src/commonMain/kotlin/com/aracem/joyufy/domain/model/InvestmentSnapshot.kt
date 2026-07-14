@@ -5,4 +5,9 @@ data class InvestmentSnapshot(
     val accountId: Long,
     val totalValue: Double,
     val weekDate: Long, // Unix timestamp — Monday of the week
+    val deposits: Double = 0.0,
+    val withdrawals: Double = 0.0,
+    val fees: Double = 0.0,
+    val dividends: Double = 0.0,
+    val note: String? = null,
 )

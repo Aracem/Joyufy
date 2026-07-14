@@ -45,6 +45,8 @@ Implemented:
 - Account-detail undo for single transaction deletes, transfer-pair deletes, and snapshot deletes.
 - Settings account delete/archive undo; delete undo restores owned rows and transfer legs that referenced the deleted account.
 - Bank-statement import preview with CSV/TSV/OFX plus ING text export parsing, column mapping, editable draft rows, validation, blocking duplicate detection, and commit/cancel.
+- Investment snapshot annotations for deposits, withdrawals, fees, dividends, and optional note.
+- Investment performance metrics in account detail: contribution-adjusted gain, market performance, cash flows, time-weighted return approximation, and per-snapshot period return.
 
 Remaining:
 - Persisted review notes or "ignore duplicate warning" if users need to dismiss quality warnings without changing transaction data.
@@ -57,12 +59,12 @@ Product ideas:
 - Monthly category budgets with burn-rate and warnings.
 - Cash-flow forecast.
 - Savings goals.
-- Investment snapshot annotations and contribution/performance split.
-- Investment performance metrics.
-- Broker/import adapters for common investment providers.
 - Archived account restore/permanent delete management.
 - Cloud backup history and timestamp restore.
 - Conflict-aware cloud restore/merge.
 - CSV/PDF report export.
 - Tags, notes, and receipt references.
 - Split transactions.
+
+Discarded / low ROI:
+- CSV import presets for investment providers such as Indexa, DeGiro, or Trade Republic. Weekly investment tracking is a single manual value, so importing a statement is usually slower than entering the snapshot. Reconsider only for stable public APIs with low maintenance overhead.

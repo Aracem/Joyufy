@@ -8,4 +8,9 @@ fun SnapshotEntity.toDomain(): InvestmentSnapshot = InvestmentSnapshot(
     accountId = account_id,
     totalValue = total_value,
     weekDate = week_date,
+    deposits = deposit_amount,
+    withdrawals = withdrawal_amount,
+    fees = fee_amount,
+    dividends = dividend_amount,
+    note = note,
 )

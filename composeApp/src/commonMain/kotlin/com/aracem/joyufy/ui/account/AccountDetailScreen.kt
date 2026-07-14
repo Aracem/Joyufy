@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,8 +37,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.aracem.joyufy.domain.logic.deriveInvestmentSnapshotFlowsByWeek
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
@@ -64,6 +70,7 @@ import com.aracem.joyufy.ui.components.formatWeekRange
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.math.abs
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
@@ -211,6 +218,9 @@ fun AccountDetailScreen(
     }
 
     val account = state.account ?: return
+    val flowDefaultsByWeek = remember(account.id, state.transactions) {
+        deriveInvestmentSnapshotFlowsByWeek(account.id, state.transactions)
+    }
 
     LaunchedEffect(event) {
         when (val ev = event) {
@@ -295,6 +305,18 @@ fun AccountDetailScreen(
             )
         }
 
+        if (account.type == AccountType.INVESTMENT) {
+            state.investmentPerformanceSummary?.let { summary ->
+                item {
+                    InvestmentPerformanceCard(
+                        summary = summary,
+                        points = state.investmentPerformance,
+                        hasInferredFlows = state.hasInferredInvestmentFlows,
+                    )
+                }
+            }
+        }
+
         item { HorizontalDivider(color = MaterialTheme.joyufyColors.border) }
 
         if (account.type == AccountType.INVESTMENT) {
@@ -355,6 +377,7 @@ fun AccountDetailScreen(
                     when (item) {
                         is InvestmentListItem.Snapshot -> SnapshotRow(
                             snapshot = item.snapshot,
+                            performance = item.performance,
                             onEdit = { editingSnapshot = item.snapshot },
                             onDelete = { confirmDeleteSnapshotId = item.snapshot.id },
                         )
@@ -496,13 +519,14 @@ fun AccountDetailScreen(
             accountName = account.name,
             currentValue = state.snapshots.firstOrNull()?.totalValue,
             editingSnapshot = editingSnapshot,
+            flowDefaultsByWeek = flowDefaultsByWeek,
             onDismiss = { showAddSnapshot = false; editingSnapshot = null },
-            onConfirm = { value, weekDate ->
+            onConfirm = { value, weekDate, deposits, withdrawals, fees, dividends, note ->
                 val editing = editingSnapshot
                 if (editing != null) {
-                    viewModel.updateSnapshot(editing.id, value, weekDate)
+                    viewModel.updateSnapshot(editing.id, value, weekDate, deposits, withdrawals, fees, dividends, note)
                 } else {
-                    viewModel.addSnapshot(value, weekDate)
+                    viewModel.addSnapshot(value, weekDate, deposits, withdrawals, fees, dividends, note)
                 }
             },
         )
@@ -616,6 +640,174 @@ private fun AccountDetailStickyHeader(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun InvestmentPerformanceCard(
+    summary: InvestmentPerformanceSummary,
+    points: List<InvestmentPerformancePoint>,
+    hasInferredFlows: Boolean,
+) {
+    val strings = LocalStrings.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = strings.investmentPerformance,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (hasInferredFlows) {
+            Text(
+                text = strings.investmentFlowInferredWarning,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.joyufyColors.contentSecondary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Accent.copy(alpha = 0.08f), MaterialTheme.shapes.small)
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PerformanceMetric(
+                    label = strings.contributionAdjustedGain,
+                    value = summary.contributionAdjustedGain.formatSignedCurrency(),
+                    color = summary.contributionAdjustedGain.performanceColor(),
+                    modifier = Modifier.weight(1f),
+                )
+                PerformanceMetric(
+                    label = strings.timeWeightedReturn,
+                    value = summary.timeWeightedReturnPct?.formatSignedPercent() ?: "—",
+                    color = (summary.timeWeightedReturnPct ?: 0.0).performanceColor(),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PerformanceMetric(
+                    label = strings.marketPerformance,
+                    value = summary.marketPerformance.formatSignedCurrency(),
+                    color = summary.marketPerformance.performanceColor(),
+                    modifier = Modifier.weight(1f),
+                )
+                PerformanceMetric(
+                    label = strings.cashFlows,
+                    value = (summary.deposits - summary.withdrawals).formatSignedCurrency(),
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        InvestmentPerformanceBars(points = points)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowMetric(strings.depositsEur, summary.deposits, Positive, Modifier.weight(1f))
+                FlowMetric(strings.withdrawalsEur, summary.withdrawals, Negative, Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowMetric(strings.feesEur, summary.fees, Negative, Modifier.weight(1f))
+                FlowMetric(strings.dividendsEur, summary.dividends, Positive, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PerformanceMetric(
+    label: String,
+    value: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small)
+            .padding(10.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun FlowMetric(
+    label: String,
+    amount: Double,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .background(color.copy(alpha = 0.08f), MaterialTheme.shapes.small)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.joyufyColors.contentSecondary,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = amount.formatCurrency(),
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun InvestmentPerformanceBars(points: List<InvestmentPerformancePoint>) {
+    val periods = points.filter { it.previousValue != null }.takeLast(16)
+    if (periods.isEmpty()) return
+    val maxAbs = periods.maxOfOrNull { abs(it.contributionAdjustedGain) }?.takeIf { it > 0.0 } ?: 1.0
+    val positiveColor = Positive
+    val negativeColor = Negative
+    val axisColor = MaterialTheme.joyufyColors.border
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(132.dp),
+    ) {
+        val axisY = size.height / 2f
+        val slotWidth = size.width / periods.size
+        val barWidth = (slotWidth * 0.44f).coerceAtMost(20f)
+        val maxHeight = axisY - 10f
+        drawLine(axisColor, Offset(0f, axisY), Offset(size.width, axisY))
+        periods.forEachIndexed { index, point ->
+            val value = point.contributionAdjustedGain
+            val barHeight = ((abs(value) / maxAbs).toFloat() * maxHeight).coerceAtLeast(1f)
+            val left = index * slotWidth + (slotWidth - barWidth) / 2f
+            val top = if (value >= 0.0) axisY - barHeight else axisY
+            drawRoundRect(
+                color = if (value >= 0.0) positiveColor else negativeColor,
+                topLeft = Offset(left, top),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(5f, 5f),
+            )
         }
     }
 }
@@ -1054,9 +1246,11 @@ private fun TransactionRow(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SnapshotRow(
     snapshot: InvestmentSnapshot,
+    performance: InvestmentPerformancePoint?,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1065,6 +1259,7 @@ private fun SnapshotRow(
     val hovered by interactionSource.collectIsHoveredAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     val actionsVisible = hovered || focused
+    val displaySnapshot = performance?.snapshot ?: snapshot
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1080,24 +1275,69 @@ private fun SnapshotRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(
                 text = snapshot.weekDate.formatWeekRange(strings.week),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
+            performance?.takeIf { it.previousValue != null }?.let { point ->
+                Text(
+                    text = "${strings.marketPerformance}: ${point.marketPerformance.formatSignedCurrency()}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = point.marketPerformance.performanceColor(),
+                )
+            }
+            if (displaySnapshot.hasAnnotations()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SnapshotAnnotation(strings.depositsEur, displaySnapshot.deposits, Positive)
+                    SnapshotAnnotation(strings.withdrawalsEur, displaySnapshot.withdrawals, Negative)
+                    SnapshotAnnotation(strings.feesEur, displaySnapshot.fees, Negative)
+                    SnapshotAnnotation(strings.dividendsEur, displaySnapshot.dividends, Positive)
+                }
+            }
+            snapshot.note?.takeIf { it.isNotBlank() }?.let { note ->
+                Text(
+                    text = note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
+            }
         }
-        Text(
-            text = snapshot.totalValue.formatCurrency(),
-            style = MaterialTheme.typography.titleMedium,
-            color = Positive,
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = snapshot.totalValue.formatCurrency(),
+                style = MaterialTheme.typography.titleMedium,
+                color = Positive,
+            )
+            performance?.returnPct?.let { pct ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = pct.formatSignedPercent(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = pct.performanceColor(),
+                )
+            }
+        }
         RowActions(
             visible = actionsVisible,
             onEdit = onEdit,
             onDelete = onDelete,
         )
     }
+}
+
+@Composable
+private fun SnapshotAnnotation(label: String, amount: Double, color: Color) {
+    if (amount == 0.0) return
+    Text(
+        text = "$label ${amount.formatCurrency()}",
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+    )
 }
 
 @Composable
@@ -1140,6 +1380,23 @@ private fun RowActions(
         }
     }
 }
+
+private fun InvestmentSnapshot.hasAnnotations(): Boolean =
+    deposits != 0.0 || withdrawals != 0.0 || fees != 0.0 || dividends != 0.0
+
+private fun Double.formatSignedCurrency(): String {
+    val sign = if (this >= 0.0) "+" else ""
+    return "$sign${formatCurrency()}"
+}
+
+private fun Double.formatSignedPercent(): String {
+    val sign = if (this >= 0.0) "+" else ""
+    return "$sign${formatPercent()}"
+}
+
+@Composable
+private fun Double.performanceColor(): Color =
+    if (this >= 0.0) Positive else Negative
 
 @Composable
 private fun AccountPeriodChangeBadge(

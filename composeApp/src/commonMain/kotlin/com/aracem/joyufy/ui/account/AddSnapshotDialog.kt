@@ -9,6 +9,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.aracem.joyufy.domain.logic.InvestmentSnapshotFlows
+import com.aracem.joyufy.domain.logic.hasManualInvestmentFlowAnnotations
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
@@ -24,7 +26,16 @@ fun AddSnapshotDialog(
     accountName: String,
     currentValue: Double?,
     onDismiss: () -> Unit,
-    onConfirm: (totalValue: Double, weekDate: Long) -> Unit,
+    onConfirm: (
+        totalValue: Double,
+        weekDate: Long,
+        deposits: Double,
+        withdrawals: Double,
+        fees: Double,
+        dividends: Double,
+        note: String?,
+    ) -> Unit,
+    flowDefaultsByWeek: Map<Long, InvestmentSnapshotFlows> = emptyMap(),
     // If non-null, dialog is in edit mode
     editingSnapshot: com.aracem.joyufy.domain.model.InvestmentSnapshot? = null,
 ) {
@@ -33,7 +44,15 @@ fun AddSnapshotDialog(
         mutableStateOf(editingSnapshot?.totalValue?.formatInputAmount()
             ?: currentValue?.formatInputAmount() ?: "")
     }
+    var depositsText by remember { mutableStateOf(editingSnapshot?.deposits?.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()) }
+    var withdrawalsText by remember { mutableStateOf(editingSnapshot?.withdrawals?.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()) }
+    var feesText by remember { mutableStateOf(editingSnapshot?.fees?.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()) }
+    var dividendsText by remember { mutableStateOf(editingSnapshot?.dividends?.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()) }
+    var noteText by remember { mutableStateOf(editingSnapshot?.note.orEmpty()) }
     var valueError by remember { mutableStateOf<String?>(null) }
+    var flowFieldsTouched by remember {
+        mutableStateOf(editingSnapshot?.hasManualInvestmentFlowAnnotations() == true)
+    }
 
     // Build last 12 weeks (including current) as options
     val weekCurrentStr = strings.weekCurrent
@@ -50,12 +69,20 @@ fun AddSnapshotDialog(
     }
     var weekExpanded by remember { mutableStateOf(false) }
 
+    LaunchedEffect(selectedWeek.mondayMs, editingSnapshot?.id, flowDefaultsByWeek) {
+        if (!flowFieldsTouched) {
+            val defaults = flowDefaultsByWeek[selectedWeek.mondayMs] ?: InvestmentSnapshotFlows()
+            depositsText = defaults.deposits.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()
+            withdrawalsText = defaults.withdrawals.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
-            modifier = Modifier.width(380.dp),
+            modifier = Modifier.width(560.dp),
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
 
@@ -127,6 +154,55 @@ fun AddSnapshotDialog(
                     ),
                 )
 
+                Spacer(Modifier.height(12.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SnapshotAmountField(
+                        value = depositsText,
+                        onValueChange = { depositsText = it; flowFieldsTouched = true; valueError = null },
+                        label = strings.depositsEur,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SnapshotAmountField(
+                        value = withdrawalsText,
+                        onValueChange = { withdrawalsText = it; flowFieldsTouched = true; valueError = null },
+                        label = strings.withdrawalsEur,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SnapshotAmountField(
+                        value = feesText,
+                        onValueChange = { feesText = it; flowFieldsTouched = true; valueError = null },
+                        label = strings.feesEur,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SnapshotAmountField(
+                        value = dividendsText,
+                        onValueChange = { dividendsText = it; flowFieldsTouched = true; valueError = null },
+                        label = strings.dividendsEur,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    label = { Text(strings.noteOptional) },
+                    minLines = 2,
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Accent,
+                        focusedLabelColor = Accent,
+                    ),
+                )
+
                 Spacer(Modifier.height(24.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -137,11 +213,25 @@ fun AddSnapshotDialog(
                     Button(
                         onClick = {
                             val value = valueText.replace(",", ".").toDoubleOrNull()
-                            if (value == null || value < 0) {
+                            val deposits = depositsText.parseOptionalAmount()
+                            val withdrawals = withdrawalsText.parseOptionalAmount()
+                            val fees = feesText.parseOptionalAmount()
+                            val dividends = dividendsText.parseOptionalAmount()
+                            if (value == null || value < 0 ||
+                                deposits == null || withdrawals == null || fees == null || dividends == null
+                            ) {
                                 valueError = strings.valueError
                                 return@Button
                             }
-                            onConfirm(value, selectedWeek.mondayMs)
+                            onConfirm(
+                                value,
+                                selectedWeek.mondayMs,
+                                deposits,
+                                withdrawals,
+                                fees,
+                                dividends,
+                                noteText.trim().ifBlank { null },
+                            )
                             onDismiss()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
@@ -152,6 +242,33 @@ fun AddSnapshotDialog(
             }
         }
     }
+}
+
+@Composable
+private fun SnapshotAmountField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    val strings = LocalStrings.current
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { Text(strings.placeholderAmount) },
+        singleLine = true,
+        modifier = modifier,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Accent,
+            focusedLabelColor = Accent,
+        ),
+    )
+}
+
+private fun String.parseOptionalAmount(): Double? {
+    if (isBlank()) return 0.0
+    return replace(",", ".").toDoubleOrNull()?.takeIf { it >= 0.0 }
 }
 
 private data class WeekOption(val label: String, val mondayMs: Long)

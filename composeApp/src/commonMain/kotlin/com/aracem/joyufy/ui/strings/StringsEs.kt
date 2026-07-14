@@ -151,6 +151,17 @@ object StringsEs : Strings {
 
     // Add/Edit snapshot
     override val totalValueEur = "Valor total (€)"
+    override val depositsEur = "Aportaciones (€)"
+    override val withdrawalsEur = "Retiradas (€)"
+    override val feesEur = "Comisiones (€)"
+    override val dividendsEur = "Dividendos (€)"
+    override val noteOptional = "Nota (opcional)"
+    override val investmentPerformance = "Rendimiento de inversión"
+    override val contributionAdjustedGain = "Ganancia ajustada por aportaciones"
+    override val timeWeightedReturn = "Rentabilidad ponderada"
+    override val marketPerformance = "Mercado"
+    override val cashFlows = "Flujos"
+    override val investmentFlowInferredWarning = "Algunos flujos históricos se infieren desde transferencias hasta que los consolides en Ajustes."
     override val valueError = "Introduce un valor válido"
     override val save = "Guardar"
 
@@ -235,6 +246,15 @@ object StringsEs : Strings {
     override val settingsTabData = "Datos"
     override val settingsTabCloud = "Nube"
     override val settingsTabAbout = "Acerca de"
+    override val investmentFlowBackfillTitle = "Consolidar flujos de inversión"
+    override val investmentFlowBackfillDescription = "%1\$d snapshots en %2\$d cuentas pueden rellenarse desde transferencias existentes."
+    override val investmentFlowBackfillNoChanges = "No hay flujos históricos de inversión pendientes."
+    override val investmentFlowBackfillPreview = "Previsualizar"
+    override val investmentFlowBackfillDialogTitle = "¿Consolidar flujos históricos?"
+    override val investmentFlowBackfillDialogText = "Solo se actualizarán snapshots con importes de anotación vacíos. Las aportaciones, retiradas, comisiones, dividendos y notas manuales se conservan."
+    override val investmentFlowBackfillApply = "Aplicar"
+    override val investmentFlowBackfillApplied = "%d snapshots actualizados"
+    override val investmentFlowBackfillMore = "+%d más"
 
     // Cloud sync
     override val cloudSync = "Sincronización en la nube"

@@ -45,6 +45,11 @@ data class SnapshotBackup(
     val accountId: Long,
     val totalValue: Double,
     val weekDate: Long,
+    val deposits: Double = 0.0,
+    val withdrawals: Double = 0.0,
+    val fees: Double = 0.0,
+    val dividends: Double = 0.0,
+    val note: String? = null,
 )
 
 @Serializable
@@ -191,6 +196,11 @@ class BackupRepository(
                 accountId = s.accountId,
                 totalValue = s.totalValue,
                 weekDate = s.weekDate,
+                deposits = s.deposits,
+                withdrawals = s.withdrawals,
+                fees = s.fees,
+                dividends = s.dividends,
+                note = s.note,
             )
         }
     }
@@ -225,5 +235,10 @@ class BackupRepository(
         accountId = accountId,
         totalValue = totalValue,
         weekDate = weekDate,
+        deposits = deposits,
+        withdrawals = withdrawals,
+        fees = fees,
+        dividends = dividends,
+        note = note,
     )
 }

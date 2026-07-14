@@ -151,6 +151,17 @@ object StringsEn : Strings {
 
     // Add/Edit snapshot
     override val totalValueEur = "Total value (€)"
+    override val depositsEur = "Deposits (€)"
+    override val withdrawalsEur = "Withdrawals (€)"
+    override val feesEur = "Fees (€)"
+    override val dividendsEur = "Dividends (€)"
+    override val noteOptional = "Note (optional)"
+    override val investmentPerformance = "Investment performance"
+    override val contributionAdjustedGain = "Contribution-adjusted gain"
+    override val timeWeightedReturn = "Time-weighted return"
+    override val marketPerformance = "Market performance"
+    override val cashFlows = "Cash flows"
+    override val investmentFlowInferredWarning = "Some historical flows are inferred from transfers until you backfill them in Settings."
     override val valueError = "Enter a valid value"
     override val save = "Save"
 
@@ -235,6 +246,15 @@ object StringsEn : Strings {
     override val settingsTabData = "Data"
     override val settingsTabCloud = "Cloud"
     override val settingsTabAbout = "About"
+    override val investmentFlowBackfillTitle = "Backfill investment flows"
+    override val investmentFlowBackfillDescription = "%1\$d snapshots across %2\$d accounts can be filled from existing transfer transactions."
+    override val investmentFlowBackfillNoChanges = "No historical investment flows need backfill."
+    override val investmentFlowBackfillPreview = "Preview"
+    override val investmentFlowBackfillDialogTitle = "Backfill historical flows?"
+    override val investmentFlowBackfillDialogText = "Only snapshots with empty amount annotations will be updated. Existing manual deposits, withdrawals, fees, dividends, and notes are preserved."
+    override val investmentFlowBackfillApply = "Apply backfill"
+    override val investmentFlowBackfillApplied = "%d snapshots updated"
+    override val investmentFlowBackfillMore = "+%d more"
 
     // Cloud sync
     override val cloudSync = "Cloud sync"

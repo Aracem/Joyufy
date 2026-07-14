@@ -155,6 +155,17 @@ interface Strings {
 
     // Add/Edit snapshot
     val totalValueEur: String
+    val depositsEur: String
+    val withdrawalsEur: String
+    val feesEur: String
+    val dividendsEur: String
+    val noteOptional: String
+    val investmentPerformance: String
+    val contributionAdjustedGain: String
+    val timeWeightedReturn: String
+    val marketPerformance: String
+    val cashFlows: String
+    val investmentFlowInferredWarning: String
     val valueError: String
     val save: String
 
@@ -239,6 +250,15 @@ interface Strings {
     val settingsTabData: String
     val settingsTabCloud: String
     val settingsTabAbout: String
+    val investmentFlowBackfillTitle: String
+    val investmentFlowBackfillDescription: String
+    val investmentFlowBackfillNoChanges: String
+    val investmentFlowBackfillPreview: String
+    val investmentFlowBackfillDialogTitle: String
+    val investmentFlowBackfillDialogText: String
+    val investmentFlowBackfillApply: String
+    val investmentFlowBackfillApplied: String
+    val investmentFlowBackfillMore: String
 
     // Cloud sync
     val cloudSync: String

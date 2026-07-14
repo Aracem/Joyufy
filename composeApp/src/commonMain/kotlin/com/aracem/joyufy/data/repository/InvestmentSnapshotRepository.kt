@@ -70,11 +70,21 @@ class InvestmentSnapshotRepository(private val db: JoyufyDatabase) {
         accountId: Long,
         totalValue: Double,
         weekDate: Long,
+        deposits: Double = 0.0,
+        withdrawals: Double = 0.0,
+        fees: Double = 0.0,
+        dividends: Double = 0.0,
+        note: String? = null,
     ): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.insertSnapshot(
             account_id = accountId,
             total_value = totalValue,
             week_date = weekDate,
+            deposit_amount = deposits,
+            withdrawal_amount = withdrawals,
+            fee_amount = fees,
+            dividend_amount = dividends,
+            note = note,
         )
     }
 
@@ -83,17 +93,45 @@ class InvestmentSnapshotRepository(private val db: JoyufyDatabase) {
         accountId: Long,
         totalValue: Double,
         weekDate: Long,
+        deposits: Double = 0.0,
+        withdrawals: Double = 0.0,
+        fees: Double = 0.0,
+        dividends: Double = 0.0,
+        note: String? = null,
     ): Unit = withContext(Dispatchers.IO) {
         db.joyufyDatabaseQueries.insertSnapshotWithId(
             id = id,
             account_id = accountId,
             total_value = totalValue,
             week_date = weekDate,
+            deposit_amount = deposits,
+            withdrawal_amount = withdrawals,
+            fee_amount = fees,
+            dividend_amount = dividends,
+            note = note,
         )
     }
 
-    suspend fun updateSnapshot(id: Long, totalValue: Double, weekDate: Long): Unit = withContext(Dispatchers.IO) {
-        db.joyufyDatabaseQueries.updateSnapshot(total_value = totalValue, week_date = weekDate, id = id)
+    suspend fun updateSnapshot(
+        id: Long,
+        totalValue: Double,
+        weekDate: Long,
+        deposits: Double = 0.0,
+        withdrawals: Double = 0.0,
+        fees: Double = 0.0,
+        dividends: Double = 0.0,
+        note: String? = null,
+    ): Unit = withContext(Dispatchers.IO) {
+        db.joyufyDatabaseQueries.updateSnapshot(
+            total_value = totalValue,
+            week_date = weekDate,
+            deposit_amount = deposits,
+            withdrawal_amount = withdrawals,
+            fee_amount = fees,
+            dividend_amount = dividends,
+            note = note,
+            id = id,
+        )
     }
 
     suspend fun deleteSnapshot(id: Long): Unit = withContext(Dispatchers.IO) {

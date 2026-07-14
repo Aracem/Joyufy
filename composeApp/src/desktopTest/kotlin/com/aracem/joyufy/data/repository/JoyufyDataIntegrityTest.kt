@@ -81,6 +81,11 @@ class JoyufyDataIntegrityTest {
                         accountId = 42L,
                         totalValue = 5_000.0,
                         weekDate = 30L,
+                        deposits = 400.0,
+                        withdrawals = 50.0,
+                        fees = 3.0,
+                        dividends = 12.0,
+                        note = "Quarterly rebalance",
                     ),
                 ),
             )
@@ -94,8 +99,56 @@ class JoyufyDataIntegrityTest {
             assertEquals(91L, restoredTransaction.id)
             assertEquals(TransactionReviewStatus.DRAFT, restoredTransaction.reviewStatus)
             assertEquals("csv-1", restoredTransaction.importBatch)
-            assertEquals(92L, repos.snapshots.getAllSnapshots().single().id)
+            val restoredSnapshot = repos.snapshots.getAllSnapshots().single()
+            assertEquals(92L, restoredSnapshot.id)
+            assertEquals(400.0, restoredSnapshot.deposits)
+            assertEquals(50.0, restoredSnapshot.withdrawals)
+            assertEquals(3.0, restoredSnapshot.fees)
+            assertEquals(12.0, restoredSnapshot.dividends)
+            assertEquals("Quarterly rebalance", restoredSnapshot.note)
             assertFalse(repos.backups.diffAgainstLocal(json).hasChanges)
+        }
+    }
+
+    @Test
+    fun investmentSnapshotAnnotationsSurviveBackupRoundTrip() = runTest {
+        inMemoryRepositories().use { repos ->
+            val accountId = repos.accounts.insertAccount(
+                name = "Investment",
+                type = AccountType.INVESTMENT,
+                colorHex = "#7B6EF6",
+                logoUrl = null,
+                position = 0,
+            )
+
+            repos.snapshots.insertSnapshot(
+                accountId = accountId,
+                totalValue = 12_500.0,
+                weekDate = 1_000L,
+                deposits = 1_000.0,
+                withdrawals = 100.0,
+                fees = 4.5,
+                dividends = 22.0,
+                note = "Dividend week",
+            )
+
+            val snapshot = repos.snapshots.getAllSnapshots().single()
+            assertEquals(1_000.0, snapshot.deposits)
+            assertEquals(100.0, snapshot.withdrawals)
+            assertEquals(4.5, snapshot.fees)
+            assertEquals(22.0, snapshot.dividends)
+            assertEquals("Dividend week", snapshot.note)
+
+            val backup = repos.backups.export()
+            repos.backups.import(backup)
+
+            val restored = repos.snapshots.getAllSnapshots().single()
+            assertEquals(12_500.0, restored.totalValue)
+            assertEquals(1_000.0, restored.deposits)
+            assertEquals(100.0, restored.withdrawals)
+            assertEquals(4.5, restored.fees)
+            assertEquals(22.0, restored.dividends)
+            assertEquals("Dividend week", restored.note)
         }
     }
 

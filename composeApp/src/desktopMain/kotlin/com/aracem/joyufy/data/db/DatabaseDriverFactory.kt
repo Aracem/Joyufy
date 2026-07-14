@@ -37,6 +37,11 @@ actual class DatabaseDriverFactory actual constructor() {
             runCatching { driver.execute(null, "ALTER TABLE Account ADD COLUMN logo_url TEXT", 0) }
             runCatching { driver.execute(null, "ALTER TABLE `Transaction` ADD COLUMN review_status TEXT NOT NULL DEFAULT 'REVIEWED'", 0) }
             runCatching { driver.execute(null, "ALTER TABLE `Transaction` ADD COLUMN import_batch TEXT", 0) }
+            runCatching { driver.execute(null, "ALTER TABLE InvestmentSnapshot ADD COLUMN deposit_amount REAL NOT NULL DEFAULT 0.0", 0) }
+            runCatching { driver.execute(null, "ALTER TABLE InvestmentSnapshot ADD COLUMN withdrawal_amount REAL NOT NULL DEFAULT 0.0", 0) }
+            runCatching { driver.execute(null, "ALTER TABLE InvestmentSnapshot ADD COLUMN fee_amount REAL NOT NULL DEFAULT 0.0", 0) }
+            runCatching { driver.execute(null, "ALTER TABLE InvestmentSnapshot ADD COLUMN dividend_amount REAL NOT NULL DEFAULT 0.0", 0) }
+            runCatching { driver.execute(null, "ALTER TABLE InvestmentSnapshot ADD COLUMN note TEXT", 0) }
         }
         return driver
     }

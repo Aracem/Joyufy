@@ -3,6 +3,8 @@ package com.aracem.joyufy.ui.account
 import com.aracem.joyufy.data.repository.AccountRepository
 import com.aracem.joyufy.data.repository.InvestmentSnapshotRepository
 import com.aracem.joyufy.data.repository.TransactionRepository
+import com.aracem.joyufy.domain.logic.hasManualInvestmentFlowAnnotations
+import com.aracem.joyufy.domain.logic.withDerivedInvestmentFlows
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
@@ -28,8 +30,30 @@ data class SingleAccountPoint(
     val balance: Double,
 )
 
+data class InvestmentPerformancePoint(
+    val snapshot: InvestmentSnapshot,
+    val previousValue: Double?,
+    val valueChange: Double,
+    val contributionAdjustedGain: Double,
+    val marketPerformance: Double,
+    val returnPct: Double?,
+)
+
+data class InvestmentPerformanceSummary(
+    val deposits: Double,
+    val withdrawals: Double,
+    val fees: Double,
+    val dividends: Double,
+    val contributionAdjustedGain: Double,
+    val marketPerformance: Double,
+    val timeWeightedReturnPct: Double?,
+)
+
 sealed interface InvestmentListItem {
-    data class Snapshot(val snapshot: InvestmentSnapshot) : InvestmentListItem
+    data class Snapshot(
+        val snapshot: InvestmentSnapshot,
+        val performance: InvestmentPerformancePoint?,
+    ) : InvestmentListItem
     data class Tx(val transaction: Transaction) : InvestmentListItem
 }
 
@@ -40,6 +64,9 @@ data class AccountDetailUiState(
     val transactions: List<Transaction> = emptyList(),
     val snapshots: List<InvestmentSnapshot> = emptyList(),
     val investmentFeed: List<InvestmentListItem> = emptyList(),
+    val investmentPerformance: List<InvestmentPerformancePoint> = emptyList(),
+    val investmentPerformanceSummary: InvestmentPerformanceSummary? = null,
+    val hasInferredInvestmentFlows: Boolean = false,
     val allAccounts: List<Account> = emptyList(),
     val accountHistory: List<SingleAccountPoint> = emptyList(),
     val chartRange: ChartRange = ChartRangePreference.range.value,
@@ -144,12 +171,16 @@ class AccountDetailViewModel(
                         transactionRepository.observeTransactionsForAccount(accountId),
                         ChartRangePreference.range,
                     ) { snapshots, transactions, range ->
+                        val performance = buildInvestmentPerformance(snapshots, transactions)
                         val balance = snapshots.firstOrNull()?.totalValue
                             ?: transactionRepository.getAccountBalance(accountId)
                         _uiState.value = _uiState.value.copy(
                             balance = balance,
                             snapshots = snapshots,
-                            investmentFeed = buildInvestmentFeed(snapshots, transactions),
+                            investmentFeed = buildInvestmentFeed(snapshots, transactions, performance),
+                            investmentPerformance = performance,
+                            investmentPerformanceSummary = buildInvestmentPerformanceSummary(performance),
+                            hasInferredInvestmentFlows = hasInferredInvestmentFlows(snapshots, performance),
                         )
                         buildInvestmentHistory(snapshots, range)
                     }.collect { history ->
@@ -182,7 +213,9 @@ class AccountDetailViewModel(
     private fun buildInvestmentFeed(
         snapshots: List<InvestmentSnapshot>,
         transactions: List<Transaction>,
+        performance: List<InvestmentPerformancePoint>,
     ): List<InvestmentListItem> {
+        val performanceBySnapshotId = performance.associateBy { it.snapshot.id }
         // Keep only the most recent snapshot per week in case of duplicate data in DB
         val sortedSnapshots = snapshots
             .sortedByDescending { it.weekDate }
@@ -214,7 +247,7 @@ class AccountDetailViewModel(
 
         // Each snapshot owns transactions within [weekDate, weekDate + 7 days)
         sortedSnapshots.forEach { snapshot ->
-            result.add(InvestmentListItem.Snapshot(snapshot))
+            result.add(InvestmentListItem.Snapshot(snapshot, performanceBySnapshotId[snapshot.id]))
             val weekEnd = snapshot.weekDate + MILLIS_IN_WEEK
             sortedTxns
                 .filter { it.date >= snapshot.weekDate && it.date < weekEnd }
@@ -326,12 +359,25 @@ class AccountDetailViewModel(
         }
     }
 
-    fun addSnapshot(totalValue: Double, weekDate: Long) {
+    fun addSnapshot(
+        totalValue: Double,
+        weekDate: Long,
+        deposits: Double,
+        withdrawals: Double,
+        fees: Double,
+        dividends: Double,
+        note: String?,
+    ) {
         scope.launch {
             snapshotRepository.insertSnapshot(
                 accountId = accountId,
                 totalValue = totalValue,
                 weekDate = weekDate,
+                deposits = deposits,
+                withdrawals = withdrawals,
+                fees = fees,
+                dividends = dividends,
+                note = note,
             )
         }
     }
@@ -421,8 +467,28 @@ class AccountDetailViewModel(
         }
     }
 
-    fun updateSnapshot(id: Long, totalValue: Double, weekDate: Long) {
-        scope.launch { snapshotRepository.updateSnapshot(id, totalValue, weekDate) }
+    fun updateSnapshot(
+        id: Long,
+        totalValue: Double,
+        weekDate: Long,
+        deposits: Double,
+        withdrawals: Double,
+        fees: Double,
+        dividends: Double,
+        note: String?,
+    ) {
+        scope.launch {
+            snapshotRepository.updateSnapshot(
+                id = id,
+                totalValue = totalValue,
+                weekDate = weekDate,
+                deposits = deposits,
+                withdrawals = withdrawals,
+                fees = fees,
+                dividends = dividends,
+                note = note,
+            )
+        }
     }
 
     fun deleteTransaction(id: Long) {
@@ -504,6 +570,11 @@ class AccountDetailViewModel(
                     accountId = snapshot.accountId,
                     totalValue = snapshot.totalValue,
                     weekDate = snapshot.weekDate,
+                    deposits = snapshot.deposits,
+                    withdrawals = snapshot.withdrawals,
+                    fees = snapshot.fees,
+                    dividends = snapshot.dividends,
+                    note = snapshot.note,
                 )
             }.onSuccess {
                 lastDeletedSnapshot = null
@@ -537,4 +608,68 @@ class AccountDetailViewModel(
             TransactionType.TRANSFER -> TransactionType.INCOME
         }
 
+}
+
+internal fun buildInvestmentPerformance(
+    snapshots: List<InvestmentSnapshot>,
+    transactions: List<Transaction> = emptyList(),
+): List<InvestmentPerformancePoint> {
+    val sorted = snapshots
+        .sortedBy { it.weekDate }
+        .distinctBy { it.weekDate }
+        .map { it.withDerivedInvestmentFlows(transactions) }
+    return sorted.mapIndexed { index, snapshot ->
+        val previousValue = sorted.getOrNull(index - 1)?.totalValue
+        val valueChange = previousValue?.let { snapshot.totalValue - it } ?: 0.0
+        val contributionAdjustedGain = previousValue?.let {
+            valueChange - snapshot.deposits + snapshot.withdrawals
+        } ?: 0.0
+        val marketPerformance = previousValue?.let {
+            contributionAdjustedGain + snapshot.fees - snapshot.dividends
+        } ?: 0.0
+        val returnPct = previousValue
+            ?.takeIf { it > 0.0 }
+            ?.let { (contributionAdjustedGain / it) * 100.0 }
+        InvestmentPerformancePoint(
+            snapshot = snapshot,
+            previousValue = previousValue,
+            valueChange = valueChange,
+            contributionAdjustedGain = contributionAdjustedGain,
+            marketPerformance = marketPerformance,
+            returnPct = returnPct,
+        )
+    }
+}
+
+private fun hasInferredInvestmentFlows(
+    snapshots: List<InvestmentSnapshot>,
+    performance: List<InvestmentPerformancePoint>,
+): Boolean {
+    val snapshotsById = snapshots.associateBy { it.id }
+    return performance.any { point ->
+        val original = snapshotsById[point.snapshot.id] ?: return@any false
+        !original.hasManualInvestmentFlowAnnotations() &&
+            (point.snapshot.deposits != 0.0 || point.snapshot.withdrawals != 0.0)
+    }
+}
+
+internal fun buildInvestmentPerformanceSummary(
+    points: List<InvestmentPerformancePoint>,
+): InvestmentPerformanceSummary? {
+    if (points.isEmpty()) return null
+    val periods = points.filter { it.previousValue != null }
+    val twrPct = periods
+        .mapNotNull { it.returnPct?.let { pct -> 1.0 + pct / 100.0 } }
+        .takeIf { it.isNotEmpty() }
+        ?.fold(1.0) { acc, value -> acc * value }
+        ?.let { (it - 1.0) * 100.0 }
+    return InvestmentPerformanceSummary(
+        deposits = points.sumOf { it.snapshot.deposits },
+        withdrawals = points.sumOf { it.snapshot.withdrawals },
+        fees = points.sumOf { it.snapshot.fees },
+        dividends = points.sumOf { it.snapshot.dividends },
+        contributionAdjustedGain = periods.sumOf { it.contributionAdjustedGain },
+        marketPerformance = periods.sumOf { it.marketPerformance },
+        timeWeightedReturnPct = twrPct,
+    )
 }
