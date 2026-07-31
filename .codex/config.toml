@@ -1,0 +1,11 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+CLAUDE_CODE_ENABLE_TELEMETRY = "1"
+OTEL_METRICS_EXPORTER = "otlp"
+OTEL_LOGS_EXPORTER = "otlp"
+OTEL_EXPORTER_OTLP_PROTOCOL = "http/protobuf"
+OTEL_LOG_TOOL_DETAILS = "1"
+OTEL_EXPORTER_OTLP_ENDPOINT = "https://otlp-gateway-prod-eu-west-2.grafana.net/otlp"
+OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE = "cumulative"
