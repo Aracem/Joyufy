@@ -103,6 +103,7 @@ fun DashboardScreen(
                     tasks = state.missingSnapshotTasks,
                     onUpdateValue = { task -> onUpdateMissingSnapshot(task.account) },
                     onDismiss = viewModel::dismissMissingSnapshotBanner,
+                    onDismissTask = { task -> viewModel.dismissMissingSnapshotTask(task.account.id) },
                 )
             }
         }

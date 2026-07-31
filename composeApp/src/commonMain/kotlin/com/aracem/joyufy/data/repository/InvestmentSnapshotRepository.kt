@@ -59,12 +59,16 @@ class InvestmentSnapshotRepository(private val db: JoyufyDatabase) {
             .map { it.toDomain() }
     }
 
-    suspend fun getAccountsMissingThisWeek(weekDate: Long): List<Account> = withContext(Dispatchers.IO) {
+    /**
+     * Reactive counterpart of [getAccountsMissingThisWeek]: re-emits whenever a
+     * snapshot is inserted, so a pending-update banner can drop rows on its own.
+     */
+    fun observeAccountsMissingThisWeek(weekDate: Long): Flow<List<Account>> =
         db.joyufyDatabaseQueries
             .getInvestmentAccountsMissingThisWeek(weekDate)
-            .executeAsList()
-            .map { it.toDomain() }
-    }
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { list -> list.map { it.toDomain() } }
 
     suspend fun insertSnapshot(
         accountId: Long,

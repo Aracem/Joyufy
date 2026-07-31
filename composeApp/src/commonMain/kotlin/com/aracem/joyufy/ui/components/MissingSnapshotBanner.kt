@@ -1,5 +1,6 @@
 package com.aracem.joyufy.ui.components
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -7,6 +8,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +23,7 @@ fun MissingSnapshotBanner(
     tasks: List<MissingSnapshotTask>,
     onUpdateValue: (MissingSnapshotTask) -> Unit,
     onDismiss: () -> Unit,
+    onDismissTask: (MissingSnapshotTask) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (tasks.isEmpty()) return
@@ -31,7 +34,8 @@ fun MissingSnapshotBanner(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .background(AccentDim)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -64,11 +68,16 @@ fun MissingSnapshotBanner(
             }
         }
 
+        // Rows are keyed so removing one animates the card's height via
+        // animateContentSize() instead of snapping.
         tasks.forEach { task ->
-            MissingSnapshotTaskRow(
-                task = task,
-                onUpdateValue = { onUpdateValue(task) },
-            )
+            key(task.account.id) {
+                MissingSnapshotTaskRow(
+                    task = task,
+                    onUpdateValue = { onUpdateValue(task) },
+                    onDismissTask = { onDismissTask(task) },
+                )
+            }
         }
     }
 }
@@ -77,6 +86,7 @@ fun MissingSnapshotBanner(
 private fun MissingSnapshotTaskRow(
     task: MissingSnapshotTask,
     onUpdateValue: () -> Unit,
+    onDismissTask: () -> Unit,
 ) {
     val strings = LocalStrings.current
     Row(
@@ -117,6 +127,14 @@ private fun MissingSnapshotTaskRow(
                 text = strings.updateValue,
                 style = MaterialTheme.typography.labelSmall,
                 color = Accent,
+            )
+        }
+        IconButton(onClick = onDismissTask, modifier = Modifier.size(24.dp)) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = strings.close,
+                tint = Accent.copy(alpha = 0.7f),
+                modifier = Modifier.size(14.dp),
             )
         }
     }

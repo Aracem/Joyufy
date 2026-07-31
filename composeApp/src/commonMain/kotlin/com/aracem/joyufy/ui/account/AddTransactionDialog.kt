@@ -27,6 +27,7 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.domain.model.categorySuggestions
 import com.aracem.joyufy.ui.components.formatDate
 import com.aracem.joyufy.ui.components.formatInputAmount
 import com.aracem.joyufy.ui.components.parseDateInputToMillis
@@ -62,7 +63,8 @@ fun AddTransactionDialog(
     val strings = LocalStrings.current
     val allowedTypes = when (accountType) {
         AccountType.INVESTMENT -> listOf(TransactionType.INCOME, TransactionType.TRANSFER)
-        AccountType.BANK, AccountType.CASH -> listOf(TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.TRANSFER)
+        // Expense first: it's the most frequently added type, so it's also the default
+        AccountType.BANK, AccountType.CASH -> listOf(TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER)
     }
     val initialType = if (editingTransaction?.relatedAccountId != null) {
         TransactionType.TRANSFER
@@ -159,17 +161,8 @@ fun AddTransactionDialog(
                 val descriptionFocus = remember { FocusRequester() }
                 LaunchedEffect(Unit) { amountFocus.requestFocus() }
 
+                // Expense templates first, matching the expense-first chip order.
                 val templates = buildList {
-                    if (TransactionType.INCOME in allowedTypes) {
-                        add(
-                            TransactionDialogTemplate(
-                                label = strings.templateSalary,
-                                type = TransactionType.INCOME,
-                                category = TransactionCategory.SALARY.label,
-                                description = strings.templateSalary,
-                            ),
-                        )
-                    }
                     if (TransactionType.EXPENSE in allowedTypes) {
                         add(
                             TransactionDialogTemplate(
@@ -196,6 +189,16 @@ fun AddTransactionDialog(
                             ),
                         )
                     }
+                    if (TransactionType.INCOME in allowedTypes) {
+                        add(
+                            TransactionDialogTemplate(
+                                label = strings.templateSalary,
+                                type = TransactionType.INCOME,
+                                category = TransactionCategory.SALARY.label,
+                                description = strings.templateSalary,
+                            ),
+                        )
+                    }
                     if (accountType != AccountType.INVESTMENT && TransactionType.TRANSFER in allowedTypes) {
                         add(
                             TransactionDialogTemplate(
@@ -208,16 +211,10 @@ fun AddTransactionDialog(
                     }
                 }
 
-                // All available categories: predefined enum labels + any free-text
-                // values the user has used before (case-insensitive dedup, custom
-                // strings get priority casing).
+                // Categories the user actually uses (already ranked by frequency)
+                // first, with the predefined catalog filling the tail.
                 val allCategoryLabels = remember(customCategories) {
-                    val preset = TransactionCategory.entries.map { it.label }
-                    val seen = HashSet<String>()
-                    val out = ArrayList<String>(preset.size + customCategories.size)
-                    customCategories.forEach { if (seen.add(it.lowercase())) out += it }
-                    preset.forEach { if (seen.add(it.lowercase())) out += it }
-                    out
+                    categorySuggestions(customCategories)
                 }
 
                 if (editingTransaction == null && templates.isNotEmpty()) {

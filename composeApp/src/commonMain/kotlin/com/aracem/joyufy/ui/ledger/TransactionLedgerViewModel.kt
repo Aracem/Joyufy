@@ -9,6 +9,7 @@ import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.domain.model.rankCategoriesByUsage
 import com.aracem.joyufy.ui.components.MILLIS_IN_DAY
 import com.aracem.joyufy.ui.components.currentWeekStartMillis
 import com.aracem.joyufy.ui.navigation.LedgerInitialFilter
@@ -408,10 +409,7 @@ class TransactionLedgerViewModel(
             isLoading = false,
             rows = rows,
             accounts = source.accounts,
-            customCategories = source.transactions
-                .mapNotNull { it.category?.takeIf(String::isNotBlank) }
-                .distinct()
-                .sorted(),
+            customCategories = rankCategoriesByUsage(source.transactions),
             selectedPreset = filters.preset,
             searchQuery = filters.searchQuery,
             selectedAccountId = filters.accountId,

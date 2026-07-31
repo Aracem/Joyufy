@@ -143,6 +143,10 @@ class DashboardViewModel(
 
     private val currentYear = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
 
+    // Snapshot reminders dismissed this session. Not persisted: the banner only
+    // shows on Fridays, so a restart re-surfacing it is acceptable.
+    private var dismissedSnapshotAccountIds: Set<Long> = emptySet()
+
     private val _uiState = MutableStateFlow(
         DashboardUiState(
             chartRange = ChartRangePreference.range.value,
@@ -157,7 +161,7 @@ class DashboardViewModel(
         observeWealthHistory()
         observeMonthlySummary()
         observeAnnualSummary()
-        checkMissingSnapshots()
+        observeMissingSnapshots()
         observeChartRange()
         checkForUpdates()
     }
@@ -496,21 +500,26 @@ class DashboardViewModel(
         _uiState.value = _uiState.value.copy(selectedAnalysisYear = newYear)
     }
 
-    private fun checkMissingSnapshots() {
+    private fun observeMissingSnapshots() {
         scope.launch {
             val now = Clock.System.now()
             val local = now.toLocalDateTime(TimeZone.currentSystemDefault())
             // Banner only shown on Fridays (dayOfWeek ordinal: Mon=0 … Fri=4)
             if (local.dayOfWeek.ordinal != 4) return@launch
             val weekDate = currentWeekStartMillis()
-            val tasks = snapshotRepository.getAccountsMissingThisWeek(weekDate)
-                .map { account ->
-                    MissingSnapshotTask(
-                        account = account,
-                        lastSnapshotDate = snapshotRepository.getLatestSnapshot(account.id)?.weekDate,
-                    )
-                }
-            _uiState.value = _uiState.value.copy(missingSnapshotTasks = tasks)
+            // Reactive: as soon as an account gets its snapshot for this week the
+            // query stops returning it, so its banner row disappears on its own.
+            snapshotRepository.observeAccountsMissingThisWeek(weekDate).collect { accounts ->
+                val tasks = accounts
+                    .filter { it.id !in dismissedSnapshotAccountIds }
+                    .map { account ->
+                        MissingSnapshotTask(
+                            account = account,
+                            lastSnapshotDate = snapshotRepository.getLatestSnapshot(account.id)?.weekDate,
+                        )
+                    }
+                _uiState.value = _uiState.value.copy(missingSnapshotTasks = tasks)
+            }
         }
     }
 
@@ -528,7 +537,18 @@ class DashboardViewModel(
         // uiState.chartRange se actualiza reactivamente vía observeChartRange()
     }
 
+    /** Dismiss a single pending-update row. In-memory only, like the update banner. */
+    fun dismissMissingSnapshotTask(accountId: Long) {
+        dismissedSnapshotAccountIds = dismissedSnapshotAccountIds + accountId
+        _uiState.value = _uiState.value.copy(
+            missingSnapshotTasks = _uiState.value.missingSnapshotTasks
+                .filterNot { it.account.id == accountId },
+        )
+    }
+
     fun dismissMissingSnapshotBanner() {
+        dismissedSnapshotAccountIds = dismissedSnapshotAccountIds +
+            _uiState.value.missingSnapshotTasks.map { it.account.id }
         _uiState.value = _uiState.value.copy(missingSnapshotTasks = emptyList())
     }
 

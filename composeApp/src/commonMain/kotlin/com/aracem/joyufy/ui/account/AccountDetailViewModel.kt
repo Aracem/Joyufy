@@ -10,6 +10,7 @@ import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.InvestmentSnapshot
 import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.domain.model.rankCategoriesByUsage
 import com.aracem.joyufy.ui.dashboard.ChartRange
 import com.aracem.joyufy.ui.dashboard.ChartRangePreference
 import kotlinx.coroutines.CoroutineScope
@@ -126,23 +127,9 @@ class AccountDetailViewModel(
             // the user's real categories before the generic catalog.
             launch {
                 transactionRepository.observeAllTransactions().collect { all ->
-                    val out = all
-                        .asSequence()
-                        .mapNotNull { tx -> tx.category?.trim()?.takeIf { it.isNotEmpty() }?.let { it to tx.date } }
-                        .groupBy { (label, _) -> label.lowercase() }
-                        .map { (_, entries) ->
-                            val label = entries.maxBy { it.second }.first
-                            val count = entries.size
-                            val lastUsed = entries.maxOf { it.second }
-                            Triple(label, count, lastUsed)
-                        }
-                        .sortedWith(
-                            compareByDescending<Triple<String, Int, Long>> { it.second }
-                                .thenByDescending { it.third }
-                                .thenBy { it.first.lowercase() },
-                        )
-                        .map { it.first }
-                    _uiState.value = _uiState.value.copy(customCategories = out)
+                    _uiState.value = _uiState.value.copy(
+                        customCategories = rankCategoriesByUsage(all),
+                    )
                 }
             }
 
