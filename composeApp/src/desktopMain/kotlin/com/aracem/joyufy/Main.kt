@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import com.aracem.joyufy.di.initKoin
 import com.aracem.joyufy.ui.App
@@ -57,6 +59,7 @@ fun main() {
             },
             title = "Joyufy",
             icon = loadWindowIcon(),
+            state = remember { WindowState(placement = WindowPlacement.Maximized) },
         ) {
             App()
         }
