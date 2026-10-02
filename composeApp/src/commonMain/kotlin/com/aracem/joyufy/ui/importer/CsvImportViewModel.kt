@@ -1,12 +1,14 @@
 package com.aracem.joyufy.ui.importer
 
 import com.aracem.joyufy.data.repository.AccountRepository
+import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.Transaction
 import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.domain.model.categoryFor
 import com.aracem.joyufy.ui.components.formatDate
 import com.aracem.joyufy.ui.components.parseDateInputToMillis
 import kotlinx.coroutines.CoroutineScope
@@ -81,6 +83,7 @@ private data class ParsedCsv(
 class CsvImportViewModel(
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
+    private val preferencesRepository: PreferencesRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -219,7 +222,13 @@ class CsvImportViewModel(
                     dateText = rawRow[state.mapping[CsvColumnRole.DATE]].orEmpty(),
                     amountText = rawRow[state.mapping[CsvColumnRole.AMOUNT]].orEmpty(),
                     description = rawRow[state.mapping[CsvColumnRole.DESCRIPTION]].orEmpty(),
-                    category = rawRow[state.mapping[CsvColumnRole.CATEGORY]].orEmpty(),
+                    category = rawRow[state.mapping[CsvColumnRole.CATEGORY]].orEmpty().ifBlank {
+                        val accountId = accountFrom(rawRow[state.mapping[CsvColumnRole.ACCOUNT]])?.id ?: state.defaultAccountId
+                        accountId?.let { preferencesRepository.getCategorizationRules().categoryFor(
+                            rawRow[state.mapping[CsvColumnRole.DESCRIPTION]].orEmpty(),
+                            it,
+                        ) }.orEmpty()
+                    },
                     typeText = rawRow[state.mapping[CsvColumnRole.TYPE]].orEmpty(),
                 )
             )

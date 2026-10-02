@@ -20,4 +20,5 @@ sealed class Screen {
         val initialFilter: LedgerInitialFilter = LedgerInitialFilter.ALL,
     ) : Screen()
     data object Settings : Screen()
+    data object CategorizationRules : Screen()
 }

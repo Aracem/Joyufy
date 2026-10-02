@@ -68,6 +68,7 @@ import com.aracem.joyufy.ui.ledger.TransactionLedgerScreen
 import com.aracem.joyufy.ui.navigation.LedgerInitialFilter
 import com.aracem.joyufy.ui.navigation.Screen
 import com.aracem.joyufy.ui.settings.SettingsScreen
+import com.aracem.joyufy.ui.settings.CategorizationRulesScreen
 import com.aracem.joyufy.ui.theme.JoyufyTheme
 import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.joyufyColors
@@ -346,8 +347,10 @@ fun App() {
                                     if (csv != null) csvImportViewModel.loadCsv(csv)
                                 }
                             },
+                            onOpenCategorizationRules = { currentScreen = Screen.CategorizationRules },
                             cloudConflictPending = cloudRestorePrompt != null,
                         )
+                        is Screen.CategorizationRules -> CategorizationRulesScreen(onBack = { currentScreen = Screen.Settings })
                     }
                 }
             }

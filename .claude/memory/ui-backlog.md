@@ -57,17 +57,18 @@ metadata:
 
 ## Product feature ideas
 
-1. Categorization rules engine: match by description/payee/amount/account and auto-assign category, type, or tags during import/manual entry.
-2. Recurring transactions for salary, rent, subscriptions, cash withdrawals, and scheduled transfers, with generated pending instances.
-3. Monthly category budgets with burn-rate, remaining amount, and overspend warnings.
-4. Cash-flow forecast: projected month-end balances using recurring transactions, budgets, and expected investment contributions.
-5. Savings goals: target amount/date, linked accounts, progress, and suggested monthly contribution.
-6. Archived account management: list archived accounts, restore them, or permanently delete with typed confirmation.
-7. Cloud backup history: keep recent cloud/local backup versions and allow restore to a chosen timestamp instead of only latest.
-8. Conflict-aware cloud restore: merge or selectively keep local/cloud entities instead of full destructive replace.
-9. Export reports: CSV/PDF monthly summary, category breakdown, net-worth history, and tax/investment movement report.
-10. Tags and notes: free-form tags plus richer notes/receipt reference for transactions, independent from category.
-11. Split transactions: one bank transaction distributed across multiple categories.
+1. **Current priority — categorization rules engine:** match by description/payee/amount/account and auto-assign category, type, or tags during import/manual entry. Implement first and validate it before starting the next priority.
+2. **Current priority — monthly category budgets:** burn-rate, remaining amount, and overspend warnings. Build after categorization rules.
+3. **Current priority — dashboard monthly summary:** income, expenses, net savings, and comparison with the prior month; add after budgets.
+4. **Current priority — export reports:** CSV/PDF monthly summary, category breakdown, net-worth history, and tax/investment movement report; add after the dashboard summary.
+5. Recurring transactions for salary, rent, subscriptions, cash withdrawals, and scheduled transfers, with generated pending instances. Defer for later proposal.
+6. Cash-flow forecast: projected month-end balances using recurring transactions, budgets, and expected investment contributions. Defer for later proposal.
+7. Savings goals: target amount/date, linked accounts, progress, and suggested monthly contribution. Defer for later proposal.
+8. Archived account management: list archived accounts, restore them, or permanently delete with typed confirmation. Defer for later proposal.
+9. Cloud backup history: keep recent cloud/local backup versions and allow restore to a chosen timestamp instead of only latest. Defer for later proposal.
+10. Conflict-aware cloud restore: merge or selectively keep local/cloud entities instead of full destructive replace. Defer for later proposal.
+11. Tags and notes: free-form tags plus richer notes/receipt reference for transactions, independent from category. Defer for later proposal.
+12. Split transactions: one bank transaction distributed across multiple categories. Defer for later proposal.
 
 ## Discarded / Low ROI
 

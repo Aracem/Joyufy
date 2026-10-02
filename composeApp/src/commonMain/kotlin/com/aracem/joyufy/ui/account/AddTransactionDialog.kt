@@ -27,6 +27,8 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.domain.model.TransactionType
+import com.aracem.joyufy.domain.model.categoryFor
+import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.domain.model.categorySuggestions
 import com.aracem.joyufy.ui.components.formatDate
 import com.aracem.joyufy.ui.components.formatInputAmount
@@ -38,6 +40,7 @@ import kotlin.time.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import org.koin.compose.koinInject
 
 private data class TransactionDialogTemplate(
     val label: String,
@@ -61,6 +64,7 @@ fun AddTransactionDialog(
     editingTransaction: com.aracem.joyufy.domain.model.Transaction? = null,
 ) {
     val strings = LocalStrings.current
+    val preferencesRepository: PreferencesRepository = koinInject()
     val allowedTypes = when (accountType) {
         AccountType.INVESTMENT -> listOf(TransactionType.INCOME, TransactionType.TRANSFER)
         // Expense first: it's the most frequently added type, so it's also the default
@@ -422,7 +426,14 @@ fun AddTransactionDialog(
                 // Descripción
                 OutlinedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = {
+                        description = it
+                        if (category.isBlank()) {
+                            category = preferencesRepository.getCategorizationRules()
+                                .categoryFor(it, 0L)
+                                .orEmpty()
+                        }
+                    },
                     label = { Text(strings.descriptionOptional) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

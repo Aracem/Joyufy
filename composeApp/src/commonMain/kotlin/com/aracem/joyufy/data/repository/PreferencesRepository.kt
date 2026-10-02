@@ -1,5 +1,6 @@
 package com.aracem.joyufy.data.repository
 
+import com.aracem.joyufy.domain.model.CategorizationRule
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -13,6 +14,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.builtins.ListSerializer
 
 class PreferencesRepository {
 
@@ -47,6 +49,17 @@ class PreferencesRepository {
 
     fun getDriveLastSyncAt(): Long = getLong("drive_last_sync_at", 0L)
     fun setDriveLastSyncAt(value: Long) = putLong("drive_last_sync_at", value)
+
+    fun getCategorizationRules(): List<CategorizationRule> = synchronized(lock) {
+        val raw = data["categorization_rules"] ?: return@synchronized emptyList()
+        runCatching { json.decodeFromJsonElement(ListSerializer(CategorizationRule.serializer()), raw) }
+            .getOrDefault(emptyList())
+    }
+
+    fun setCategorizationRules(rules: List<CategorizationRule>) = synchronized(lock) {
+        data["categorization_rules"] = json.encodeToJsonElement(ListSerializer(CategorizationRule.serializer()), rules)
+        persist()
+    }
 
     private fun getString(key: String, default: String): String = synchronized(lock) {
         (data[key] as? JsonPrimitive)?.contentOrNull ?: default

@@ -22,8 +22,13 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.AppVersion
 import com.aracem.joyufy.data.cloud.AuthState
+import com.aracem.joyufy.data.repository.PreferencesRepository
+import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
+import com.aracem.joyufy.domain.model.CategorizationRule
+import com.aracem.joyufy.domain.model.categoryFor
+import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.components.ConfettiBurst
@@ -43,6 +48,9 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class SettingsTab { GENERAL, ACCOUNTS, DATA, CLOUD, ABOUT }
 
@@ -55,6 +63,7 @@ fun SettingsScreen(
     onExport: () -> Unit,
     onImport: () -> Unit,
     onImportCsv: () -> Unit,
+    onOpenCategorizationRules: () -> Unit,
     cloudConflictPending: Boolean = false,
     viewModel: SettingsViewModel = koinInject(),
     driveViewModel: DriveViewModel = koinInject(),
@@ -65,6 +74,10 @@ fun SettingsScreen(
     val driveState by driveViewModel.uiState.collectAsState()
     val driveEvent by driveViewModel.event.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val preferencesRepository: PreferencesRepository = koinInject()
+    val transactionRepository: TransactionRepository = koinInject()
+    val coroutineScope = rememberCoroutineScope()
+    var categorizationRules by remember { mutableStateOf(preferencesRepository.getCategorizationRules()) }
 
     var accountToDelete by remember { mutableStateOf<Account?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
@@ -75,6 +88,7 @@ fun SettingsScreen(
     var burstOrigin by remember { mutableStateOf<Offset?>(null) }
     var burstKey by remember { mutableStateOf(0) }
     var selectedTab by remember { mutableStateOf(SettingsTab.GENERAL) }
+
 
     LaunchedEffect(settingsEvent) {
         when (val ev = settingsEvent) {
@@ -299,6 +313,8 @@ fun SettingsScreen(
                     SettingsButton(label = strings.importBackup, onClick = onImport)
                     HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsButton(label = strings.csvImportTitle, onClick = onImportCsv)
+                    HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
+                    SettingsButton(label = "Reglas de categorización (${categorizationRules.size})", onClick = onOpenCategorizationRules)
                     HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
                     InvestmentFlowBackfillRow(
                         candidates = state.investmentFlowBackfillCandidates,
@@ -900,5 +916,148 @@ private fun formatDateTime(epochMillis: Long): String {
         local.year,
         local.hour,
         local.minute,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategorizationRulesScreen(onBack: () -> Unit) {
+    val preferences: PreferencesRepository = koinInject()
+    val transactions: TransactionRepository = koinInject()
+    var rules by remember { mutableStateOf(preferences.getCategorizationRules()) }
+    var match by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
+    var appliedCount by remember { mutableStateOf<Int?>(null) }
+    val scope = rememberCoroutineScope()
+    Scaffold(topBar = {
+        TopAppBar(title = { Text("Reglas de categorización") }, navigationIcon = {
+            TextButton(onClick = onBack) { Text("Volver") }
+        })
+    }) { padding ->
+        Column(Modifier.padding(padding).padding(24.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Se aplican a importaciones y transacciones nuevas. Las categorías existentes no se modifican.")
+            Button(
+                onClick = {
+                    scope.launch {
+                        appliedCount = withContext(Dispatchers.IO) {
+                            var count = 0
+                            transactions.getAllTransactions().filter { it.category.isNullOrBlank() }.forEach { transaction ->
+                        rules.categoryFor(transaction.description.orEmpty(), transaction.accountId)?.let { matched ->
+                            transactions.updateTransaction(transaction.id, transaction.type, transaction.amount, matched, transaction.description, transaction.relatedAccountId, transaction.date)
+                            count++
+                        }
+                    }
+                            count
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Aplicar reglas a transacciones sin categoría") }
+            appliedCount?.let { count ->
+                Text("$count transacciones actualizadas", color = Positive, style = MaterialTheme.typography.bodySmall)
+            }
+            LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                items(rules, key = { it.id }) { rule ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("${rule.contains} → ${rule.category}", Modifier.weight(1f))
+                        IconButton(onClick = { rules = rules.filterNot { it.id == rule.id }; preferences.setCategorizationRules(rules) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                        }
+                    }
+                }
+            }
+            OutlinedTextField(match, { match = it }, label = { Text("Texto que contiene") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(category, { category = it }, label = { Text("Categoría") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            Button(onClick = {
+                if (match.isNotBlank() && category.isNotBlank()) {
+                    rules = rules + CategorizationRule((rules.maxOfOrNull { it.id } ?: 0L) + 1, match.trim(), category.trim())
+                    preferences.setCategorizationRules(rules); match = ""; category = ""
+                }
+            }, modifier = Modifier.fillMaxWidth()) { Text("Añadir regla") }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategorizationRulesDialog(
+    rules: List<CategorizationRule>,
+    accounts: List<Account>,
+    onDismiss: () -> Unit,
+    onSave: (List<CategorizationRule>) -> Unit,
+    onApplyToUncategorized: () -> Unit,
+) {
+    var match by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
+    var categoryExpanded by remember { mutableStateOf(false) }
+    val categoryOptions = remember(category) {
+        TransactionCategory.entries.map { it.label }.filter {
+            category.isBlank() || it.contains(category, ignoreCase = true)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reglas de categorización") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Las reglas se aplican a las importaciones cuando la categoría viene vacía.")
+                if (rules.isNotEmpty()) {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 180.dp)) {
+                        items(rules, key = { it.id }) { rule ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("${rule.contains} → ${rule.category}", modifier = Modifier.weight(1f))
+                                IconButton(onClick = { onSave(rules.filterNot { it.id == rule.id }) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                                }
+                            }
+                        }
+                    }
+                }
+                OutlinedTextField(match, { match = it }, label = { Text("Texto que contiene") }, singleLine = true)
+                ExposedDropdownMenuBox(
+                    expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = it },
+                ) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = { category = it; categoryExpanded = true },
+                        label = { Text("Categoría") },
+                        singleLine = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false },
+                    ) {
+                        categoryOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = { category = option; categoryExpanded = false },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (match.isNotBlank() && category.isNotBlank()) {
+                    onSave(rules + CategorizationRule(
+                        id = (rules.maxOfOrNull { it.id } ?: 0L) + 1,
+                        contains = match.trim(),
+                        category = category.trim(),
+                    ))
+                    match = ""
+                    category = ""
+                }
+            }) { Text("Añadir regla") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onApplyToUncategorized) { Text("Aplicar a transacciones sin categoría") }
+                TextButton(onClick = onDismiss) { Text("Cerrar") }
+            }
+        },
     )
 }

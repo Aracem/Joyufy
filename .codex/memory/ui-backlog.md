@@ -54,17 +54,11 @@ Remaining:
 - True binary `.xlsx` import if banks only provide spreadsheet files; current statement import is text-based.
 
 Product ideas:
-- Categorization rules engine.
-- Recurring transactions and scheduled transfers.
-- Monthly category budgets with burn-rate and warnings.
-- Cash-flow forecast.
-- Savings goals.
-- Archived account restore/permanent delete management.
-- Cloud backup history and timestamp restore.
-- Conflict-aware cloud restore/merge.
-- CSV/PDF report export.
-- Tags, notes, and receipt references.
-- Split transactions.
+- Current priority: categorization rules engine. Implement and validate first.
+- Current priority: monthly category budgets with burn-rate and warnings, after rules.
+- Current priority: dashboard monthly summary with income, expenses, savings, and period comparison, after budgets.
+- Current priority: CSV/PDF report export, after the dashboard summary.
+- Deferred for later proposal: recurring transactions and scheduled transfers, cash-flow forecast, savings goals, archived account restore/permanent delete management, cloud backup history and timestamp restore, conflict-aware cloud restore/merge, tags/notes/receipt references, and split transactions.
 
 Discarded / low ROI:
 - CSV import presets for investment providers such as Indexa, DeGiro, or Trade Republic. Weekly investment tracking is a single manual value, so importing a statement is usually slower than entering the snapshot. Reconsider only for stable public APIs with low maintenance overhead.

@@ -39,7 +39,7 @@ val viewModelModule = module {
     factory { TransactionLedgerViewModel(get(), get(), get()) }
     factory { BackupViewModel(get()) }
     factory { SettingsViewModel(get(), get(), get()) }
-    factory { CsvImportViewModel(get(), get()) }
+    factory { CsvImportViewModel(get(), get(), get()) }
     single { DriveViewModel(get(), get(), get()) }
 }
 
