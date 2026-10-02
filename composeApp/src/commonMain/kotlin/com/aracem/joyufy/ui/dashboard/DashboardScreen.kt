@@ -48,7 +48,7 @@ import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
