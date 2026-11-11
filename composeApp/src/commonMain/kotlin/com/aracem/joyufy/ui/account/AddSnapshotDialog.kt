@@ -1,6 +1,8 @@
 package com.aracem.joyufy.ui.account
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -25,6 +27,7 @@ import com.aracem.joyufy.ui.components.formatMonthDay
 fun AddSnapshotDialog(
     accountName: String,
     currentValue: Double?,
+    earliestSnapshotWeek: Long? = null,
     onDismiss: () -> Unit,
     onConfirm: (
         totalValue: Double,
@@ -54,15 +57,28 @@ fun AddSnapshotDialog(
         mutableStateOf(editingSnapshot?.hasManualInvestmentFlowAnnotations() == true)
     }
 
-    // Build last 12 weeks (including current) as options
+    // Offer the full recorded history through the current week, and retain the
+    // exact week being edited even if it predates the available history.
     val weekCurrentStr = strings.weekCurrent
     val weekStr = strings.week
-    val weeks = remember(weekCurrentStr, weekStr) { buildRecentWeeks(12, weekCurrentStr, weekStr) }
-    // Pre-select the week matching the snapshot being edited, or current week
+    val weeks = remember(
+        weekCurrentStr,
+        weekStr,
+        earliestSnapshotWeek,
+        editingSnapshot?.weekDate,
+    ) {
+        val currentMonday = currentWeekStartMillis()
+        val earliestWeek = listOfNotNull(earliestSnapshotWeek, editingSnapshot?.weekDate)
+            .minOrNull()
+            ?: currentMonday - 11 * MILLIS_IN_WEEK
+        buildWeeksFrom(earliestWeek, currentMonday, weekCurrentStr, weekStr)
+    }
+    // Pre-select the original week when editing; never silently replace it
+    // with the current week if it falls outside the recent-week window.
     var selectedWeek by remember {
         mutableStateOf(
             if (editingSnapshot != null)
-                weeks.firstOrNull { it.mondayMs == editingSnapshot.weekDate } ?: weeks.first()
+                weeks.first { it.mondayMs == editingSnapshot.weekDate }
             else
                 weeks.first()
         )
@@ -127,11 +143,17 @@ fun AddSnapshotDialog(
                         expanded = weekExpanded,
                         onDismissRequest = { weekExpanded = false },
                     ) {
-                        weeks.forEach { week ->
-                            DropdownMenuItem(
-                                text = { Text(week.label) },
-                                onClick = { selectedWeek = week; weekExpanded = false },
-                            )
+                        Column(
+                            modifier = Modifier
+                                .heightIn(max = 320.dp)
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            weeks.forEach { week ->
+                                DropdownMenuItem(
+                                    text = { Text(week.label) },
+                                    onClick = { selectedWeek = week; weekExpanded = false },
+                                )
+                            }
                         }
                     }
                 }
@@ -273,9 +295,14 @@ private fun String.parseOptionalAmount(): Double? {
 
 private data class WeekOption(val label: String, val mondayMs: Long)
 
-private fun buildRecentWeeks(count: Int, weekCurrentLabel: String, weekLabel: String): List<WeekOption> {
-    val currentMonday = currentWeekStartMillis()
-    return (0 until count).map { weeksAgo ->
+private fun buildWeeksFrom(
+    earliestWeek: Long,
+    currentMonday: Long,
+    weekCurrentLabel: String,
+    weekLabel: String,
+): List<WeekOption> {
+    val weekCount = ((currentMonday - earliestWeek) / MILLIS_IN_WEEK).toInt().coerceAtLeast(0) + 1
+    return (0 until weekCount).map { weeksAgo ->
         val mondayMs = currentMonday - weeksAgo * MILLIS_IN_WEEK
         val iso = mondayMs.formatIsoWeekLabel()
         val label = if (weeksAgo == 0) {

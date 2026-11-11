@@ -518,6 +518,7 @@ fun AccountDetailScreen(
         AddSnapshotDialog(
             accountName = account.name,
             currentValue = state.snapshots.firstOrNull()?.totalValue,
+            earliestSnapshotWeek = state.snapshots.minOfOrNull { it.weekDate },
             editingSnapshot = editingSnapshot,
             flowDefaultsByWeek = flowDefaultsByWeek,
             onDismiss = { showAddSnapshot = false; editingSnapshot = null },

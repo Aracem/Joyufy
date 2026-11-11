@@ -86,6 +86,8 @@ fun AddTransactionDialog(
     var categoryExpanded by remember { mutableStateOf(false) }
     var relatedExpanded by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    val editingIncomingTransfer = editingTransaction?.relatedAccountId != null &&
+        editingTransaction.type != TransactionType.EXPENSE
 
     // Date field — default today or editing transaction date
     val todayLocal = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -443,8 +445,20 @@ fun AddTransactionDialog(
                         focusedBorderColor = Accent, focusedLabelColor = Accent),
                 )
 
-                // Cuenta destino (solo para transferencias)
-                if (selectedType == TransactionType.TRANSFER && destinationAccounts.isNotEmpty()) {
+                // An incoming transfer may only keep its original source.
+                if (selectedType == TransactionType.TRANSFER && editingIncomingTransfer) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = selectedRelatedAccount?.name.orEmpty(),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Cuenta origen") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Accent, focusedLabelColor = Accent),
+                    )
+                // Cuenta destino (solo para transfers created from this account)
+                } else if (selectedType == TransactionType.TRANSFER && destinationAccounts.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     ExposedDropdownMenuBox(
                         expanded = relatedExpanded,

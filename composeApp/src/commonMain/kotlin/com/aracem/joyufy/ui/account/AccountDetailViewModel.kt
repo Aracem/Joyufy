@@ -385,8 +385,8 @@ class AccountDetailViewModel(
             if (originalRelatedId != null) {
                 // Original was a transfer — delete both legs and recreate
                 val sister = transactionRepository.getRelatedTransfer(
-                    relatedAccountId = accountId,
-                    originAccountId = originalRelatedId,
+                    relatedAccountId = originalRelatedId,
+                    originAccountId = accountId,
                     amount = original.amount,
                     type = original.oppositeTransferLegType(),
                     date = original.date,
@@ -395,23 +395,34 @@ class AccountDetailViewModel(
                 if (sister != null) transactionRepository.deleteTransaction(sister.id)
 
                 if (type == TransactionType.TRANSFER && relatedAccountId != null) {
-                    // Still a transfer — recreate both legs
+                    // Preserve the original direction. The account whose detail screen is
+                    // open can be either the outgoing or incoming leg of the transfer.
+                    val sourceAccountId = if (original.type == TransactionType.EXPENSE) {
+                        accountId
+                    } else {
+                        relatedAccountId
+                    }
+                    val destinationAccountId = if (original.type == TransactionType.EXPENSE) {
+                        relatedAccountId
+                    } else {
+                        accountId
+                    }
                     transactionRepository.insertTransaction(
-                        accountId = accountId,
+                        accountId = sourceAccountId,
                         type = TransactionType.EXPENSE,
                         amount = amount,
                         category = category,
                         description = description,
-                        relatedAccountId = relatedAccountId,
+                        relatedAccountId = destinationAccountId,
                         date = date,
                     )
                     transactionRepository.insertTransaction(
-                        accountId = relatedAccountId,
+                        accountId = destinationAccountId,
                         type = TransactionType.INCOME,
                         amount = amount,
                         category = category,
                         description = description,
-                        relatedAccountId = accountId,
+                        relatedAccountId = sourceAccountId,
                         date = date,
                     )
                 } else {
@@ -485,8 +496,8 @@ class AccountDetailViewModel(
                 val deleted = linkedMapOf(tx.id to tx)
                 if (tx.relatedAccountId != null) {
                     val sister = transactionRepository.getRelatedTransfer(
-                        relatedAccountId = accountId,
-                        originAccountId = tx.relatedAccountId,
+                        relatedAccountId = tx.relatedAccountId,
+                        originAccountId = accountId,
                         amount = tx.amount,
                         type = tx.oppositeTransferLegType(),
                         date = tx.date,

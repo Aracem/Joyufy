@@ -83,7 +83,7 @@ private data class ParsedCsv(
 class CsvImportViewModel(
     private val accountRepository: AccountRepository,
     private val transactionRepository: TransactionRepository,
-    private val preferencesRepository: PreferencesRepository,
+    private val preferencesRepository: PreferencesRepository = PreferencesRepository(),
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
