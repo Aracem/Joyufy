@@ -19,8 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
-import com.aracem.joyufy.ui.theme.Negative
-import com.aracem.joyufy.ui.theme.Positive
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.joyufyColors
 
 @Composable
@@ -32,6 +31,7 @@ fun AccountCard(
     isDragging: Boolean = false,
     leadingContent: (@Composable () -> Unit)? = null,
 ) {
+    val strings = LocalStrings.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -75,7 +75,11 @@ fun AccountCard(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = account.type.label,
+                text = when (account.type) {
+                    AccountType.BANK -> strings.accountTypeBank
+                    AccountType.INVESTMENT -> strings.accountTypeInvestment
+                    AccountType.CASH -> strings.accountTypeCash
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
@@ -84,7 +88,7 @@ fun AccountCard(
         Text(
             text = balance.formatCurrency(),
             style = MaterialTheme.typography.titleMedium,
-            color = if (balance >= 0) Positive else Negative,
+            color = if (balance >= 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.joyufyColors.negative,
         )
 
         Spacer(Modifier.width(16.dp))
@@ -108,10 +112,3 @@ private fun AccountLogoCash(color: Color, size: androidx.compose.ui.unit.Dp) {
         )
     }
 }
-
-private val AccountType.label: String
-    get() = when (this) {
-        AccountType.BANK -> "Banco"
-        AccountType.INVESTMENT -> "Inversión"
-        AccountType.CASH -> "Efectivo"
-    }

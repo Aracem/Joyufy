@@ -25,6 +25,9 @@ interface Strings {
     val saveChanges: String
     val close: String
     val download: String
+    val newVersion: String
+    val updateAvailable: String
+    val chartNoData: String
     val undo: String
     val selectAll: String
     val clearSelection: String
@@ -70,6 +73,24 @@ interface Strings {
     val net: String
     val topExpenses: String
     val monthCurrent: String
+    val monthlyDetail: String
+    val monthlyLoadError: String
+    val rulesTitle: String
+    val rulesDescription: String
+    val rulesImportDescription: String
+    val rulesApply: String
+    val rulesUpdated: String
+    val rulesContains: String
+    val rulesAdd: String
+    val systemLanguage: String
+    val sourceAccount: String
+    val transferSourceAccount: String
+    val previousMonth: String
+    val nextMonth: String
+    val monthlyComparisonUnavailable: String
+    val currentMonthIncomplete: String
+    val noCategorySpending: String
+    val category: String
 
     // Annual summary
     val currentYear: String
@@ -136,6 +157,23 @@ interface Strings {
     val amountEur: String
     val dateFormat: String
     val categoryOptional: String
+    val categorySalary: String
+    val categoryFreelance: String
+    val categoryRentIncome: String
+    val categoryGroceries: String
+    val categoryRentExpense: String
+    val categoryUtilities: String
+    val categoryTransport: String
+    val categoryDining: String
+    val categorySubscriptions: String
+    val categoryHealth: String
+    val categoryEducation: String
+    val categoryTravel: String
+    val categoryShopping: String
+    val categoryInvestment: String
+    val categoryOther: String
+    val showCategorySuggestions: String
+    val hideCategorySuggestions: String
     val descriptionOptional: String
     val destinationAccount: String
     val selectDate: String
@@ -159,6 +197,8 @@ interface Strings {
     val withdrawalsEur: String
     val feesEur: String
     val dividendsEur: String
+    val showSnapshotDetails: String
+    val hideSnapshotDetails: String
     val noteOptional: String
     val investmentPerformance: String
     val contributionAdjustedGain: String

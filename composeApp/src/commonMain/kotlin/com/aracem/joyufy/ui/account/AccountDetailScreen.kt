@@ -61,9 +61,7 @@ import com.aracem.joyufy.ui.dashboard.ChartMode
 import com.aracem.joyufy.ui.dashboard.ChartRange
 import com.aracem.joyufy.ui.dashboard.ChartRangeSelector
 import com.aracem.joyufy.ui.strings.LocalStrings
-import com.aracem.joyufy.ui.theme.Accent
-import com.aracem.joyufy.ui.theme.Negative
-import com.aracem.joyufy.ui.theme.Positive
+import com.aracem.joyufy.ui.strings.localizedCategoryLabel
 import com.aracem.joyufy.ui.theme.joyufyColors
 import com.aracem.joyufy.ui.components.formatDate
 import com.aracem.joyufy.ui.components.formatWeekRange
@@ -212,7 +210,7 @@ fun AccountDetailScreen(
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Accent)
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
         return
     }
@@ -481,6 +479,8 @@ fun AccountDetailScreen(
     if (showAddTransaction || editingTransaction != null) {
         AddTransactionDialog(
             accountType = account.type,
+            accountId = account.id,
+            accountName = account.name,
             availableAccounts = state.allAccounts,
             customCategories = state.customCategories,
             editingTransaction = editingTransaction,
@@ -596,14 +596,14 @@ private fun AccountDetailStickyHeader(
                     if (account.type == AccountType.INVESTMENT) {
                         OutlinedButton(
                             onClick = onAddSnapshot,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Accent),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                         ) {
-                            Text(strings.updateValue, color = Accent)
+                            Text(strings.updateValue, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     Button(
                         onClick = onAddTransaction,
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
@@ -612,7 +612,7 @@ private fun AccountDetailStickyHeader(
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(22.dp))
             Column(modifier = Modifier.padding(start = 48.dp)) {
                 Text(
                     text = strings.currentBalance,
@@ -627,7 +627,7 @@ private fun AccountDetailStickyHeader(
                 Text(
                     text = animatedBalance.toDouble().formatCurrency(),
                     style = MaterialTheme.typography.displayLarge,
-                    color = if (balance >= 0) Positive else Negative,
+                    color = if (balance >= 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.joyufyColors.negative,
                     modifier = if (account.type == AccountType.INVESTMENT)
                         Modifier.clickable { onAddSnapshot() }
                     else Modifier,
@@ -671,7 +671,7 @@ private fun InvestmentPerformanceCard(
                 color = MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Accent.copy(alpha = 0.08f), MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), MaterialTheme.shapes.small)
                     .padding(horizontal = 10.dp, vertical = 8.dp),
             )
         }
@@ -708,12 +708,12 @@ private fun InvestmentPerformanceCard(
         InvestmentPerformanceBars(points = points)
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FlowMetric(strings.depositsEur, summary.deposits, Positive, Modifier.weight(1f))
-                FlowMetric(strings.withdrawalsEur, summary.withdrawals, Negative, Modifier.weight(1f))
+                FlowMetric(strings.depositsEur, summary.deposits, MaterialTheme.joyufyColors.positive, Modifier.weight(1f))
+                FlowMetric(strings.withdrawalsEur, summary.withdrawals, MaterialTheme.joyufyColors.negative, Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FlowMetric(strings.feesEur, summary.fees, Negative, Modifier.weight(1f))
-                FlowMetric(strings.dividendsEur, summary.dividends, Positive, Modifier.weight(1f))
+                FlowMetric(strings.feesEur, summary.fees, MaterialTheme.joyufyColors.negative, Modifier.weight(1f))
+                FlowMetric(strings.dividendsEur, summary.dividends, MaterialTheme.joyufyColors.positive, Modifier.weight(1f))
             }
         }
     }
@@ -785,8 +785,8 @@ private fun InvestmentPerformanceBars(points: List<InvestmentPerformancePoint>) 
     val periods = points.filter { it.previousValue != null }.takeLast(16)
     if (periods.isEmpty()) return
     val maxAbs = periods.maxOfOrNull { abs(it.contributionAdjustedGain) }?.takeIf { it > 0.0 } ?: 1.0
-    val positiveColor = Positive
-    val negativeColor = Negative
+    val positiveColor = MaterialTheme.joyufyColors.positive
+    val negativeColor = MaterialTheme.joyufyColors.negative
     val axisColor = MaterialTheme.joyufyColors.border
     Canvas(
         modifier = Modifier
@@ -949,7 +949,7 @@ private fun TransactionMonthHeader(group: TransactionMonthGroup) {
             Text(
                 text = group.net.formatCurrency(),
                 style = MaterialTheme.typography.labelLarge,
-                color = if (group.net >= 0.0) Positive else Negative,
+                color = if (group.net >= 0.0) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative,
             )
         }
     }
@@ -1001,8 +1001,8 @@ private fun TransactionFilterBar(
             singleLine = true,
             modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Accent,
-                focusedLabelColor = Accent,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.joyufyColors.border,
             ),
             textStyle = MaterialTheme.typography.bodySmall,
@@ -1049,15 +1049,15 @@ private fun TransactionFilterBar(
                 onClick = { onTransfersOnlyChange(!transfersOnly) },
                 label = { Text(strings.transfersOnly, style = MaterialTheme.typography.labelSmall) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Accent.copy(alpha = 0.15f),
-                    selectedLabelColor = Accent,
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     labelColor = MaterialTheme.joyufyColors.contentSecondary,
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
                     selected = transfersOnly,
-                    selectedBorderColor = Accent,
+                    selectedBorderColor = MaterialTheme.colorScheme.primary,
                     borderColor = MaterialTheme.joyufyColors.border,
                 ),
                 modifier = Modifier.height(28.dp),
@@ -1074,15 +1074,15 @@ private fun TransactionFilterBar(
                         TransactionType.TRANSFER -> strings.transactionTransfer
                     }, style = MaterialTheme.typography.labelSmall) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Accent.copy(alpha = 0.15f),
-                        selectedLabelColor = Accent,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         labelColor = MaterialTheme.joyufyColors.contentSecondary,
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = selected,
-                        selectedBorderColor = Accent,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary,
                         borderColor = MaterialTheme.joyufyColors.border,
                     ),
                     modifier = Modifier.height(28.dp),
@@ -1095,17 +1095,17 @@ private fun TransactionFilterBar(
                 FilterChip(
                     selected = selected,
                     onClick = { onCategoryChange(cat) },
-                    label = { Text(cat, style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(cat.localizedCategoryLabel(strings), style = MaterialTheme.typography.labelSmall) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Accent.copy(alpha = 0.15f),
-                        selectedLabelColor = Accent,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         labelColor = MaterialTheme.joyufyColors.contentSecondary,
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = selected,
-                        selectedBorderColor = Accent,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary,
                         borderColor = MaterialTheme.joyufyColors.border,
                     ),
                     modifier = Modifier.height(28.dp),
@@ -1131,8 +1131,8 @@ private fun CompactFilterField(
         singleLine = true,
         modifier = modifier,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Accent,
-            focusedLabelColor = Accent,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = MaterialTheme.joyufyColors.border,
         ),
         textStyle = MaterialTheme.typography.bodySmall,
@@ -1159,7 +1159,7 @@ private fun TransactionRow(
     val isTransferOut = transaction.type == TransactionType.EXPENSE && relatedName != null
     val isTransferIn  = transaction.type == TransactionType.INCOME  && relatedName != null
     val isPositive = transaction.type == TransactionType.INCOME
-    val amountColor = if (isPositive) Positive else Negative
+    val amountColor = if (isPositive) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative
     val prefix = if (isPositive) "+" else "-"
     val displayLabel = when {
         isTransferOut -> strings.transferOut
@@ -1182,7 +1182,7 @@ private fun TransactionRow(
             )
             .border(
                 width = 1.dp,
-                color = if (focused) Accent.copy(alpha = 0.55f) else Color.Transparent,
+                color = if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f) else Color.Transparent,
                 shape = MaterialTheme.shapes.medium,
             )
             .hoverable(interactionSource)
@@ -1202,7 +1202,7 @@ private fun TransactionRow(
                     Text("·", color = MaterialTheme.joyufyColors.contentSecondary,
                         style = MaterialTheme.typography.labelSmall)
                     Spacer(Modifier.width(6.dp))
-                    Text(cat, style = MaterialTheme.typography.labelSmall,
+                    Text(cat.localizedCategoryLabel(strings), style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.joyufyColors.contentSecondary)
                 }
             }
@@ -1268,7 +1268,7 @@ private fun SnapshotRow(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(
                 width = 1.dp,
-                color = if (focused) Accent.copy(alpha = 0.55f) else Color.Transparent,
+                color = if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f) else Color.Transparent,
                 shape = MaterialTheme.shapes.medium,
             )
             .hoverable(interactionSource)
@@ -1294,10 +1294,10 @@ private fun SnapshotRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    SnapshotAnnotation(strings.depositsEur, displaySnapshot.deposits, Positive)
-                    SnapshotAnnotation(strings.withdrawalsEur, displaySnapshot.withdrawals, Negative)
-                    SnapshotAnnotation(strings.feesEur, displaySnapshot.fees, Negative)
-                    SnapshotAnnotation(strings.dividendsEur, displaySnapshot.dividends, Positive)
+                    SnapshotAnnotation(strings.depositsEur, displaySnapshot.deposits, MaterialTheme.joyufyColors.positive)
+                    SnapshotAnnotation(strings.withdrawalsEur, displaySnapshot.withdrawals, MaterialTheme.joyufyColors.negative)
+                    SnapshotAnnotation(strings.feesEur, displaySnapshot.fees, MaterialTheme.joyufyColors.negative)
+                    SnapshotAnnotation(strings.dividendsEur, displaySnapshot.dividends, MaterialTheme.joyufyColors.positive)
                 }
             }
             snapshot.note?.takeIf { it.isNotBlank() }?.let { note ->
@@ -1312,7 +1312,7 @@ private fun SnapshotRow(
             Text(
                 text = snapshot.totalValue.formatCurrency(),
                 style = MaterialTheme.typography.titleMedium,
-                color = Positive,
+                color = MaterialTheme.joyufyColors.positive,
             )
             performance?.returnPct?.let { pct ->
                 Spacer(Modifier.height(2.dp))
@@ -1397,7 +1397,7 @@ private fun Double.formatSignedPercent(): String {
 
 @Composable
 private fun Double.performanceColor(): Color =
-    if (this >= 0.0) Positive else Negative
+    if (this >= 0.0) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative
 
 @Composable
 private fun AccountPeriodChangeBadge(
@@ -1407,7 +1407,7 @@ private fun AccountPeriodChangeBadge(
 ) {
     val strings = LocalStrings.current
     val isPositive = change >= 0
-    val color = if (isPositive) Positive else Negative
+    val color = if (isPositive) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative
     val sign = if (isPositive) "+" else ""
     val rangeLabel = when (range) {
         ChartRange.ONE_WEEK     -> strings.rangeOneWeek
@@ -1484,7 +1484,7 @@ private fun DeleteConfirmDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
             ) { Text("Eliminar") }
         },
         dismissButton = {

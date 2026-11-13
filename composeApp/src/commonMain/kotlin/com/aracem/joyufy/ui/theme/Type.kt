@@ -9,10 +9,10 @@ import androidx.compose.ui.unit.sp
 val JoyufyTypography = Typography(
     // Hero number — patrimonio total
     displayLarge = TextStyle(
-        fontWeight = FontWeight.Bold,
-        fontSize = 48.sp,
-        lineHeight = 56.sp,
-        letterSpacing = (-1.5).sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 52.sp,
+        lineHeight = 60.sp,
+        letterSpacing = (-2).sp,
     ),
     // Section header
     headlineMedium = TextStyle(
@@ -54,6 +54,6 @@ val JoyufyTypography = Typography(
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 14.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.1.sp,
     ),
 )

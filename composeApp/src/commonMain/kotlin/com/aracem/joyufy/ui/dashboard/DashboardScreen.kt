@@ -67,13 +67,14 @@ fun DashboardScreen(
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Accent)
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
         return
     }
 
     var wealthClickCount by remember { mutableStateOf(0) }
     var showConfetti by remember { mutableStateOf(false) }
+    var showMonthlyDetail by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val wealthScale = remember { Animatable(1f) }
 
@@ -82,8 +83,8 @@ fun DashboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(horizontal = 36.dp, vertical = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         // Banner de actualización disponible
         state.updateInfo?.let { info ->
@@ -108,9 +109,13 @@ fun DashboardScreen(
             }
         }
 
-        // Header — total patrimonio
+        // Net worth and its chart form one tonal Material surface.
         item {
-            Column {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .background(MaterialTheme.joyufyColors.hero, MaterialTheme.shapes.extraLarge)
+                    .padding(24.dp),
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -126,17 +131,21 @@ fun DashboardScreen(
                         onImport = onImport,
                     )
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(10.dp))
                 val animatedWealth by animateFloatAsState(
                     targetValue = state.totalWealth.toFloat(),
                     animationSpec = tween(600, easing = FastOutSlowInEasing),
                 )
                 val easterEggFraction = (wealthClickCount / 20f).coerceIn(0f, 1f)
-                val wealthColor = lerp(
-                    start = MaterialTheme.colorScheme.onSurface,
-                    stop = Positive,
-                    fraction = easterEggFraction,
-                )
+                val wealthColor = if (animatedWealth < 0f) {
+                    MaterialTheme.joyufyColors.negative
+                } else {
+                    lerp(
+                        start = MaterialTheme.colorScheme.onSurface,
+                        stop = MaterialTheme.joyufyColors.positive,
+                        fraction = easterEggFraction,
+                    )
+                }
                 Text(
                     text = animatedWealth.toDouble().formatCurrency(),
                     style = MaterialTheme.typography.displayLarge,
@@ -181,6 +190,20 @@ fun DashboardScreen(
                         range = state.chartRange,
                     )
                 }
+                Spacer(Modifier.height(24.dp))
+                WealthChartCard(
+                    points = state.wealthHistory,
+                    mode = state.chartMode,
+                    range = state.chartRange,
+                    accounts = state.accountSummaries,
+                    hiddenAccountIds = state.hiddenAccountIds,
+                    showTotal = state.showTotal,
+                    onModeChange = viewModel::setChartMode,
+                    onRangeChange = viewModel::setChartRange,
+                    onToggleAccount = viewModel::toggleAccountVisibility,
+                    onToggleTotal = viewModel::toggleTotal,
+                    onVisibilityPreset = viewModel::setChartVisibilityPreset,
+                )
             }
         }
 
@@ -190,20 +213,15 @@ fun DashboardScreen(
             }
         }
 
-        // Gráfica
         item {
-            WealthChartCard(
-                points = state.wealthHistory,
-                mode = state.chartMode,
-                range = state.chartRange,
-                accounts = state.accountSummaries,
-                hiddenAccountIds = state.hiddenAccountIds,
-                showTotal = state.showTotal,
-                onModeChange = viewModel::setChartMode,
-                onRangeChange = viewModel::setChartRange,
-                onToggleAccount = viewModel::toggleAccountVisibility,
-                onToggleTotal = viewModel::toggleTotal,
-                onVisibilityPreset = viewModel::setChartVisibilityPreset,
+            ThisMonthCard(
+                summary = state.monthlySummary,
+                isLoading = state.monthlySummaryLoading,
+                hasError = state.monthlySummaryError,
+                onOpen = {
+                    viewModel.resetMonthlyAnalysis()
+                    showMonthlyDetail = true
+                },
             )
         }
 
@@ -281,7 +299,7 @@ fun DashboardScreen(
                             )
                             EmptyAccountButton(
                                 label = strings.createInvestmentAccount,
-                                color = Positive,
+                                color = MaterialTheme.joyufyColors.positive,
                                 onClick = { onCreateAccount(AccountType.INVESTMENT) },
                             )
                             EmptyAccountButton(
@@ -294,6 +312,16 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    if (showMonthlyDetail) {
+        MonthlyAnalysisDialog(
+            analysis = state.monthlyAnalysis,
+            hasError = state.monthlyAnalysisError,
+            onDismiss = { showMonthlyDetail = false },
+            onPreviousMonth = { viewModel.navigateAnalysisMonth(-1) },
+            onNextMonth = { viewModel.navigateAnalysisMonth(1) },
+        )
     }
 
     if (showConfetti) {
@@ -335,7 +363,7 @@ private fun NeedsReviewRow(
                 ReviewPill(
                     label = strings.uncategorized,
                     value = uncategorizedCount,
-                    color = Accent,
+                    color = MaterialTheme.colorScheme.primary,
                     onClick = onUncategorizedClick,
                 )
             }
@@ -343,7 +371,7 @@ private fun NeedsReviewRow(
                 ReviewPill(
                     label = strings.pendingSnapshots,
                     value = pendingSnapshots,
-                    color = Accent,
+                    color = MaterialTheme.colorScheme.primary,
                     onClick = onPendingSnapshotsClick,
                 )
             }
@@ -351,7 +379,7 @@ private fun NeedsReviewRow(
                 ReviewPill(
                     label = strings.negativeBalances,
                     value = negativeBalances,
-                    color = Negative,
+                    color = MaterialTheme.joyufyColors.negative,
                     onClick = null,
                 )
             }
@@ -397,7 +425,7 @@ private fun PeriodComparisonCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+            .background(MaterialTheme.joyufyColors.monthly, MaterialTheme.shapes.large)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -459,8 +487,8 @@ private fun ComparisonMetric(
     val delta = current - previous
     val color = when {
         delta == 0.0 -> MaterialTheme.joyufyColors.contentSecondary
-        (delta > 0) == positiveIsGood -> Positive
-        else -> Negative
+        (delta > 0) == positiveIsGood -> MaterialTheme.joyufyColors.positive
+        else -> MaterialTheme.joyufyColors.negative
     }
     val sign = if (delta >= 0.0) "+" else ""
     Column(
@@ -536,9 +564,7 @@ private fun WealthChartCard(
     }
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
-            .padding(20.dp),
+            .fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -553,22 +579,20 @@ private fun WealthChartCard(
             ChartModeSelector(selected = mode, onSelect = onModeChange)
         }
         Spacer(Modifier.height(12.dp))
-        ChartRangeSelector(selected = range, onSelect = onRangeChange)
-        if (accounts.isNotEmpty()) {
-            Spacer(Modifier.height(10.dp))
-            ChartVisibilitySelector(
-                selected = visibilityPreset,
-                onSelect = onVisibilityPreset,
-            )
-        }
-        Spacer(Modifier.height(12.dp))
         WealthChart(
             points = points,
             mode = mode,
             hiddenAccountIds = hiddenAccountIds,
             showTotal = showTotal,
         )
+        Spacer(Modifier.height(12.dp))
+        ChartRangeSelector(selected = range, onSelect = onRangeChange)
         if (accounts.isNotEmpty()) {
+            Spacer(Modifier.height(18.dp))
+            ChartVisibilitySelector(
+                selected = visibilityPreset,
+                onSelect = onVisibilityPreset,
+            )
             Spacer(Modifier.height(12.dp))
             ChartLegendSelector(
                 accounts = accounts,
@@ -578,7 +602,14 @@ private fun WealthChartCard(
                 onToggleTotal = onToggleTotal,
             )
             Spacer(Modifier.height(14.dp))
-            CompositionView(accounts = accounts)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+                    .padding(18.dp),
+            ) {
+                CompositionView(accounts = accounts)
+            }
         }
     }
 }
@@ -609,18 +640,14 @@ private fun ChartModeChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val bgAlpha by animateFloatAsState(
-        targetValue = if (selected) 0.18f else 0.06f,
-        animationSpec = tween(180),
-    )
     Text(
         text = label,
         style = MaterialTheme.typography.labelSmall,
-        color = if (selected) Accent else MaterialTheme.joyufyColors.contentSecondary,
+        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.joyufyColors.contentSecondary,
         modifier = Modifier
             .height(28.dp)
             .clip(MaterialTheme.shapes.small)
-            .background(if (selected) Accent.copy(alpha = bgAlpha) else MaterialTheme.colorScheme.surfaceVariant)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     )
@@ -654,15 +681,15 @@ private fun ChartVisibilitySelector(
                     onClick = { onSelect(preset) },
                     label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Accent.copy(alpha = 0.15f),
-                        selectedLabelColor = Accent,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
                         labelColor = MaterialTheme.joyufyColors.contentSecondary,
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = selected == preset,
-                        selectedBorderColor = Accent,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary,
                         borderColor = MaterialTheme.joyufyColors.border,
                     ),
                     modifier = Modifier.height(28.dp),
@@ -674,13 +701,13 @@ private fun ChartVisibilitySelector(
                     onClick = {},
                     label = { Text(strings.chartVisibilityCustom, style = MaterialTheme.typography.labelSmall) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Accent.copy(alpha = 0.10f),
-                        selectedLabelColor = Accent,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     ),
                     border = FilterChipDefaults.filterChipBorder(
                         enabled = true,
                         selected = true,
-                        selectedBorderColor = Accent.copy(alpha = 0.5f),
+                        selectedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                     ),
                     modifier = Modifier.height(28.dp),
                 )
@@ -836,7 +863,7 @@ private fun ChartLegendSelector(
         // Total chip
         LegendChip(
             label = "Total",
-            color = Accent,
+            color = MaterialTheme.colorScheme.primary,
             visible = showTotal,
             onClick = onToggleTotal,
         )
@@ -898,7 +925,7 @@ private fun PeriodChangeBadge(
 ) {
     val strings = LocalStrings.current
     val isPositive = change >= 0
-    val color = if (isPositive) Positive else Negative
+    val color = if (isPositive) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative
     val sign = if (isPositive) "+" else ""
     val rangeLabel = when (range) {
         ChartRange.ONE_WEEK     -> strings.rangeOneWeek
@@ -924,6 +951,7 @@ private fun PeriodChangeBadge(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChartRangeSelector(
     selected: ChartRange,
@@ -941,9 +969,10 @@ fun ChartRangeSelector(
         ChartRange.ALL to strings.yearAll,
     )
 
-    Row(
+    FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items.forEach { (range, label) ->
             val isSelected = range == selected
@@ -957,7 +986,7 @@ fun ChartRangeSelector(
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Accent,
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     labelColor = MaterialTheme.joyufyColors.contentSecondary,
@@ -966,7 +995,7 @@ fun ChartRangeSelector(
                     enabled = true,
                     selected = isSelected,
                     borderColor = MaterialTheme.joyufyColors.border,
-                    selectedBorderColor = Accent,
+                    selectedBorderColor = MaterialTheme.colorScheme.primary,
                 ),
                 modifier = Modifier.height(28.dp),
             )
@@ -999,7 +1028,7 @@ private fun AnalysisCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium),
+            .background(MaterialTheme.joyufyColors.composition, MaterialTheme.shapes.large),
     ) {
         // ── Header (always visible) ───────────────────────────────────────
         Row(
@@ -1024,7 +1053,7 @@ private fun AnalysisCard(
             if (showBackButton || backButtonScale > 0f) {
                 OutlinedButton(
                     onClick = { selectedMonth = null },
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Accent),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                     modifier = Modifier
                         .height(32.dp)
@@ -1037,14 +1066,14 @@ private fun AnalysisCard(
                     Icon(
                         imageVector = Icons.Default.DateRange,
                         contentDescription = strings.monthCurrent,
-                        tint = Accent,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp),
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = strings.monthCurrent,
                         style = MaterialTheme.typography.labelMedium,
-                        color = Accent,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -1145,13 +1174,13 @@ private fun MonthlySection(
                 Box(
                     modifier = Modifier
                         .clip(MaterialTheme.shapes.small)
-                        .background(Accent.copy(alpha = 0.12f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                 ) {
                     Text(
                         text = monthName,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Accent,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -1161,14 +1190,14 @@ private fun MonthlySection(
 
     // Stats row — cifras animadas individualmente
     Row(modifier = Modifier.fillMaxWidth()) {
-        MonthlyStat(strings.income, month.income, Positive, Modifier.weight(1f))
-        MonthlyStat(strings.expenses, month.expenses, Negative, Modifier.weight(1f))
+        MonthlyStat(strings.income, month.income, MaterialTheme.joyufyColors.positive, Modifier.weight(1f))
+        MonthlyStat(strings.expenses, month.expenses, MaterialTheme.joyufyColors.negative, Modifier.weight(1f))
         if (month.investmentDelta != 0.0) {
             val d = month.investmentDelta
             MonthlyStat(
                 label = strings.investment,
                 amount = kotlin.math.abs(d),
-                color = if (d >= 0) Positive else Negative,
+                color = if (d >= 0) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative,
                 modifier = Modifier.weight(1f),
                 prefix = if (d >= 0) "+" else "-",
             )
@@ -1176,7 +1205,7 @@ private fun MonthlySection(
         MonthlyStat(
             label = strings.net,
             amount = month.net,
-            color = if (month.net >= 0) Positive else Negative,
+            color = if (month.net >= 0) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative,
             modifier = Modifier.weight(1f),
         )
     }
@@ -1243,7 +1272,7 @@ private fun AnnualSection(
                     modifier = Modifier
                         .clip(MaterialTheme.shapes.small)
                         .background(
-                            if (selectedYear == currentYear) Accent.copy(alpha = 0.12f)
+                            if (selectedYear == currentYear) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                             else MaterialTheme.colorScheme.surfaceVariant
                         ),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1252,7 +1281,7 @@ private fun AnnualSection(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = strings.yearPrevious,
-                            tint = if (selectedYear == currentYear) Accent
+                            tint = if (selectedYear == currentYear) MaterialTheme.colorScheme.primary
                                    else MaterialTheme.joyufyColors.contentSecondary,
                             modifier = Modifier.size(12.dp),
                         )
@@ -1260,7 +1289,7 @@ private fun AnnualSection(
                     Text(
                         text = "${summary.year}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (selectedYear == currentYear) Accent
+                        color = if (selectedYear == currentYear) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.joyufyColors.contentSecondary,
                     )
                     IconButton(
@@ -1272,7 +1301,7 @@ private fun AnnualSection(
                             Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = strings.yearNext,
                             tint = if (selectedYear < currentYear)
-                                (if (selectedYear == currentYear - 1) Accent else MaterialTheme.joyufyColors.contentSecondary)
+                                (if (selectedYear == currentYear - 1) MaterialTheme.colorScheme.primary else MaterialTheme.joyufyColors.contentSecondary)
                             else MaterialTheme.joyufyColors.contentDisabled,
                             modifier = Modifier.size(12.dp),
                         )
@@ -1285,14 +1314,14 @@ private fun AnnualSection(
 
     // Totals row
     Row(modifier = Modifier.fillMaxWidth()) {
-        MonthlyStat(strings.income, summary.totalIncome, Positive, Modifier.weight(1f))
-        MonthlyStat(strings.expenses, summary.totalExpenses, Negative, Modifier.weight(1f))
+        MonthlyStat(strings.income, summary.totalIncome, MaterialTheme.joyufyColors.positive, Modifier.weight(1f))
+        MonthlyStat(strings.expenses, summary.totalExpenses, MaterialTheme.joyufyColors.negative, Modifier.weight(1f))
         if (summary.totalInvestmentDelta != 0.0) {
             val d = summary.totalInvestmentDelta
             MonthlyStat(
                 label = strings.investment,
                 amount = kotlin.math.abs(d),
-                color = if (d >= 0) Positive else Negative,
+                color = if (d >= 0) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative,
                 modifier = Modifier.weight(1f),
                 prefix = if (d >= 0) "+" else "-",
             )
@@ -1300,7 +1329,7 @@ private fun AnnualSection(
         MonthlyStat(
             label = strings.net,
             amount = summary.totalNet,
-            color = if (summary.totalNet >= 0) Positive else Negative,
+            color = if (summary.totalNet >= 0) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.negative,
             modifier = Modifier.weight(1f),
         )
     }
@@ -1324,8 +1353,8 @@ private fun AnnualSection(
             val isPositive = month.net >= 0
             val barColor = when {
                 isFuture -> MaterialTheme.colorScheme.surfaceVariant
-                isPositive -> Positive.copy(alpha = if (isSelected) 1f else 0.65f)
-                else -> Negative.copy(alpha = if (isSelected) 1f else 0.65f)
+                isPositive -> MaterialTheme.joyufyColors.positive.copy(alpha = if (isSelected) 1f else 0.65f)
+                else -> MaterialTheme.joyufyColors.negative.copy(alpha = if (isSelected) 1f else 0.65f)
             }
 
             Column(
@@ -1475,7 +1504,7 @@ private fun AnimatedCategoryBar(cat: CategoryBreakdown) {
                     .fillMaxWidth(animatedFraction)
                     .fillMaxHeight()
                     .clip(MaterialTheme.shapes.small)
-                    .background(Accent.copy(alpha = 0.7f)),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
             )
         }
     }

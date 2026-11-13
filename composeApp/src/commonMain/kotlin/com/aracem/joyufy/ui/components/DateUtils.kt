@@ -33,6 +33,21 @@ fun parseDateInputToMillis(
     }.getOrNull()
 }
 
+/** Material's date picker represents calendar dates as UTC midnight. */
+fun dateInputToPickerMillis(text: String): Long? {
+    val parts = text.trim().split("/")
+    if (parts.size != 3) return null
+    val day = parts[0].toIntOrNull() ?: return null
+    val month = parts[1].toIntOrNull() ?: return null
+    val year = parts[2].toIntOrNull() ?: return null
+    return runCatching { LocalDate(year, month, day).atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds() }.getOrNull()
+}
+
+fun pickerMillisToDateInput(millis: Long): String {
+    val date = Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.UTC)
+    return "%02d/%02d/%04d".format(date.dayOfMonth, date.monthNumber, date.year)
+}
+
 fun Long.formatShortDate(): String {
     val local = Instant.fromEpochMilliseconds(this).toLocalDateTime(TimeZone.currentSystemDefault())
     return "%d/%02d".format(local.dayOfMonth, local.monthNumber)

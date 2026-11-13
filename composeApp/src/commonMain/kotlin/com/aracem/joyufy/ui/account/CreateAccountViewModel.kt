@@ -1,5 +1,6 @@
 package com.aracem.joyufy.ui.account
 
+import com.aracem.joyufy.ui.components.parseMoneyInput
 import androidx.compose.ui.graphics.Color
 import com.aracem.joyufy.data.mapper.toColorHex
 import com.aracem.joyufy.data.mapper.toComposeColor
@@ -96,7 +97,7 @@ class CreateAccountViewModel(
             return
         }
         val initialBalance = if (state.type != AccountType.INVESTMENT && state.initialBalance.isNotBlank()) {
-            val parsed = state.initialBalance.replace(",", ".").toDoubleOrNull()
+            val parsed = parseMoneyInput(state.initialBalance)
             if (parsed == null || parsed < 0) {
                 _uiState.value = state.copy(initialBalanceError = "Introduce un importe válido")
                 return

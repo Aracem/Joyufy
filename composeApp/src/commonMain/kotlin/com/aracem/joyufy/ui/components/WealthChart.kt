@@ -31,9 +31,7 @@ import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.ui.dashboard.AccountPoint
 import com.aracem.joyufy.ui.dashboard.ChartMode
 import com.aracem.joyufy.ui.dashboard.WealthPoint
-import com.aracem.joyufy.ui.theme.Accent
-import com.aracem.joyufy.ui.theme.Negative
-import com.aracem.joyufy.ui.theme.Positive
+import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.joyufyColors
 
 // ── Y-axis range ─────────────────────────────────────────────────────────────
@@ -49,19 +47,29 @@ import com.aracem.joyufy.ui.theme.joyufyColors
 // regardless of how large the numbers are.
 //
 // Returns Pair(yMin, yMax) ready to use as chart bounds.
-private fun smartYRange(rawMin: Double, rawMax: Double): Pair<Double, Double> {
-    val safeMax = rawMax.coerceAtLeast(rawMin + 1.0)
-    val rawRange = safeMax - rawMin
+internal fun smartYRange(rawMin: Double, rawMax: Double): Pair<Double, Double> {
+    val min = minOf(rawMin, rawMax)
+    val max = maxOf(rawMin, rawMax)
+
+    // Keep zero visible when every balance is negative. The previous positive-only
+    // padding could put maxVal below minVal for negative-only histories.
+    if (max < 0.0) {
+        val lowerPadding = maxOf((max - min) * 0.12, kotlin.math.abs(min) * 0.02, 1.0)
+        return (min - lowerPadding) to 0.0
+    }
+
+    val safeMax = max.coerceAtLeast(min + 1.0)
+    val rawRange = safeMax - min
     val relativeSpread = if (safeMax > 0) rawRange / safeMax else 1.0
-    val liftBaseline = rawMin > 0 && (rawMin > safeMax * 0.03 || relativeSpread < 0.10)
+    val liftBaseline = min > 0 && (min > safeMax * 0.03 || relativeSpread < 0.10)
     return if (liftBaseline) {
         // 12% headroom below the min and 12% above the max, both measured as
         // a fraction of the visible span. Guarantees ~76% of the chart height
         // is occupied by data movement, no matter how concentrated.
         val pad = rawRange * 0.12
-        Pair((rawMin - pad).coerceAtLeast(0.0), safeMax + pad)
+        Pair((min - pad).coerceAtLeast(0.0), safeMax + pad)
     } else {
-        Pair(rawMin.coerceAtMost(0.0), safeMax * 1.05)
+        Pair(min.coerceAtMost(0.0), safeMax * 1.05)
     }
 }
 
@@ -108,7 +116,7 @@ fun WealthChart(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Sin datos aún",
+                    LocalStrings.current.chartNoData,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.joyufyColors.contentSecondary,
                 )
@@ -123,6 +131,8 @@ fun WealthChart(
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val secondaryColor = MaterialTheme.joyufyColors.contentSecondary
+    val changeColors = MaterialTheme.joyufyColors.positive to MaterialTheme.joyufyColors.negative
+    val accentColor = MaterialTheme.colorScheme.primary
 
     // hoverX drives only Canvas redraws — no Box-level recomposition
     var hoverX by remember { mutableStateOf<Float?>(null) }
@@ -169,6 +179,8 @@ fun WealthChart(
                 surfaceColor = surfaceColor,
                 onSurfaceColor = onSurfaceColor,
                 secondaryColor = secondaryColor,
+                changeColors = changeColors,
+                accentColor = accentColor,
             )
             ChartMode.BARS -> drawBarChart(
                 points = filteredPoints,
@@ -179,6 +191,8 @@ fun WealthChart(
                 surfaceColor = surfaceColor,
                 onSurfaceColor = onSurfaceColor,
                 secondaryColor = secondaryColor,
+                changeColors = changeColors,
+                accentColor = accentColor,
             )
         }
     }
@@ -204,7 +218,7 @@ fun SingleAccountChart(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "Sin datos aún",
+                LocalStrings.current.chartNoData,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.joyufyColors.contentSecondary,
             )
@@ -220,6 +234,7 @@ fun SingleAccountChart(
     val surfaceColor = MaterialTheme.colorScheme.surface
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val secondaryColor = MaterialTheme.joyufyColors.contentSecondary
+    val changeColors = MaterialTheme.joyufyColors.positive to MaterialTheme.joyufyColors.negative
 
     var hoverX by remember { mutableStateOf<Float?>(null) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
@@ -257,11 +272,11 @@ fun SingleAccountChart(
         when (mode) {
             ChartMode.AREA -> drawSingleAreaChart(
                 points, textMeasurer, labelColor, gridColor, lineColor, hoveredIndex,
-                surfaceColor, onSurfaceColor, secondaryColor,
+                surfaceColor, onSurfaceColor, secondaryColor, changeColors,
             )
             ChartMode.BARS -> drawSingleBarChart(
                 points, textMeasurer, labelColor, gridColor, lineColor, hoveredIndex,
-                surfaceColor, onSurfaceColor, secondaryColor, account.name,
+                surfaceColor, onSurfaceColor, secondaryColor, changeColors, account.name,
             )
         }
     }
@@ -299,13 +314,13 @@ private fun DrawScope.drawTooltipBackground(
  */
 private data class ValueChange(val label: String, val color: Color)
 
-private fun valueChange(baseline: Double?, current: Double, secondaryColor: Color): ValueChange? {
+private fun valueChange(baseline: Double?, current: Double, secondaryColor: Color, changeColors: Pair<Color, Color>): ValueChange? {
     if (baseline == null || baseline == 0.0) return null
     val delta = current - baseline
     val pct = (current - baseline) / baseline * 100.0
     if (kotlin.math.abs(delta) < 0.005) return ValueChange("0,00 € (0.00%)", secondaryColor)
     val sign = if (delta > 0) "+" else ""
-    val color = if (delta >= 0) Positive else Negative
+    val color = if (delta >= 0) changeColors.first else changeColors.second
     return ValueChange("$sign${delta.formatCurrency()} ($sign${pct.formatPercent()})", color)
 }
 
@@ -323,6 +338,7 @@ private fun DrawScope.drawWealthTooltip(
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
+    changeColors: Pair<Color, Color>,
     totalBaseline: Double? = null,
     accountBaselines: Map<Long, Double> = emptyMap(),
 ) {
@@ -344,7 +360,7 @@ private fun DrawScope.drawWealthTooltip(
 
     val dateLr = measurer.measure(point.weekDate.toLongDate(), dateStyle, constraints = constraints)
     val totalLr = if (showTotal) measurer.measure(point.totalWealth.formatCurrency(), totalStyle, constraints = constraints) else null
-    val totalChange = if (showTotal) valueChange(totalBaseline, point.totalWealth, secondaryColor) else null
+    val totalChange = if (showTotal) valueChange(totalBaseline, point.totalWealth, secondaryColor, changeColors) else null
     val totalChangeLr = totalChange?.let {
         measurer.measure(it.label, TextStyle(color = it.color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold), constraints = constraints)
     }
@@ -356,7 +372,7 @@ private fun DrawScope.drawWealthTooltip(
         val changeLr: androidx.compose.ui.text.TextLayoutResult?,
     )
     val rows = point.byAccount.map { ap ->
-        val change = valueChange(accountBaselines[ap.account.id], ap.balance, secondaryColor)
+        val change = valueChange(accountBaselines[ap.account.id], ap.balance, secondaryColor, changeColors)
         RowLr(
             ap.account.color,
             measurer.measure(ap.account.name, rowLabelStyle, constraints = constraints),
@@ -440,6 +456,7 @@ private fun DrawScope.drawSingleTooltip(
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
+    changeColors: Pair<Color, Color>,
     baseline: Double? = null,
 ) {
     val paddingH = 10.dp.toPx()
@@ -454,7 +471,7 @@ private fun DrawScope.drawSingleTooltip(
 
     val dateLr = measurer.measure(weekDate.toLongDate(), dateStyle, constraints = constraints)
     val valueLr = measurer.measure(balance.formatCurrency(), valueStyle, constraints = constraints)
-    val change = valueChange(baseline, balance, secondaryColor)
+    val change = valueChange(baseline, balance, secondaryColor, changeColors)
     val changeLr = change?.let {
         measurer.measure(it.label, TextStyle(color = it.color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold), constraints = constraints)
     }
@@ -499,6 +516,8 @@ private fun DrawScope.drawAreaChart(
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
+    changeColors: Pair<Color, Color>,
+    accentColor: Color,
 ) {
     val w = size.width
     val h = size.height
@@ -527,7 +546,7 @@ private fun DrawScope.drawAreaChart(
     }
 
     if (points.size < 2) {
-        drawCircle(color = Accent, radius = 5.dp.toPx(), center = Offset(xOf(0), yOf(points[0].totalWealth)))
+        drawCircle(color = accentColor, radius = 5.dp.toPx(), center = Offset(xOf(0), yOf(points[0].totalWealth)))
         return
     }
 
@@ -545,7 +564,7 @@ private fun DrawScope.drawAreaChart(
         drawPath(
             path = fillPath,
             brush = Brush.verticalGradient(
-                colors = listOf(Accent.copy(alpha = 0.20f), Color.Transparent),
+                colors = listOf(accentColor.copy(alpha = 0.20f), Color.Transparent),
                 startY = chartTop,
                 endY = chartBottom,
             ),
@@ -587,11 +606,11 @@ private fun DrawScope.drawAreaChart(
         }
         drawPath(
             path = totalLinePath,
-            color = Accent,
+            color = accentColor,
             style = Stroke(width = 2.5f.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
         drawCircle(
-            color = Accent,
+            color = accentColor,
             radius = 6.dp.toPx(),
             center = Offset(xOf(points.size - 1), yOf(points.last().totalWealth)),
         )
@@ -601,7 +620,7 @@ private fun DrawScope.drawAreaChart(
     if (hoveredIndex != null) {
         val hx = xOf(hoveredIndex)
         drawLine(
-            color = Accent.copy(alpha = 0.5f),
+            color = accentColor.copy(alpha = 0.5f),
             start = Offset(hx, chartTop),
             end = Offset(hx, chartBottom),
             strokeWidth = 1.dp.toPx(),
@@ -609,7 +628,7 @@ private fun DrawScope.drawAreaChart(
         )
         if (showTotalLine) {
             drawCircle(
-                color = Accent,
+                color = accentColor,
                 radius = 5.dp.toPx(),
                 center = Offset(hx, yOf(points[hoveredIndex].totalWealth)),
             )
@@ -629,6 +648,7 @@ private fun DrawScope.drawAreaChart(
             surfaceColor = surfaceColor,
             onSurfaceColor = onSurfaceColor,
             secondaryColor = secondaryColor,
+            changeColors = changeColors,
             totalBaseline = points.first().totalWealth,
             accountBaselines = firstSeenBalances(points),
         )
@@ -660,6 +680,8 @@ private fun DrawScope.drawBarChart(
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
+    changeColors: Pair<Color, Color>,
+    accentColor: Color,
 ) {
     val w = size.width
     val h = size.height
@@ -695,7 +717,7 @@ private fun DrawScope.drawBarChart(
             val barH = ((point.totalWealth - minVal) / range * chartH).toFloat().coerceAtLeast(2f)
             val y = chartBottom - barH
             drawRoundRect(
-                color = if (isHovered) Accent else Accent.copy(alpha = 0.85f),
+                color = if (isHovered) accentColor else accentColor.copy(alpha = 0.85f),
                 topLeft = Offset(x, y),
                 size = Size(barW, barH),
                 cornerRadius = CornerRadius(3.dp.toPx()),
@@ -720,7 +742,7 @@ private fun DrawScope.drawBarChart(
         if (isHovered) {
             val totalBarH = ((point.totalWealth - minVal) / range * chartH).toFloat().coerceAtLeast(2f)
             drawRoundRect(
-                color = Accent.copy(alpha = 0.4f),
+                color = accentColor.copy(alpha = 0.4f),
                 topLeft = Offset(x - 1f, chartBottom - totalBarH - 1f),
                 size = Size(barW + 2f, totalBarH + 2f),
                 cornerRadius = CornerRadius(3.dp.toPx()),
@@ -754,6 +776,7 @@ private fun DrawScope.drawBarChart(
             surfaceColor = surfaceColor,
             onSurfaceColor = onSurfaceColor,
             secondaryColor = secondaryColor,
+            changeColors = changeColors,
             totalBaseline = points.first().totalWealth,
             accountBaselines = firstSeenBalances(points),
         )
@@ -772,6 +795,7 @@ private fun DrawScope.drawSingleAreaChart(
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
+    changeColors: Pair<Color, Color>,
 ) {
     val w = size.width
     val h = size.height
@@ -859,6 +883,7 @@ private fun DrawScope.drawSingleAreaChart(
             surfaceColor = surfaceColor,
             onSurfaceColor = onSurfaceColor,
             secondaryColor = secondaryColor,
+            changeColors = changeColors,
             baseline = points.first().balance,
         )
     }
@@ -876,6 +901,7 @@ private fun DrawScope.drawSingleBarChart(
     surfaceColor: Color,
     onSurfaceColor: Color,
     secondaryColor: Color,
+    changeColors: Pair<Color, Color>,
     accountName: String,
 ) {
     val w = size.width
@@ -945,6 +971,7 @@ private fun DrawScope.drawSingleBarChart(
             surfaceColor = surfaceColor,
             onSurfaceColor = onSurfaceColor,
             secondaryColor = secondaryColor,
+            changeColors = changeColors,
             baseline = points.first().balance,
         )
     }

@@ -74,6 +74,26 @@ class JoyufyDataIntegrityTest {
                         reviewStatus = TransactionReviewStatus.DRAFT.name,
                         importBatch = "csv-1",
                     ),
+                    TransactionBackup(
+                        id = 93L,
+                        accountId = 41L,
+                        type = TransactionType.EXPENSE.name,
+                        amount = 125.0,
+                        category = null,
+                        description = "Transfer to investment",
+                        relatedAccountId = 42L,
+                        date = 21L,
+                    ),
+                    TransactionBackup(
+                        id = 94L,
+                        accountId = 42L,
+                        type = TransactionType.INCOME.name,
+                        amount = 125.0,
+                        category = null,
+                        description = "Transfer from bank",
+                        relatedAccountId = 41L,
+                        date = 21L,
+                    ),
                 ),
                 snapshots = listOf(
                     SnapshotBackup(
@@ -95,10 +115,13 @@ class JoyufyDataIntegrityTest {
 
             assertNull(repos.accounts.getAccountById(999L))
             assertEquals(listOf(41L, 42L), repos.accounts.getAllAccounts().map { it.id })
-            val restoredTransaction = repos.transactions.getAllTransactions().single()
+            val restoredTransactions = repos.transactions.getAllTransactions().associateBy { it.id }
+            val restoredTransaction = assertNotNull(restoredTransactions[91L])
             assertEquals(91L, restoredTransaction.id)
             assertEquals(TransactionReviewStatus.DRAFT, restoredTransaction.reviewStatus)
             assertEquals("csv-1", restoredTransaction.importBatch)
+            assertEquals(42L, restoredTransactions[93L]?.relatedAccountId)
+            assertEquals(41L, restoredTransactions[94L]?.relatedAccountId)
             val restoredSnapshot = repos.snapshots.getAllSnapshots().single()
             assertEquals(92L, restoredSnapshot.id)
             assertEquals(400.0, restoredSnapshot.deposits)

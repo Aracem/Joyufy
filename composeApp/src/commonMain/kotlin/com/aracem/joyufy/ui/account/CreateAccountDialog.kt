@@ -30,8 +30,6 @@ import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.theme.AccountPalette
-import com.aracem.joyufy.ui.theme.Accent
-import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.joyufyColors
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -65,7 +63,7 @@ fun CreateAccountDialog(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
-            modifier = Modifier.width(420.dp),
+            modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth().heightIn(max = 720.dp),
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
 
@@ -152,8 +150,8 @@ fun CreateAccountDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Accent,
-                        focusedLabelColor = Accent,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
                     ),
                 )
 
@@ -178,13 +176,13 @@ fun CreateAccountDialog(
                                 AccountType.CASH -> strings.accountTypeCash
                             }) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Accent.copy(alpha = 0.15f),
-                                selectedLabelColor = Accent,
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = selected,
-                                selectedBorderColor = Accent,
+                                selectedBorderColor = MaterialTheme.colorScheme.primary,
                                 borderColor = MaterialTheme.joyufyColors.border,
                             ),
                         )
@@ -251,8 +249,8 @@ fun CreateAccountDialog(
                         )
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Accent,
-                        focusedLabelColor = Accent,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
                     ),
                 )
 
@@ -269,8 +267,8 @@ fun CreateAccountDialog(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Accent,
-                            focusedLabelColor = Accent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
                         ),
                     )
                 }
@@ -320,13 +318,13 @@ fun CreateAccountDialog(
                             }
                         },
                         enabled = !state.isSaving,
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     ) {
                         if (state.isSaving) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onPrimary,
                             )
                         } else {
                             Text(if (editingAccount != null) strings.saveChanges else strings.createAccount)
@@ -368,7 +366,7 @@ fun CreateAccountDialog(
                             onSuccess = { onCreated(); onDismiss() },
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
                 ) { Text(strings.confirmTypeChangeContinue) }
             },
             dismissButton = {
@@ -417,11 +415,11 @@ private fun BankPresetChip(
         modifier = Modifier
             .clip(MaterialTheme.shapes.small)
             .background(
-                if (selected) Accent.copy(alpha = 0.15f)
+                if (selected) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surfaceVariant
             )
             .then(
-                if (selected) Modifier.border(1.dp, Accent, MaterialTheme.shapes.small)
+                if (selected) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small)
                 else Modifier
             )
             .clickable(onClick = onClick)
@@ -438,7 +436,7 @@ private fun BankPresetChip(
         Text(
             text = preset.name,
             style = MaterialTheme.typography.labelSmall,
-            color = if (selected) Accent else MaterialTheme.joyufyColors.contentSecondary,
+            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.joyufyColors.contentSecondary,
         )
     }
 }

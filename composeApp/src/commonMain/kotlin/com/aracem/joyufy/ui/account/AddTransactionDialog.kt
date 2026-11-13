@@ -1,6 +1,9 @@
 package com.aracem.joyufy.ui.account
 
+import com.aracem.joyufy.ui.components.parseMoneyInput
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -20,21 +23,25 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
+import com.aracem.joyufy.domain.model.CategorizationRule
 import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.domain.model.categoryFor
 import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.domain.model.categorySuggestions
-import com.aracem.joyufy.ui.components.formatDate
+import com.aracem.joyufy.ui.components.dateInputToPickerMillis
+import com.aracem.joyufy.ui.components.pickerMillisToDateInput
 import com.aracem.joyufy.ui.components.formatInputAmount
 import com.aracem.joyufy.ui.components.parseDateInputToMillis
 import com.aracem.joyufy.ui.strings.LocalStrings
-import com.aracem.joyufy.ui.theme.Accent
+import com.aracem.joyufy.ui.strings.localizedCategoryLabel
 import com.aracem.joyufy.ui.theme.joyufyColors
 import kotlin.time.Clock
 import kotlinx.datetime.Instant
@@ -53,6 +60,8 @@ private data class TransactionDialogTemplate(
 @Composable
 fun AddTransactionDialog(
     accountType: AccountType,
+    accountId: Long,
+    accountName: String,
     availableAccounts: List<Account>,
     onDismiss: () -> Unit,
     onConfirm: (type: TransactionType, amount: Double, category: String?, description: String?, relatedAccountId: Long?, date: Long) -> Unit,
@@ -62,9 +71,9 @@ fun AddTransactionDialog(
     customCategories: List<String> = emptyList(),
     // If non-null, dialog is in edit mode pre-populated with this transaction
     editingTransaction: com.aracem.joyufy.domain.model.Transaction? = null,
+    rulesProvider: () -> List<CategorizationRule> = koinInject<PreferencesRepository>()::getCategorizationRules,
 ) {
     val strings = LocalStrings.current
-    val preferencesRepository: PreferencesRepository = koinInject()
     val allowedTypes = when (accountType) {
         AccountType.INVESTMENT -> listOf(TransactionType.INCOME, TransactionType.TRANSFER)
         // Expense first: it's the most frequently added type, so it's also the default
@@ -79,6 +88,9 @@ fun AddTransactionDialog(
     var amountText by remember { mutableStateOf(editingTransaction?.amount?.formatInputAmount() ?: "") }
     var amountError by remember { mutableStateOf<String?>(null) }
     var category by remember { mutableStateOf(editingTransaction?.category ?: "") }
+    var categoryInput by remember {
+        mutableStateOf(editingTransaction?.category?.let { it.localizedCategoryLabel(strings) }.orEmpty())
+    }
     var description by remember { mutableStateOf(editingTransaction?.description ?: "") }
     var selectedRelatedAccount by remember {
         mutableStateOf(editingTransaction?.relatedAccountId?.let { id -> availableAccounts.find { it.id == id } })
@@ -106,9 +118,9 @@ fun AddTransactionDialog(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
-            modifier = Modifier.width(440.dp),
+            modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth().heightIn(max = 720.dp),
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
 
                 // Header
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -124,6 +136,11 @@ fun AddTransactionDialog(
                     }
                 }
 
+                Text(
+                    text = "${strings.sourceAccount}: $accountName",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                )
                 Spacer(Modifier.height(20.dp))
 
                 // Tipo
@@ -145,13 +162,13 @@ fun AddTransactionDialog(
                                 TransactionType.TRANSFER -> strings.transactionTransfer
                             }, style = MaterialTheme.typography.labelSmall) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Accent.copy(alpha = 0.15f),
-                                selectedLabelColor = Accent,
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = selected,
-                                selectedBorderColor = Accent,
+                                selectedBorderColor = MaterialTheme.colorScheme.primary,
                                 borderColor = MaterialTheme.joyufyColors.border,
                             ),
                         )
@@ -242,6 +259,7 @@ fun AddTransactionDialog(
                                 onClick = {
                                     selectedType = template.type
                                     category = template.category
+                                    categoryInput = template.category.localizedCategoryLabel(strings)
                                     description = template.description
                                     if (template.type != TransactionType.TRANSFER) {
                                         selectedRelatedAccount = null
@@ -249,8 +267,8 @@ fun AddTransactionDialog(
                                 },
                                 label = { Text(template.label, style = MaterialTheme.typography.labelSmall) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Accent.copy(alpha = 0.15f),
-                                    selectedLabelColor = Accent,
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                     labelColor = MaterialTheme.joyufyColors.contentSecondary,
                                 ),
@@ -259,7 +277,7 @@ fun AddTransactionDialog(
                                     selected = selectedType == template.type &&
                                         category == template.category &&
                                         description == template.description,
-                                    selectedBorderColor = Accent,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
                                     borderColor = MaterialTheme.joyufyColors.border,
                                 ),
                             )
@@ -271,9 +289,9 @@ fun AddTransactionDialog(
                 val destinationAccounts = if (selectedType == TransactionType.TRANSFER) {
                     when (accountType) {
                         AccountType.INVESTMENT -> availableAccounts.filter {
-                            it.type == AccountType.BANK || it.type == AccountType.CASH
+                            it.id != accountId && (it.type == AccountType.BANK || it.type == AccountType.CASH)
                         }
-                        AccountType.BANK, AccountType.CASH -> availableAccounts
+                        AccountType.BANK, AccountType.CASH -> availableAccounts.filter { it.id != accountId }
                     }
                 } else emptyList()
 
@@ -298,7 +316,7 @@ fun AddTransactionDialog(
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     modifier = Modifier.fillMaxWidth().focusRequester(amountFocus),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Accent, focusedLabelColor = Accent),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary, focusedLabelColor = MaterialTheme.colorScheme.primary),
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -329,7 +347,7 @@ fun AddTransactionDialog(
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     modifier = Modifier.fillMaxWidth().focusRequester(dateFocus),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Accent, focusedLabelColor = Accent),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary, focusedLabelColor = MaterialTheme.colorScheme.primary),
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -342,16 +360,19 @@ fun AddTransactionDialog(
                 // text matches a single suggestion and the menu pops back open
                 // showing only that one item — making the user feel they have to
                 // click twice.
-                val categorySuggestions = remember(category, allCategoryLabels) {
-                    val q = category.trim().lowercase()
+                val categorySuggestions = remember(categoryInput, allCategoryLabels, strings) {
+                    val q = categoryInput.trim().lowercase()
                     if (q.isEmpty()) allCategoryLabels
-                    else allCategoryLabels.filter { it.lowercase().contains(q) }
+                    else allCategoryLabels.filter {
+                        it.lowercase().contains(q) || it.localizedCategoryLabel(strings).lowercase().contains(q)
+                    }
                 }
 
                 fun acceptFirstSuggestionOrFocusNext() {
                     val first = categorySuggestions.firstOrNull()
                     if (first != null && !category.equals(first, ignoreCase = true)) {
                         category = first
+                        categoryInput = first.localizedCategoryLabel(strings)
                     }
                     categoryExpanded = false
                     focusManager.moveFocus(FocusDirection.Down)
@@ -362,17 +383,18 @@ fun AddTransactionDialog(
                     onExpandedChange = { /* manually controlled — see onClick below */ },
                 ) {
                     OutlinedTextField(
-                        value = category,
+                        value = categoryInput,
                         onValueChange = {
+                            categoryInput = it
                             category = it
                             // Reopen on typing so suggestions follow the input.
                             categoryExpanded = it.isNotBlank()
                         },
                         label = { Text(strings.categoryOptional) },
                         trailingIcon = {
-                            if (category.isNotBlank()) {
+                            if (categoryInput.isNotBlank()) {
                                 IconButton(
-                                    onClick = { category = ""; categoryExpanded = false },
+                                    onClick = { category = ""; categoryInput = ""; categoryExpanded = false },
                                     modifier = Modifier.size(32.dp),
                                 ) {
                                     Icon(Icons.Default.Close, contentDescription = strings.clearFilters,
@@ -383,7 +405,9 @@ fun AddTransactionDialog(
                                 // Tap arrow to open / close all suggestions.
                                 IconButton(
                                     onClick = { categoryExpanded = !categoryExpanded },
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(32.dp).semantics {
+                                        contentDescription = if (categoryExpanded) strings.hideCategorySuggestions else strings.showCategorySuggestions
+                                    },
                                 ) {
                                     ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded)
                                 }
@@ -402,18 +426,19 @@ fun AddTransactionDialog(
                                 } else false
                             },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Accent, focusedLabelColor = Accent),
+                            focusedBorderColor = MaterialTheme.colorScheme.primary, focusedLabelColor = MaterialTheme.colorScheme.primary),
                     )
                     if (categorySuggestions.isNotEmpty()) {
                         ExposedDropdownMenu(
                             expanded = categoryExpanded,
                             onDismissRequest = { categoryExpanded = false },
                         ) {
-                            categorySuggestions.forEach { label ->
+                                categorySuggestions.forEach { label ->
                                 DropdownMenuItem(
-                                    text = { Text(label) },
+                                    text = { Text(label.localizedCategoryLabel(strings)) },
                                     onClick = {
                                         category = label
+                                        categoryInput = label.localizedCategoryLabel(strings)
                                         categoryExpanded = false
                                         focusManager.moveFocus(FocusDirection.Down)
                                     },
@@ -431,9 +456,10 @@ fun AddTransactionDialog(
                     onValueChange = {
                         description = it
                         if (category.isBlank()) {
-                            category = preferencesRepository.getCategorizationRules()
-                                .categoryFor(it, 0L)
+                            category = rulesProvider()
+                                .categoryFor(it, accountId)
                                 .orEmpty()
+                            categoryInput = category.localizedCategoryLabel(strings)
                         }
                     },
                     label = { Text(strings.descriptionOptional) },
@@ -442,7 +468,7 @@ fun AddTransactionDialog(
                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth().focusRequester(descriptionFocus),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Accent, focusedLabelColor = Accent),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary, focusedLabelColor = MaterialTheme.colorScheme.primary),
                 )
 
                 // An incoming transfer may only keep its original source.
@@ -452,10 +478,10 @@ fun AddTransactionDialog(
                         value = selectedRelatedAccount?.name.orEmpty(),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Cuenta origen") },
+                        label = { Text(strings.transferSourceAccount) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Accent, focusedLabelColor = Accent),
+                            focusedBorderColor = MaterialTheme.colorScheme.primary, focusedLabelColor = MaterialTheme.colorScheme.primary),
                     )
                 // Cuenta destino (solo para transfers created from this account)
                 } else if (selectedType == TransactionType.TRANSFER && destinationAccounts.isNotEmpty()) {
@@ -472,7 +498,7 @@ fun AddTransactionDialog(
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(relatedExpanded) },
                             modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Accent, focusedLabelColor = Accent),
+                                focusedBorderColor = MaterialTheme.colorScheme.primary, focusedLabelColor = MaterialTheme.colorScheme.primary),
                         )
                         ExposedDropdownMenu(
                             expanded = relatedExpanded,
@@ -515,7 +541,7 @@ fun AddTransactionDialog(
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val amount = amountText.replace(",", ".").toDoubleOrNull()
+                            val amount = parseMoneyInput(amountText)
                             if (amount == null || amount <= 0) {
                                 amountError = strings.amountError
                                 return@Button
@@ -536,7 +562,7 @@ fun AddTransactionDialog(
                             onDismiss()
                         },
                         enabled = canSubmit,
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                        colors = ButtonDefaults.buttonColors(),
                     ) {
                         Text(when {
                             editingTransaction != null -> strings.save
@@ -550,16 +576,14 @@ fun AddTransactionDialog(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = parseDateInputToMillis(dateText),
-        )
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = dateInputToPickerMillis(dateText))
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { selected ->
-                            dateText = selected.formatDate()
+                            dateText = pickerMillisToDateInput(selected)
                             dateError = null
                         }
                         showDatePicker = false

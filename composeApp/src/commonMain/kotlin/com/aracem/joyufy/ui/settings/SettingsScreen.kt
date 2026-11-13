@@ -38,11 +38,6 @@ import com.aracem.joyufy.ui.drive.DriveEvent
 import com.aracem.joyufy.ui.drive.DriveUiState
 import com.aracem.joyufy.ui.drive.DriveViewModel
 import com.aracem.joyufy.ui.strings.LocalStrings
-import com.aracem.joyufy.ui.theme.Accent
-import com.aracem.joyufy.ui.theme.Negative
-import com.aracem.joyufy.ui.theme.NegativeDim
-import com.aracem.joyufy.ui.theme.Positive
-import com.aracem.joyufy.ui.theme.PositiveDim
 import com.aracem.joyufy.ui.theme.joyufyColors
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -138,7 +133,7 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = { viewModel.deleteAccount(account.id); accountToDelete = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
                 ) { Text(strings.delete) }
             },
             dismissButton = {
@@ -156,7 +151,7 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = { showRestoreFromDriveConfirm = false; driveViewModel.syncFromCloud() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
                 ) { Text(strings.restore) }
             },
             dismissButton = {
@@ -199,8 +194,8 @@ fun SettingsScreen(
                         label = { Text(strings.confirmDeleteAllInputLabel) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Negative,
-                            focusedLabelColor = Negative,
+                            focusedBorderColor = MaterialTheme.joyufyColors.negative,
+                            focusedLabelColor = MaterialTheme.joyufyColors.negative,
                             unfocusedBorderColor = MaterialTheme.joyufyColors.border,
                         ),
                     )
@@ -214,7 +209,7 @@ fun SettingsScreen(
                         viewModel.deleteAllData {}
                     },
                     enabled = deleteAllConfirmationInput == expectedPhrase,
-                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
                 ) { Text(strings.deleteAll) }
             },
             dismissButton = {
@@ -233,7 +228,7 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(horizontal = 28.dp, vertical = 28.dp),
+        contentPadding = PaddingValues(horizontal = 36.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         // ── Title ─────────────────────────────────────────────────────────
@@ -255,7 +250,7 @@ fun SettingsScreen(
         // ── Idioma ────────────────────────────────────────────────────────
         if (selectedTab == SettingsTab.GENERAL) {
             item {
-                SettingsSection(title = "Idioma / Language") {
+                SettingsSection(title = strings.language) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -263,22 +258,22 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        listOf("" to "Sistema / System", "en" to "English", "es" to "Español").forEach { (code, label) ->
+                        listOf("" to strings.systemLanguage, "en" to "English", "es" to "Español").forEach { (code, label) ->
                             val selected = language == code
                             FilterChip(
                                 selected = selected,
                                 onClick = { onLanguageChange(code) },
                                 label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Accent.copy(alpha = 0.15f),
-                                    selectedLabelColor = Accent,
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                     labelColor = MaterialTheme.joyufyColors.contentSecondary,
                                 ),
                                 border = FilterChipDefaults.filterChipBorder(
                                     enabled = true,
                                     selected = selected,
-                                    selectedBorderColor = Accent,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
                                     borderColor = MaterialTheme.joyufyColors.border,
                                 ),
                             )
@@ -297,7 +292,7 @@ fun SettingsScreen(
                         Switch(
                             checked = darkMode,
                             onCheckedChange = { onToggleTheme() },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Accent, checkedTrackColor = Accent.copy(alpha = 0.4f)),
+                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
                         )
                     }
                 }
@@ -314,7 +309,7 @@ fun SettingsScreen(
                     HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
                     SettingsButton(label = strings.csvImportTitle, onClick = onImportCsv)
                     HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
-                    SettingsButton(label = "Reglas de categorización (${categorizationRules.size})", onClick = onOpenCategorizationRules)
+                    SettingsButton(label = "${strings.rulesTitle} (${categorizationRules.size})", onClick = onOpenCategorizationRules)
                     HorizontalDivider(color = MaterialTheme.joyufyColors.border, modifier = Modifier.padding(horizontal = 16.dp))
                     InvestmentFlowBackfillRow(
                         candidates = state.investmentFlowBackfillCandidates,
@@ -379,7 +374,7 @@ fun SettingsScreen(
                 DangerZoneSection {
                     SettingsButton(
                         label = strings.deleteAllData,
-                        labelColor = Negative,
+                        labelColor = MaterialTheme.joyufyColors.negative,
                         onClick = { showDeleteAllConfirm = true },
                     )
                 }
@@ -457,7 +452,7 @@ private fun InvestmentFlowBackfillRow(
         ) {
             Text(
                 strings.investmentFlowBackfillPreview,
-                color = if (candidates.isNotEmpty()) Accent else MaterialTheme.joyufyColors.contentDisabled,
+                color = if (candidates.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.joyufyColors.contentDisabled,
             )
         }
     }
@@ -483,8 +478,8 @@ private fun InvestmentFlowBackfillDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    BackfillSummaryChip(strings.depositsEur, totalDeposits, Positive)
-                    BackfillSummaryChip(strings.withdrawalsEur, totalWithdrawals, Negative)
+                    BackfillSummaryChip(strings.depositsEur, totalDeposits, MaterialTheme.joyufyColors.positive)
+                    BackfillSummaryChip(strings.withdrawalsEur, totalWithdrawals, MaterialTheme.joyufyColors.negative)
                 }
                 Column(
                     modifier = Modifier
@@ -510,7 +505,7 @@ private fun InvestmentFlowBackfillDialog(
             Button(
                 onClick = onApply,
                 enabled = candidates.isNotEmpty(),
-                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
                 Text(strings.investmentFlowBackfillApply)
             }
@@ -559,12 +554,12 @@ private fun BackfillCandidateRow(candidate: InvestmentFlowBackfillCandidateUi) {
             Text(
                 text = "${strings.depositsEur}: ${candidate.deposits.formatCurrency()}",
                 style = MaterialTheme.typography.labelSmall,
-                color = Positive,
+                color = MaterialTheme.joyufyColors.positive,
             )
             Text(
                 text = "${strings.withdrawalsEur}: ${candidate.withdrawals.formatCurrency()}",
                 style = MaterialTheme.typography.labelSmall,
-                color = Negative,
+                color = MaterialTheme.joyufyColors.negative,
             )
         }
     }
@@ -587,7 +582,7 @@ private fun SettingsTabs(
         selectedTabIndex = tabs.indexOfFirst { it.first == selected }.coerceAtLeast(0),
         edgePadding = 0.dp,
         containerColor = MaterialTheme.colorScheme.background,
-        contentColor = Accent,
+        contentColor = MaterialTheme.colorScheme.primary,
         divider = {},
     ) {
         tabs.forEach { (tab, label) ->
@@ -600,7 +595,7 @@ private fun SettingsTabs(
                         style = MaterialTheme.typography.labelMedium,
                     )
                 },
-                selectedContentColor = Accent,
+                selectedContentColor = MaterialTheme.colorScheme.primary,
                 unselectedContentColor = MaterialTheme.joyufyColors.contentSecondary,
             )
         }
@@ -634,7 +629,7 @@ private fun CloudSyncSection(
         AnimatedVisibility(visible = !isAuthenticated) {
             SettingsButton(
                 label = if (isAuthenticating) strings.syncing else strings.connectDrive,
-                labelColor = Accent,
+                labelColor = MaterialTheme.colorScheme.primary,
                 onClick = { if (!isAuthenticating) onConnect() },
             )
         }
@@ -661,7 +656,7 @@ private fun CloudSyncSection(
                     Switch(
                         checked = driveState.autoSync,
                         onCheckedChange = onAutoSyncChange,
-                        colors = SwitchDefaults.colors(checkedThumbColor = Accent, checkedTrackColor = Accent.copy(alpha = 0.4f)),
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary, checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
                     )
                 }
 
@@ -698,9 +693,9 @@ private fun CloudStatusChips(
         else -> if (cloudConflictPending) strings.cloudStatusConflict else strings.cloudStatusReady
     }
     val syncColor = when {
-        cloudConflictPending || driveEvent is DriveEvent.RestorePrompt -> Negative
-        driveEvent == DriveEvent.Uploading || driveEvent == DriveEvent.Downloading -> Accent
-        else -> Positive
+        cloudConflictPending || driveEvent is DriveEvent.RestorePrompt -> MaterialTheme.joyufyColors.negative
+        driveEvent == DriveEvent.Uploading || driveEvent == DriveEvent.Downloading -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.joyufyColors.positive
     }
     val lastSync = if (driveState.lastSyncAt > 0L) {
         strings.lastSync.format(formatDateTime(driveState.lastSyncAt))
@@ -718,8 +713,8 @@ private fun CloudStatusChips(
         ) {
             CloudStatusChip(
                 label = authDescription ?: authLabel,
-                accent = if (driveState.authState is AuthState.Authenticated) Positive else MaterialTheme.joyufyColors.contentSecondary,
-                container = if (driveState.authState is AuthState.Authenticated) PositiveDim else MaterialTheme.colorScheme.surfaceVariant,
+                accent = if (driveState.authState is AuthState.Authenticated) MaterialTheme.joyufyColors.positive else MaterialTheme.joyufyColors.contentSecondary,
+                container = if (driveState.authState is AuthState.Authenticated) MaterialTheme.joyufyColors.positiveContainer else MaterialTheme.colorScheme.surfaceVariant,
             )
             CloudStatusChip(
                 label = syncLabel,
@@ -728,8 +723,8 @@ private fun CloudStatusChips(
             )
             CloudStatusChip(
                 label = if (driveState.autoSync) strings.autoSync else strings.manualSync,
-                accent = if (driveState.autoSync) Accent else MaterialTheme.joyufyColors.contentSecondary,
-                container = if (driveState.autoSync) Accent.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant,
+                accent = if (driveState.autoSync) MaterialTheme.colorScheme.primary else MaterialTheme.joyufyColors.contentSecondary,
+                container = if (driveState.autoSync) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant,
             )
         }
         Text(
@@ -791,15 +786,15 @@ private fun DangerZoneSection(
         Text(
             text = strings.dangerZone,
             style = MaterialTheme.typography.labelMedium,
-            color = Negative,
+            color = MaterialTheme.joyufyColors.negative,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
         )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
-                .background(NegativeDim)
-                .border(1.dp, Negative.copy(alpha = 0.35f), MaterialTheme.shapes.medium),
+                .background(MaterialTheme.joyufyColors.negativeContainer)
+                .border(1.dp, MaterialTheme.joyufyColors.negative.copy(alpha = 0.35f), MaterialTheme.shapes.medium),
         ) {
             Text(
                 text = strings.dangerZoneDescription,
@@ -807,7 +802,7 @@ private fun DangerZoneSection(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
-            HorizontalDivider(color = Negative.copy(alpha = 0.18f), modifier = Modifier.padding(horizontal = 16.dp))
+            HorizontalDivider(color = MaterialTheme.joyufyColors.negative.copy(alpha = 0.18f), modifier = Modifier.padding(horizontal = 16.dp))
             content()
         }
     }
@@ -922,58 +917,180 @@ private fun formatDateTime(epochMillis: Long): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategorizationRulesScreen(onBack: () -> Unit) {
+    val strings = LocalStrings.current
     val preferences: PreferencesRepository = koinInject()
     val transactions: TransactionRepository = koinInject()
     var rules by remember { mutableStateOf(preferences.getCategorizationRules()) }
     var match by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var appliedCount by remember { mutableStateOf<Int?>(null) }
+    var isApplying by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Reglas de categorización") }, navigationIcon = {
-            TextButton(onClick = onBack) { Text("Volver") }
+        TopAppBar(title = { Text(strings.rulesTitle) }, navigationIcon = {
+            TextButton(onClick = onBack) { Text(strings.goBack) }
         })
     }) { padding ->
-        Column(Modifier.padding(padding).padding(24.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Se aplican a importaciones y transacciones nuevas. Las categorías existentes no se modifican.")
-            Button(
-                onClick = {
-                    scope.launch {
-                        appliedCount = withContext(Dispatchers.IO) {
-                            var count = 0
-                            transactions.getAllTransactions().filter { it.category.isNullOrBlank() }.forEach { transaction ->
-                        rules.categoryFor(transaction.description.orEmpty(), transaction.accountId)?.let { matched ->
-                            transactions.updateTransaction(transaction.id, transaction.type, transaction.amount, matched, transaction.description, transaction.relatedAccountId, transaction.date)
-                            count++
+        Column(
+            Modifier.padding(padding).fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxHeight().widthIn(max = 960.dp),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            strings.rulesDescription,
+                            color = MaterialTheme.joyufyColors.contentSecondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    isApplying = true
+                                    try {
+                                        appliedCount = withContext(Dispatchers.IO) {
+                                            var count = 0
+                                            transactions.getAllTransactions()
+                                                .filter { it.category.isNullOrBlank() }
+                                                .forEach { transaction ->
+                                                    rules.categoryFor(
+                                                        transaction.description.orEmpty(),
+                                                        transaction.accountId,
+                                                    )?.let { matched ->
+                                                        transactions.updateTransaction(
+                                                            transaction.id,
+                                                            transaction.type,
+                                                            transaction.amount,
+                                                            matched,
+                                                            transaction.description,
+                                                            transaction.relatedAccountId,
+                                                            transaction.date,
+                                                        )
+                                                        count++
+                                                    }
+                                                }
+                                            count
+                                        }
+                                    } finally {
+                                        isApplying = false
+                                    }
+                                }
+                            },
+                            enabled = !isApplying && rules.isNotEmpty(),
+                        ) {
+                            if (isApplying) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(strings.rulesApply)
+                        }
+                        appliedCount?.let { count ->
+                            Text(
+                                "$count ${strings.rulesUpdated}",
+                                color = MaterialTheme.joyufyColors.positive,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                     }
-                            count
+                }
+                if (rules.isEmpty()) {
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        ) {
+                            Text(
+                                strings.rulesImportDescription,
+                                modifier = Modifier.padding(20.dp),
+                                color = MaterialTheme.joyufyColors.contentSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                         }
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Aplicar reglas a transacciones sin categoría") }
-            appliedCount?.let { count ->
-                Text("$count transacciones actualizadas", color = Positive, style = MaterialTheme.typography.bodySmall)
-            }
-            LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
-                items(rules, key = { it.id }) { rule ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("${rule.contains} → ${rule.category}", Modifier.weight(1f))
-                        IconButton(onClick = { rules = rules.filterNot { it.id == rule.id }; preferences.setCategorizationRules(rules) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                } else {
+                    items(rules, key = { it.id }) { rule ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    rule.contains,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                Text(
+                                    "  →  ",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    rule.category,
+                                    modifier = Modifier.weight(1f),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                IconButton(
+                                    onClick = {
+                                        rules = rules.filterNot { it.id == rule.id }
+                                        preferences.setCategorizationRules(rules)
+                                    },
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = strings.delete)
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text(strings.rulesAdd, style = MaterialTheme.typography.titleMedium)
+                            OutlinedTextField(
+                                value = match,
+                                onValueChange = { match = it },
+                                label = { Text(strings.rulesContains) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                            OutlinedTextField(
+                                value = category,
+                                onValueChange = { category = it },
+                                label = { Text(strings.category) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                            )
+                            Button(
+                                onClick = {
+                                    rules = rules + CategorizationRule(
+                                        (rules.maxOfOrNull { it.id } ?: 0L) + 1,
+                                        match.trim(),
+                                        category.trim(),
+                                    )
+                                    preferences.setCategorizationRules(rules)
+                                    match = ""
+                                    category = ""
+                                    appliedCount = null
+                                },
+                                enabled = match.isNotBlank() && category.isNotBlank(),
+                            ) { Text(strings.rulesAdd) }
                         }
                     }
                 }
             }
-            OutlinedTextField(match, { match = it }, label = { Text("Texto que contiene") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(category, { category = it }, label = { Text("Categoría") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            Button(onClick = {
-                if (match.isNotBlank() && category.isNotBlank()) {
-                    rules = rules + CategorizationRule((rules.maxOfOrNull { it.id } ?: 0L) + 1, match.trim(), category.trim())
-                    preferences.setCategorizationRules(rules); match = ""; category = ""
-                }
-            }, modifier = Modifier.fillMaxWidth()) { Text("Añadir regla") }
         }
     }
 }
@@ -987,6 +1104,7 @@ private fun CategorizationRulesDialog(
     onSave: (List<CategorizationRule>) -> Unit,
     onApplyToUncategorized: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     var match by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var categoryExpanded by remember { mutableStateOf(false) }
@@ -997,23 +1115,23 @@ private fun CategorizationRulesDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Reglas de categorización") },
+        title = { Text(strings.rulesTitle) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Las reglas se aplican a las importaciones cuando la categoría viene vacía.")
+                Text(strings.rulesImportDescription)
                 if (rules.isNotEmpty()) {
                     LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 180.dp)) {
                         items(rules, key = { it.id }) { rule ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("${rule.contains} → ${rule.category}", modifier = Modifier.weight(1f))
                                 IconButton(onClick = { onSave(rules.filterNot { it.id == rule.id }) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                                    Icon(Icons.Default.Delete, contentDescription = strings.delete)
                                 }
                             }
                         }
                     }
                 }
-                OutlinedTextField(match, { match = it }, label = { Text("Texto que contiene") }, singleLine = true)
+                OutlinedTextField(match, { match = it }, label = { Text(strings.rulesContains) }, singleLine = true)
                 ExposedDropdownMenuBox(
                     expanded = categoryExpanded,
                     onExpandedChange = { categoryExpanded = it },
@@ -1021,7 +1139,7 @@ private fun CategorizationRulesDialog(
                     OutlinedTextField(
                         value = category,
                         onValueChange = { category = it; categoryExpanded = true },
-                        label = { Text("Categoría") },
+                        label = { Text(strings.category) },
                         singleLine = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryEditable),
@@ -1051,12 +1169,12 @@ private fun CategorizationRulesDialog(
                     match = ""
                     category = ""
                 }
-            }) { Text("Añadir regla") }
+            }) { Text(strings.rulesAdd) }
         },
         dismissButton = {
             Row {
-                TextButton(onClick = onApplyToUncategorized) { Text("Aplicar a transacciones sin categoría") }
-                TextButton(onClick = onDismiss) { Text("Cerrar") }
+                TextButton(onClick = onApplyToUncategorized) { Text(strings.rulesApply) }
+                TextButton(onClick = onDismiss) { Text(strings.close) }
             }
         },
     )

@@ -336,7 +336,8 @@ class CsvImportViewModel(
             cleaned.contains(",") -> cleaned.replace(",", ".")
             else -> cleaned
         }
-        return decimalNormalized.filter { it.isDigit() || it == '.' || it == '-' || it == '+' }.toDoubleOrNull()
+        return decimalNormalized.filter { it.isDigit() || it == '.' || it == '-' || it == '+' }
+            .toDoubleOrNull()?.takeIf { it.isFinite() }
     }
 
     private fun parseType(value: String): TransactionType? = when (value.trim().lowercase()) {

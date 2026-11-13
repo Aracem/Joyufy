@@ -1,10 +1,13 @@
 package com.aracem.joyufy.ui.account
 
+import com.aracem.joyufy.ui.components.parseMoneyInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,7 +17,6 @@ import androidx.compose.ui.window.Dialog
 import com.aracem.joyufy.domain.logic.InvestmentSnapshotFlows
 import com.aracem.joyufy.domain.logic.hasManualInvestmentFlowAnnotations
 import com.aracem.joyufy.ui.strings.LocalStrings
-import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
 import com.aracem.joyufy.ui.components.MILLIS_IN_WEEK
 import com.aracem.joyufy.ui.components.currentWeekStartMillis
@@ -53,6 +55,10 @@ fun AddSnapshotDialog(
     var dividendsText by remember { mutableStateOf(editingSnapshot?.dividends?.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()) }
     var noteText by remember { mutableStateOf(editingSnapshot?.note.orEmpty()) }
     var valueError by remember { mutableStateOf<String?>(null) }
+    var annotationError by remember { mutableStateOf<String?>(null) }
+    var annotationsExpanded by remember {
+        mutableStateOf(editingSnapshot?.hasManualInvestmentFlowAnnotations() == true || !editingSnapshot?.note.isNullOrBlank())
+    }
     var flowFieldsTouched by remember {
         mutableStateOf(editingSnapshot?.hasManualInvestmentFlowAnnotations() == true)
     }
@@ -90,6 +96,7 @@ fun AddSnapshotDialog(
             val defaults = flowDefaultsByWeek[selectedWeek.mondayMs] ?: InvestmentSnapshotFlows()
             depositsText = defaults.deposits.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()
             withdrawalsText = defaults.withdrawals.takeIf { it != 0.0 }?.formatInputAmount().orEmpty()
+            if (defaults.deposits != 0.0 || defaults.withdrawals != 0.0) annotationsExpanded = true
         }
     }
 
@@ -98,9 +105,9 @@ fun AddSnapshotDialog(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
-            modifier = Modifier.width(560.dp),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().heightIn(max = 720.dp),
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
 
                 // Header
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -137,7 +144,7 @@ fun AddSnapshotDialog(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(weekExpanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Accent, focusedLabelColor = Accent),
+                            focusedBorderColor = MaterialTheme.colorScheme.primary, focusedLabelColor = MaterialTheme.colorScheme.primary),
                     )
                     ExposedDropdownMenu(
                         expanded = weekExpanded,
@@ -171,59 +178,67 @@ fun AddSnapshotDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Accent,
-                        focusedLabelColor = Accent,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
                     ),
                 )
 
                 Spacer(Modifier.height(12.dp))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SnapshotAmountField(
-                        value = depositsText,
-                        onValueChange = { depositsText = it; flowFieldsTouched = true; valueError = null },
-                        label = strings.depositsEur,
-                        modifier = Modifier.weight(1f),
-                    )
-                    SnapshotAmountField(
-                        value = withdrawalsText,
-                        onValueChange = { withdrawalsText = it; flowFieldsTouched = true; valueError = null },
-                        label = strings.withdrawalsEur,
-                        modifier = Modifier.weight(1f),
-                    )
+                TextButton(onClick = { annotationsExpanded = !annotationsExpanded }) {
+                    Text(if (annotationsExpanded) strings.hideSnapshotDetails else strings.showSnapshotDetails)
+                    Icon(if (annotationsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
                 }
+                if (annotationsExpanded) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SnapshotAmountField(
+                            value = depositsText,
+                            onValueChange = { depositsText = it; flowFieldsTouched = true; annotationError = null },
+                            label = strings.depositsEur,
+                            modifier = Modifier.weight(1f),
+                        )
+                        SnapshotAmountField(
+                            value = withdrawalsText,
+                            onValueChange = { withdrawalsText = it; flowFieldsTouched = true; annotationError = null },
+                            label = strings.withdrawalsEur,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
 
-                Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(10.dp))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SnapshotAmountField(
-                        value = feesText,
-                        onValueChange = { feesText = it; flowFieldsTouched = true; valueError = null },
-                        label = strings.feesEur,
-                        modifier = Modifier.weight(1f),
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SnapshotAmountField(
+                            value = feesText,
+                            onValueChange = { feesText = it; flowFieldsTouched = true; annotationError = null },
+                            label = strings.feesEur,
+                            modifier = Modifier.weight(1f),
+                        )
+                        SnapshotAmountField(
+                            value = dividendsText,
+                            onValueChange = { dividendsText = it; flowFieldsTouched = true; annotationError = null },
+                            label = strings.dividendsEur,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = noteText,
+                        onValueChange = { noteText = it },
+                        label = { Text(strings.noteOptional) },
+                        minLines = 2,
+                        maxLines = 3,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        ),
                     )
-                    SnapshotAmountField(
-                        value = dividendsText,
-                        onValueChange = { dividendsText = it; flowFieldsTouched = true; valueError = null },
-                        label = strings.dividendsEur,
-                        modifier = Modifier.weight(1f),
-                    )
+
+                    annotationError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
-
-                Spacer(Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = noteText,
-                    onValueChange = { noteText = it },
-                    label = { Text(strings.noteOptional) },
-                    minLines = 2,
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Accent,
-                        focusedLabelColor = Accent,
-                    ),
-                )
 
                 Spacer(Modifier.height(24.dp))
 
@@ -234,15 +249,18 @@ fun AddSnapshotDialog(
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val value = valueText.replace(",", ".").toDoubleOrNull()
+                            val value = parseMoneyInput(valueText)
                             val deposits = depositsText.parseOptionalAmount()
                             val withdrawals = withdrawalsText.parseOptionalAmount()
                             val fees = feesText.parseOptionalAmount()
                             val dividends = dividendsText.parseOptionalAmount()
-                            if (value == null || value < 0 ||
-                                deposits == null || withdrawals == null || fees == null || dividends == null
-                            ) {
+                            if (value == null || value < 0) {
                                 valueError = strings.valueError
+                                return@Button
+                            }
+                            if (deposits == null || withdrawals == null || fees == null || dividends == null) {
+                                annotationsExpanded = true
+                                annotationError = strings.valueError
                                 return@Button
                             }
                             onConfirm(
@@ -256,7 +274,7 @@ fun AddSnapshotDialog(
                             )
                             onDismiss()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     ) {
                         Text(if (editingSnapshot != null) strings.saveChanges else strings.save)
                     }
@@ -282,15 +300,15 @@ private fun SnapshotAmountField(
         singleLine = true,
         modifier = modifier,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Accent,
-            focusedLabelColor = Accent,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
         ),
     )
 }
 
 private fun String.parseOptionalAmount(): Double? {
     if (isBlank()) return 0.0
-    return replace(",", ".").toDoubleOrNull()?.takeIf { it >= 0.0 }
+    return parseMoneyInput(this)?.takeIf { it >= 0.0 }
 }
 
 private data class WeekOption(val label: String, val mondayMs: Long)

@@ -70,7 +70,6 @@ import com.aracem.joyufy.ui.navigation.Screen
 import com.aracem.joyufy.ui.settings.SettingsScreen
 import com.aracem.joyufy.ui.settings.CategorizationRulesScreen
 import com.aracem.joyufy.ui.theme.JoyufyTheme
-import com.aracem.joyufy.ui.theme.Negative
 import com.aracem.joyufy.ui.theme.joyufyColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -766,7 +765,7 @@ private fun LocalImportPreviewDialog(
         confirmButton = {
             Button(
                 onClick = onRestore,
-                colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
             ) { Text(s.importPreviewRestore) }
         },
         dismissButton = {
@@ -816,7 +815,7 @@ private fun CloudRestoreDiffDialog(
         confirmButton = {
             Button(
                 onClick = onUseCloud,
-                colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
             ) { Text(s.useCloud) }
         },
         dismissButton = {

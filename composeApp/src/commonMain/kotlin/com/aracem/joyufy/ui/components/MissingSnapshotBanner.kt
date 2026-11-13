@@ -15,8 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.aracem.joyufy.ui.dashboard.MissingSnapshotTask
 import com.aracem.joyufy.ui.strings.LocalStrings
-import com.aracem.joyufy.ui.theme.Accent
-import com.aracem.joyufy.ui.theme.AccentDim
+import com.aracem.joyufy.ui.theme.joyufyColors
 
 @Composable
 fun MissingSnapshotBanner(
@@ -33,7 +32,7 @@ fun MissingSnapshotBanner(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(AccentDim)
+            .background(MaterialTheme.joyufyColors.warningContainer)
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -42,7 +41,7 @@ fun MissingSnapshotBanner(
             Icon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = null,
-                tint = Accent,
+                tint = MaterialTheme.joyufyColors.warning,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(10.dp))
@@ -50,19 +49,19 @@ fun MissingSnapshotBanner(
                 Text(
                     text = strings.missingSnapshotTitle,
                     style = MaterialTheme.typography.labelLarge,
-                    color = Accent,
+                    color = MaterialTheme.joyufyColors.warning,
                 )
                 Text(
                     text = strings.missingSnapshotSubtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Accent.copy(alpha = 0.75f),
+                    color = MaterialTheme.joyufyColors.warning,
                 )
             }
             IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = strings.close,
-                    tint = Accent,
+                    tint = MaterialTheme.joyufyColors.warning,
                     modifier = Modifier.size(16.dp),
                 )
             }
@@ -93,7 +92,7 @@ private fun MissingSnapshotTaskRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.58f))
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -115,7 +114,7 @@ private fun MissingSnapshotTaskRow(
                     task.lastSnapshotDate?.formatWeekRange(strings.week) ?: strings.missingSnapshotNever,
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = Accent.copy(alpha = 0.74f),
+                color = MaterialTheme.joyufyColors.contentSecondary,
             )
         }
         Spacer(Modifier.width(10.dp))
@@ -126,14 +125,14 @@ private fun MissingSnapshotTaskRow(
             Text(
                 text = strings.updateValue,
                 style = MaterialTheme.typography.labelSmall,
-                color = Accent,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
         IconButton(onClick = onDismissTask, modifier = Modifier.size(24.dp)) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = strings.close,
-                tint = Accent.copy(alpha = 0.7f),
+                tint = MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier.size(14.dp),
             )
         }

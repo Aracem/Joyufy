@@ -3,9 +3,11 @@ package com.aracem.joyufy.ui.importer
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.aracem.joyufy.data.repository.AccountRepository
+import com.aracem.joyufy.data.repository.PreferencesRepository
 import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.db.JoyufyDatabase
 import com.aracem.joyufy.domain.model.AccountType
+import com.aracem.joyufy.domain.model.CategorizationRule
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.components.parseDateInputToMillis
 import kotlin.test.Test
@@ -164,6 +166,60 @@ class CsvImportViewModelTest {
             assertEquals(1, state.validCount)
             assertEquals("Nomina recibida", state.rows.single().description)
             assertEquals("Nomina", state.rows.single().category)
+        }
+    }
+
+    @Test
+    fun overflowingAmountCannotBeImported() = runBlockingWithMain {
+        inMemoryRepositories().use { repos ->
+            val accountId = repos.accounts.insertAccount(
+                name = "Bank", type = AccountType.BANK, colorHex = "#7B6EF6", logoUrl = null, position = 0,
+            )
+            val viewModel = CsvImportViewModel(repos.accounts, repos.transactions)
+            viewModel.setDefaultAccount(accountId)
+            viewModel.loadCsv("Fecha\tImporte\tDescripcion\n01/07/2026\t5,50\tTest")
+            val initial = viewModel.awaitRows(count = 1)
+            assertEquals(1, initial.validCount)
+            viewModel.updateRowField(initial.rows.single().id, CsvImportRowField.AMOUNT, "9".repeat(400))
+            val invalid = viewModel.uiState.value
+            assertFalse(invalid.rows.single().canCommit)
+            assertTrue("amount" in invalid.rows.single().errors)
+            viewModel.commitValidRows()
+            assertTrue(repos.transactions.getTransactionsForAccount(accountId).isEmpty())
+        }
+    }
+
+    @Test
+    fun categorizationRulesFillOnlyBlankImportedCategories() = runBlockingWithMain {
+        inMemoryRepositories().use { repos ->
+            val accountId = repos.accounts.insertAccount(
+                name = "Bank", type = AccountType.BANK, colorHex = "#7B6EF6", logoUrl = null, position = 0,
+            )
+            val originalHome = System.getProperty("user.home")
+            val temporaryHome = java.nio.file.Files.createTempDirectory("joyufy-rule-import-test").toFile()
+            try {
+                System.setProperty("user.home", temporaryHome.absolutePath)
+                val preferences = PreferencesRepository().apply {
+                    setCategorizationRules(listOf(CategorizationRule(1, "BAKERY", "Food")))
+                }
+                val viewModel = CsvImportViewModel(repos.accounts, repos.transactions, preferences)
+                viewModel.setDefaultAccount(accountId)
+                viewModel.loadCsv(
+                    """
+                    Date	Amount	Description	Category
+                    01/07/2026	5,50	Corner bakery	""
+                    02/07/2026	8,00	Monthly rent	Housing
+                    """.trimIndent(),
+                )
+
+                val state = viewModel.awaitRows(count = 2)
+                assertEquals("Food", state.rows[0].category)
+                assertEquals("Housing", state.rows[1].category)
+            } finally {
+                if (originalHome == null) System.clearProperty("user.home")
+                else System.setProperty("user.home", originalHome)
+                temporaryHome.deleteRecursively()
+            }
         }
     }
 

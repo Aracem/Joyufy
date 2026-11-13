@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -71,9 +72,7 @@ import com.aracem.joyufy.ui.components.formatDate
 import com.aracem.joyufy.ui.navigation.LedgerInitialFilter
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.strings.Strings
-import com.aracem.joyufy.ui.theme.Accent
-import com.aracem.joyufy.ui.theme.Negative
-import com.aracem.joyufy.ui.theme.Positive
+import com.aracem.joyufy.ui.strings.localizedCategoryLabel
 import com.aracem.joyufy.ui.theme.joyufyColors
 import org.koin.compose.koinInject
 
@@ -129,7 +128,7 @@ fun TransactionLedgerScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(color = Accent)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             return@Scaffold
         }
@@ -139,7 +138,7 @@ fun TransactionLedgerScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 28.dp),
+            contentPadding = PaddingValues(horizontal = 36.dp, vertical = 32.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
@@ -290,7 +289,7 @@ private fun ReviewMetricPill(
     value: Int,
     onClick: () -> Unit,
 ) {
-    val color = if (value > 0) Accent else MaterialTheme.joyufyColors.contentSecondary
+    val color = if (value > 0) MaterialTheme.colorScheme.primary else MaterialTheme.joyufyColors.contentSecondary
     Row(
         modifier = Modifier
             .clip(MaterialTheme.shapes.small)
@@ -345,38 +344,26 @@ private fun LedgerFilterBar(
                     )
                 }
             }
-            Row(
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = onSearch,
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.joyufyColors.contentSecondary)
+                },
+                placeholder = { Text(strings.ledgerSearchPlaceholder) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                ),
+            )
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedTextField(
-                    value = state.searchQuery,
-                    onValueChange = onSearch,
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.joyufyColors.contentSecondary,
-                        )
-                    },
-                    placeholder = { Text(strings.ledgerSearchPlaceholder) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                    ),
-                )
-                AccountDropdown(
-                    accounts = state.accounts,
-                    selectedAccountId = state.selectedAccountId,
-                    onSelected = onAccount,
-                )
-                TypeDropdown(
-                    selectedType = state.selectedType,
-                    onSelected = onType,
-                )
+                AccountDropdown(accounts = state.accounts, selectedAccountId = state.selectedAccountId, onSelected = onAccount)
+                TypeDropdown(selectedType = state.selectedType, onSelected = onType)
             }
         }
     }
@@ -466,7 +453,7 @@ private fun BulkToolbar(
     var moveMenuExpanded by remember { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Accent.copy(alpha = 0.10f),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
         shape = MaterialTheme.shapes.medium,
     ) {
         Column(
@@ -501,7 +488,7 @@ private fun BulkToolbar(
                 )
                 Button(
                     onClick = { onApplyCategory(category) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 ) {
                     Text(strings.ledgerApplyCategory)
                 }
@@ -529,7 +516,7 @@ private fun BulkToolbar(
                 }
                 Button(
                     onClick = onDelete,
-                    colors = ButtonDefaults.buttonColors(containerColor = Negative),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
@@ -580,7 +567,7 @@ private fun DataQualityPanel(
             ) {
                 metrics.forEach { metric ->
                     val active = metric.count > 0
-                    val color = if (active) Accent else MaterialTheme.joyufyColors.contentSecondary
+                    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.joyufyColors.contentSecondary
                     Row(
                         modifier = Modifier
                             .clip(MaterialTheme.shapes.small)
@@ -611,41 +598,43 @@ private fun DataQualityPanel(
 @Composable
 private fun LedgerTableHeader() {
     val strings = LocalStrings.current
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth >= 600.dp) Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.background,
         ) {
-            Spacer(Modifier.width(44.dp))
-            Text(
-                text = strings.dateFrom,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.joyufyColors.contentSecondary,
-                modifier = Modifier.width(84.dp),
-            )
-            Text(
-                text = strings.accounts,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.joyufyColors.contentSecondary,
-                modifier = Modifier.width(150.dp),
-            )
-            Text(
-                text = strings.transactions,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.joyufyColors.contentSecondary,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = strings.amountEur,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.joyufyColors.contentSecondary,
-                modifier = Modifier.width(120.dp),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Spacer(Modifier.width(44.dp))
+                Text(
+                    text = strings.dateFrom,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                    modifier = Modifier.width(84.dp),
+                )
+                Text(
+                    text = strings.accounts,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                    modifier = Modifier.width(150.dp),
+                )
+                Text(
+                    text = strings.transactions,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = strings.amountEur,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.joyufyColors.contentSecondary,
+                    modifier = Modifier.width(120.dp),
+                )
+            }
         }
     }
 }
@@ -663,8 +652,8 @@ private fun LedgerRow(
         else -> tx.amount
     }
     val amountColor = when {
-        signedAmount < 0 -> Negative
-        signedAmount > 0 -> Positive
+        signedAmount < 0 -> MaterialTheme.joyufyColors.negative
+        signedAmount > 0 -> MaterialTheme.joyufyColors.positive
         else -> MaterialTheme.colorScheme.onSurface
     }
     Surface(
@@ -672,60 +661,80 @@ private fun LedgerRow(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onToggleSelected),
-        color = if (row.selected) Accent.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface,
+        color = if (row.selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.medium,
     ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = row.selected,
-                    onCheckedChange = { onToggleSelected() },
-                    modifier = Modifier.size(36.dp),
-                )
-                Text(
-                    text = tx.date.formatDate(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.joyufyColors.contentSecondary,
-                    modifier = Modifier.width(84.dp),
-                )
-                AccountCell(row = row, modifier = Modifier.width(150.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = tx.primaryText(row, strings),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+        BoxWithConstraints {
+            val compact = maxWidth < 600.dp
+            Column {
+                if (compact) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = row.selected, onCheckedChange = { onToggleSelected() }, modifier = Modifier.size(36.dp))
+                        Column(Modifier.weight(1f).padding(start = 8.dp, end = 8.dp)) {
+                            Text(tx.primaryText(row, strings), style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(tx.date.formatDate(), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.joyufyColors.contentSecondary)
+                            AccountCell(row = row)
+                            Text(tx.secondaryText(row, strings), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.joyufyColors.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        Text(signedAmount.formatCurrency(), style = MaterialTheme.typography.bodyMedium, color = amountColor)
+                    }
+                } else Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = row.selected,
+                        onCheckedChange = { onToggleSelected() },
+                        modifier = Modifier.size(36.dp),
                     )
-                    Spacer(Modifier.height(2.dp))
                     Text(
-                        text = tx.secondaryText(row, strings),
+                        text = tx.date.formatDate(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.joyufyColors.contentSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(84.dp),
+                    )
+                    AccountCell(row = row, modifier = Modifier.width(150.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = tx.primaryText(row, strings),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = tx.secondaryText(row, strings),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.joyufyColors.contentSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(
+                        text = signedAmount.formatCurrency(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = amountColor,
+                        modifier = Modifier.width(120.dp),
                     )
                 }
-                Text(
-                    text = signedAmount.formatCurrency(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = amountColor,
-                    modifier = Modifier.width(120.dp),
-                )
-            }
-            if (row.warnings.isNotEmpty()) {
-                FlowRow(
-                    modifier = Modifier.padding(start = 54.dp, end = 10.dp, bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    row.warnings.forEach { warning ->
-                        WarningChip(label = warning.label(strings, row.duplicateGroupSize))
+                if (row.warnings.isNotEmpty()) {
+                    FlowRow(
+                        modifier = Modifier.padding(start = 54.dp, end = 10.dp, bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        row.warnings.forEach { warning ->
+                            WarningChip(label = warning.label(strings, row.duplicateGroupSize))
+                        }
                     }
                 }
             }
@@ -762,10 +771,10 @@ private fun WarningChip(label: String) {
     Text(
         text = label,
         style = MaterialTheme.typography.labelSmall,
-        color = Accent,
+        color = MaterialTheme.colorScheme.primary,
         modifier = Modifier
             .clip(MaterialTheme.shapes.small)
-            .background(Accent.copy(alpha = 0.11f))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.11f))
             .padding(horizontal = 8.dp, vertical = 4.dp),
     )
 }
@@ -840,14 +849,14 @@ private fun Transaction.primaryText(row: LedgerTransactionRow, strings: Strings)
         ?: if (isTransfer()) {
             "${row.account?.name.orEmpty()} -> ${row.relatedAccount?.name.orEmpty()}"
         } else {
-            category?.takeIf { it.isNotBlank() } ?: strings.ledgerNoDescription
+            category?.takeIf { it.isNotBlank() }?.localizedCategoryLabel(strings) ?: strings.ledgerNoDescription
         }
 
 private fun Transaction.secondaryText(row: LedgerTransactionRow, strings: Strings): String {
     if (isTransfer()) {
         return strings.transactionTransfer
     }
-    val categoryText = category?.takeIf { it.isNotBlank() } ?: strings.uncategorized
+    val categoryText = category?.takeIf { it.isNotBlank() }?.localizedCategoryLabel(strings) ?: strings.uncategorized
     return "${type.label(strings)} · $categoryText"
 }
 

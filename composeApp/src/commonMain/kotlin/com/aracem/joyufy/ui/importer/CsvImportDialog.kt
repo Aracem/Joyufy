@@ -52,9 +52,6 @@ import androidx.compose.ui.window.DialogProperties
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.ui.strings.LocalStrings
 import com.aracem.joyufy.ui.strings.Strings
-import com.aracem.joyufy.ui.theme.Accent
-import com.aracem.joyufy.ui.theme.Negative
-import com.aracem.joyufy.ui.theme.Positive
 import com.aracem.joyufy.ui.theme.joyufyColors
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -100,7 +97,7 @@ fun CsvImportDialog(
                     Button(
                         onClick = onCommit,
                         enabled = state.validCount > 0,
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                        colors = ButtonDefaults.buttonColors(),
                     ) {
                         Text(strings.csvImportCommit.format(state.validCount))
                     }
@@ -140,28 +137,24 @@ fun CsvImportDialog(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CsvImportSummary(state: CsvImportUiState) {
     val strings = LocalStrings.current
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        SummaryChip(strings.csvImportRows.format(state.enabledCount), Accent)
-        SummaryChip(strings.csvImportValid.format(state.validCount), Positive)
-        SummaryChip(strings.csvImportErrors.format(state.errorCount), if (state.errorCount > 0) Negative else MaterialTheme.joyufyColors.contentSecondary)
-        SummaryChip(strings.csvImportDuplicates.format(state.duplicateCount), if (state.duplicateCount > 0) Accent else MaterialTheme.joyufyColors.contentSecondary)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SummaryChip(strings.csvImportRows.format(state.enabledCount), MaterialTheme.colorScheme.onPrimaryContainer, MaterialTheme.colorScheme.primaryContainer)
+        SummaryChip(strings.csvImportValid.format(state.validCount), MaterialTheme.joyufyColors.positive, MaterialTheme.joyufyColors.positiveContainer)
+        SummaryChip(strings.csvImportErrors.format(state.errorCount), MaterialTheme.joyufyColors.negative, MaterialTheme.joyufyColors.negativeContainer)
+        SummaryChip(strings.csvImportDuplicates.format(state.duplicateCount), MaterialTheme.joyufyColors.warning, MaterialTheme.joyufyColors.warningContainer)
     }
 }
 
 @Composable
-private fun SummaryChip(label: String, color: Color) {
-    AssistChip(
-        onClick = {},
-        label = { Text(label) },
-        border = null,
-        colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(
-            containerColor = color.copy(alpha = 0.11f),
-            labelColor = color,
-        ),
-    )
+private fun SummaryChip(label: String, color: Color, container: Color) {
+    Surface(color = container, shape = MaterialTheme.shapes.small) {
+        Text(label, color = color, style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -224,10 +217,10 @@ private fun CsvDraftRow(
 ) {
     val strings = LocalStrings.current
     val rowColor = when {
-        !row.enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        row.errors.isNotEmpty() -> Negative.copy(alpha = 0.08f)
-        row.duplicateHint -> Accent.copy(alpha = 0.08f)
-        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        !row.enabled -> MaterialTheme.colorScheme.surfaceVariant
+        row.errors.isNotEmpty() -> MaterialTheme.joyufyColors.negativeContainer
+        row.duplicateHint -> MaterialTheme.joyufyColors.warningContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
     Column(
         modifier = Modifier
@@ -272,7 +265,7 @@ private fun CsvDraftRow(
                     Text(
                         text = strings.csvImportDuplicateHint,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Accent,
+                        color = MaterialTheme.joyufyColors.warning,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }

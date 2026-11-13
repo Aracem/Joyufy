@@ -1,5 +1,9 @@
 package com.aracem.joyufy.ui.components
 
+/** Parses a decimal amount while excluding values that cannot represent money. */
+fun parseMoneyInput(text: String): Double? =
+    text.replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() }
+
 fun Double.formatCurrency(): String {
     val sign = if (this < 0) "-" else ""
     val totalCents = kotlin.math.round(kotlin.math.abs(this) * 100).toLong()
@@ -10,10 +14,14 @@ fun Double.formatCurrency(): String {
 }
 
 // Compact format for chart Y-axis labels where space is limited
-fun Double.formatAmountCompact(): String = when {
-    this >= 1_000_000 -> "${"%.1f".format(this / 1_000_000)}M"
-    this >= 1_000     -> "${"%.0f".format(this / 1_000)}k"
-    else              -> "%.0f".format(this)
+fun Double.formatAmountCompact(): String {
+    val sign = if (this < 0) "-" else ""
+    val magnitude = kotlin.math.abs(this)
+    return when {
+        magnitude >= 1_000_000 -> "$sign${"%.1f".format(magnitude / 1_000_000)}M"
+        magnitude >= 1_000     -> "$sign${"%.0f".format(magnitude / 1_000)}k"
+        else                   -> "$sign${"%.0f".format(magnitude)}"
+    }
 }
 
 // Two-decimal string for amount input fields

@@ -7,9 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -41,10 +38,9 @@ import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.ui.dashboard.AccountSummary
 import com.aracem.joyufy.ui.navigation.Screen
 import com.aracem.joyufy.ui.strings.LocalStrings
-import com.aracem.joyufy.ui.theme.Accent
 import com.aracem.joyufy.ui.theme.joyufyColors
 
-private val SIDEBAR_EXPANDED_WIDTH = 220.dp
+private val SIDEBAR_EXPANDED_WIDTH = 232.dp
 private val SIDEBAR_COLLAPSED_WIDTH = 56.dp
 
 @Composable
@@ -74,7 +70,7 @@ fun Sidebar(
         modifier = modifier
             .width(sidebarWidth)
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface),
+            .background(MaterialTheme.joyufyColors.sidebar),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // ── Top: toggle expand/collapse ───────────────────────────────────
@@ -98,8 +94,8 @@ fun Sidebar(
             if (expanded) {
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = "Joyufy",
-                    style = MaterialTheme.typography.headlineMedium,
+                    text = "joyufy",
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f).clickable { onScreenSelected(Screen.Dashboard) },
                 )
@@ -125,11 +121,7 @@ fun Sidebar(
         )
 
         Spacer(Modifier.height(8.dp))
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = if (expanded) 12.dp else 8.dp),
-            color = MaterialTheme.joyufyColors.border,
-        )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // ── Account list ──────────────────────────────────────────────────
         LazyColumn(
@@ -172,14 +164,14 @@ fun Sidebar(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = strings.sidebarNewAccount,
-                        tint = Accent,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = strings.sidebarNewAccount,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Accent,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
                 if (accounts.isNotEmpty()) {
@@ -194,7 +186,7 @@ fun Sidebar(
                         modifier = Modifier.size(32.dp),
                         tint = androidx.compose.ui.graphics.lerp(
                             MaterialTheme.joyufyColors.contentSecondary.copy(alpha = 0.5f),
-                            Accent,
+                            MaterialTheme.colorScheme.primary,
                             reorderTint,
                         ),
                         iconSize = 16.dp,
@@ -207,7 +199,7 @@ fun Sidebar(
                 icon = Icons.Default.Add,
                 onClick = onAddAccount,
                 modifier = Modifier.size(40.dp),
-                tint = Accent,
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
 
@@ -277,9 +269,7 @@ private fun SidebarAccountItem(
     val strings = LocalStrings.current
     var isDragging by remember { mutableStateOf(false) }
     var cursorY by remember { mutableStateOf(0f) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
-    val showQuickAdd = expanded && isHovered && !reorderMode
+    val showQuickAdd = expanded && !reorderMode
     val account = summary.account
 
     Row(
@@ -295,12 +285,11 @@ private fun SidebarAccountItem(
             )
             .then(
                 if (isSelected) {
-                    Modifier.border(1.dp, Accent.copy(alpha = 0.35f), MaterialTheme.shapes.small)
+                    Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), MaterialTheme.shapes.small)
                 } else {
                     Modifier
                 }
             )
-            .hoverable(interactionSource)
             .then(if (!reorderMode) Modifier.clickable(onClick = onClick) else Modifier)
             .onGloballyPositioned { coords ->
                 itemCenterY[account.id] = coords.positionInWindow().y + coords.size.height / 2f
@@ -313,7 +302,7 @@ private fun SidebarAccountItem(
                 .width(if (isSelected) 5.dp else 3.dp)
                 .height(40.dp)
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
-                .background(if (isSelected) Accent else account.color),
+                .background(if (isSelected) MaterialTheme.colorScheme.primary else account.color),
         )
 
         Spacer(Modifier.width(if (expanded) 8.dp else 4.dp))
@@ -393,7 +382,7 @@ private fun SidebarAccountItem(
                         icon = Icons.Default.Add,
                         onClick = onQuickAdd,
                         modifier = Modifier.size(28.dp),
-                        tint = Accent,
+                        tint = MaterialTheme.colorScheme.primary,
                         iconSize = 15.dp,
                     )
                 }
@@ -437,8 +426,8 @@ private fun SidebarNavItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
-                .clip(MaterialTheme.shapes.small)
-                .background(if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+                .clip(CircleShape)
+                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -446,14 +435,14 @@ private fun SidebarNavItem(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (selected) Accent else MaterialTheme.joyufyColors.contentSecondary,
+                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.joyufyColors.contentSecondary,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(10.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (selected) MaterialTheme.colorScheme.onSurface
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
                         else MaterialTheme.joyufyColors.contentSecondary,
             )
         }
@@ -463,7 +452,7 @@ private fun SidebarNavItem(
             icon = icon,
             onClick = onClick,
             modifier = Modifier.size(40.dp),
-            tint = if (selected) Accent else MaterialTheme.joyufyColors.contentSecondary,
+            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.joyufyColors.contentSecondary,
             iconSize = 20.dp,
         )
     }

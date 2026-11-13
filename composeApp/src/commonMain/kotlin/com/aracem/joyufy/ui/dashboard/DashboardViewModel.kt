@@ -124,6 +124,10 @@ data class DashboardUiState(
     val hiddenAccountIds: Set<Long> = emptySet(),
     val showTotal: Boolean = true,
     val monthlySummary: MonthlySummary? = null,
+    val monthlySummaryLoading: Boolean = true,
+    val monthlySummaryError: Boolean = false,
+    val monthlyAnalysisError: Boolean = false,
+    val monthlyAnalysis: MonthlyAnalysis? = null,
     val annualSummary: AnnualSummary? = null,
     val periodComparison: PeriodComparison? = null,
     val uncategorizedTransactionCount: Int = 0,
@@ -142,6 +146,9 @@ class DashboardViewModel(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val currentYear = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
+    private fun currentAnalysisMonth(): AnalysisMonth = Clock.System.now()
+        .toLocalDateTime(TimeZone.currentSystemDefault()).let { AnalysisMonth(it.year, it.monthNumber) }
+    private val selectedMonth = MutableStateFlow(currentAnalysisMonth())
 
     // Snapshot reminders dismissed this session. Not persisted: the banner only
     // shows on Fridays, so a restart re-surfacing it is acceptable.
@@ -160,6 +167,7 @@ class DashboardViewModel(
         observeBalances()
         observeWealthHistory()
         observeMonthlySummary()
+        observeMonthlyAnalysis()
         observeAnnualSummary()
         observeMissingSnapshots()
         observeChartRange()
@@ -307,13 +315,44 @@ class DashboardViewModel(
                     tx.relatedAccountId == null && tx.category.isNullOrBlank()
                 }
                 Triple(summary, comparison, uncategorizedCount)
+            }.catch {
+                _uiState.value = _uiState.value.copy(monthlySummaryLoading = false, monthlySummaryError = true)
             }.collect { (summary, comparison, uncategorizedCount) ->
                 _uiState.value = _uiState.value.copy(
                     monthlySummary = summary,
+                    monthlySummaryLoading = false,
+                    monthlySummaryError = false,
                     periodComparison = comparison,
                     uncategorizedTransactionCount = uncategorizedCount,
                 )
             }
+        }
+    }
+
+    private fun observeMonthlyAnalysis() {
+        scope.launch {
+            combine(transactionRepository.observeAllBankCashTransactions(), selectedMonth) { transactions, month ->
+                calculateMonthlyAnalysis(transactions, month, currentAnalysisMonth())
+            }.catch {
+                _uiState.value = _uiState.value.copy(monthlyAnalysisError = true)
+            }.collect { analysis ->
+                _uiState.value = _uiState.value.copy(monthlyAnalysis = analysis, monthlyAnalysisError = false)
+            }
+        }
+    }
+
+    fun resetMonthlyAnalysis() {
+        val current = currentAnalysisMonth()
+        if (selectedMonth.value != current) {
+            _uiState.value = _uiState.value.copy(monthlyAnalysis = null)
+            selectedMonth.value = current
+        }
+    }
+
+    fun navigateAnalysisMonth(delta: Int) {
+        val analysis = _uiState.value.monthlyAnalysis ?: return
+        if ((delta == -1 && analysis.canGoPrevious) || (delta == 1 && analysis.canGoNext)) {
+            selectedMonth.value = analysis.month.shift(delta)
         }
     }
 
