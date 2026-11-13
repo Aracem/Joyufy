@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.aracem.joyufy.db.JoyufyDatabase
 import java.io.File
+import java.util.Properties
 
 actual class DatabaseDriverFactory actual constructor() {
     actual fun createDriver(): SqlDriver {
@@ -47,7 +48,8 @@ actual class DatabaseDriverFactory actual constructor() {
     }
 
     private fun createSqliteDriver(dbFile: File): JdbcSqliteDriver =
-        JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}").also { driver ->
-            driver.execute(null, "PRAGMA foreign_keys = ON", 0)
-        }
+        JdbcSqliteDriver(
+            "jdbc:sqlite:${dbFile.absolutePath}",
+            Properties().apply { setProperty("foreign_keys", "true") },
+        )
 }
