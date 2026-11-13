@@ -24,6 +24,33 @@ fun Double.formatAmountCompact(): String {
     }
 }
 
+/** Formats a chart tick with enough precision to keep neighboring labels distinct. */
+internal fun Double.formatAxisAmount(step: Double): String {
+    val magnitude = kotlin.math.abs(this)
+    val interval = kotlin.math.abs(step)
+    val divisor = when {
+        magnitude >= 1_000_000 -> 1_000_000.0
+        magnitude >= 1_000 -> 1_000.0
+        else -> 1.0
+    }
+    val suffix = when (divisor) {
+        1_000_000.0 -> "M"
+        1_000.0 -> "k"
+        else -> ""
+    }
+    val scaledInterval = interval / divisor
+    val decimals = if (scaledInterval >= 1.0) {
+        0
+    } else {
+        kotlin.math.ceil(-kotlin.math.log10(scaledInterval))
+            .toInt()
+            .coerceIn(1, 6)
+    }
+    val sign = if (this < 0) "-" else ""
+    val formatted = "%.${decimals}f".format(magnitude / divisor)
+    return "$sign$formatted$suffix"
+}
+
 // Two-decimal string for amount input fields
 fun Double.formatInputAmount(): String = "%.2f".format(this)
 

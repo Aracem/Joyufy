@@ -1009,7 +1009,7 @@ private fun DrawScope.drawGridAndLabels(
             strokeWidth = 0.5f,
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f)),
         )
-        val lr = measurer.measure(value.toShortAmount(), labelStyle, constraints = safeConstraints)
+        val lr = measurer.measure(value.formatAxisAmount(range / ySteps), labelStyle, constraints = safeConstraints)
         drawText(lr, topLeft = Offset(chartLeft - lr.size.width - 6f, y - lr.size.height / 2f))
     }
 }

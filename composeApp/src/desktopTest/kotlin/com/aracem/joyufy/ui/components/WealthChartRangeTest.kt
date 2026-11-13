@@ -41,4 +41,20 @@ class WealthChartRangeTest {
         assertTrue((-1_500_000.0).formatAmountCompact().startsWith("-1"))
         assertTrue((-1_500_000.0).formatAmountCompact().endsWith("M"))
     }
+
+    @Test
+    fun axisLabelsKeepSmallDifferencesVisibleAtLargeBalances() {
+        val labels = (0..4).map { step -> (1_000.0 + step * 62.5).formatAxisAmount(62.5) }
+
+        assertEquals(5, labels.distinct().size)
+    }
+
+    @Test
+    fun axisLabelsStayDistinctForASinglePositiveSnapshot() {
+        val (min, max) = smartYRange(1_250.50, 1_250.50)
+        val tickInterval = (max - min) / 4
+        val labels = (0..4).map { step -> (min + step * tickInterval).formatAxisAmount(tickInterval) }
+
+        assertEquals(5, labels.distinct().size)
+    }
 }
