@@ -377,7 +377,7 @@ object StringsEs : Strings {
     override val confirmDeleteSnapshot = "¿Eliminar registro semanal?"
     override val confirmDeleteSnapshotText = "Podrás deshacerlo desde el aviso que aparecerá después."
     override val confirmDeleteAccount = "¿Eliminar cuenta?"
-    override val confirmDeleteAccountText = "Se eliminarán permanentemente la cuenta y todas sus transacciones y snapshots. Esta acción no se puede deshacer."
+    override val confirmDeleteAccountText = "Se eliminarán la cuenta y sus transacciones y snapshots. Podrás deshacerlo desde el aviso que aparecerá después."
     override val confirmDeleteAll = "¿Borrar todos los datos?"
     override val confirmDeleteAllText = "Se eliminarán todas las cuentas, transacciones y snapshots. La aplicación quedará vacía. Esta acción no se puede deshacer."
     override val confirmDeleteAllTypedInstruction = "Escribe %s para borrar permanentemente todos los datos locales."

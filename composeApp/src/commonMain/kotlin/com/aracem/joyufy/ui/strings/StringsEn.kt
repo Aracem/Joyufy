@@ -377,7 +377,7 @@ object StringsEn : Strings {
     override val confirmDeleteSnapshot = "Delete weekly record?"
     override val confirmDeleteSnapshotText = "You can undo this from the notification that appears after deletion."
     override val confirmDeleteAccount = "Delete account?"
-    override val confirmDeleteAccountText = "The account and all its transactions and snapshots will be permanently deleted. This action cannot be undone."
+    override val confirmDeleteAccountText = "The account and its transactions and snapshots will be deleted. You can undo this from the notification that appears after deletion."
     override val confirmDeleteAll = "Delete all data?"
     override val confirmDeleteAllText = "All accounts, transactions and snapshots will be deleted. The application will be empty. This action cannot be undone."
     override val confirmDeleteAllTypedInstruction = "Type %s to permanently delete all local data."
