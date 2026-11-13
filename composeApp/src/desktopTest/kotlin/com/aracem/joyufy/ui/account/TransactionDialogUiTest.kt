@@ -12,6 +12,8 @@ import androidx.compose.ui.text.AnnotatedString
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.CategorizationRule
+import com.aracem.joyufy.domain.model.Transaction
+import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.components.parseDateInputToMillis
 import com.aracem.joyufy.ui.strings.LocalStrings
@@ -221,6 +223,74 @@ class TransactionDialogUiTest {
             scene.render()
             assertTrue(named(StringsEn.buttonAdd).config.getOrNull(SemanticsActions.OnClick)!!.action!!.invoke())
             assertEquals("Supermercado", savedCategory)
+        } finally {
+            scene.close()
+        }
+    }
+
+    @Test
+    fun editModeShowsExistingValuesAndSubmitsEdits() {
+        var submitted: List<Any?>? = null
+        val existing = Transaction(
+            id = 8,
+            accountId = 12,
+            type = TransactionType.EXPENSE,
+            amount = 12.5,
+            category = "Groceries",
+            description = "Market",
+            relatedAccountId = null,
+            date = requireNotNull(parseDateInputToMillis("14/02/2026")),
+            reviewStatus = TransactionReviewStatus.DRAFT,
+            importBatch = "import-1",
+        )
+        val scene = ImageComposeScene(width = 560, height = 1000) {
+            JoyufyTheme {
+                CompositionLocalProvider(LocalStrings provides StringsEn) {
+                    AddTransactionDialog(
+                        accountType = AccountType.BANK,
+                        accountId = 12,
+                        accountName = "Checking",
+                        availableAccounts = emptyList(),
+                        editingTransaction = existing,
+                        onDismiss = {},
+                        onConfirm = { type, amount, category, description, relatedId, date ->
+                            submitted = listOf(type, amount, category, description, relatedId, date)
+                        },
+                        rulesProvider = { emptyList() },
+                    )
+                }
+            }
+        }
+        try {
+            scene.render()
+            fun nodes() = scene.semanticsOwners.flatMap { it.getAllSemanticsNodes(mergingEnabled = true) }
+            fun named(text: String) = nodes().first { node ->
+                node.config.getOrNull(SemanticsProperties.Text).orEmpty().any { it.text == text }
+            }
+            fun fieldText(label: String) = named(label)
+                .config.getOrNull(SemanticsProperties.EditableText)?.text
+            fun type(label: String, value: String) {
+                assertTrue(named(label).config.getOrNull(SemanticsActions.SetText)!!.action!!.invoke(AnnotatedString(value)))
+                scene.render()
+            }
+
+            assertTrue(nodes().any { node ->
+                node.config.getOrNull(SemanticsProperties.Text).orEmpty().any { it.text == StringsEn.editTransaction }
+            })
+            assertEquals("12,50", fieldText(StringsEn.amountEur))
+            assertEquals("14/02/2026", fieldText(StringsEn.dateFormat))
+            assertEquals("Market", fieldText(StringsEn.descriptionOptional))
+            type(StringsEn.amountEur, "18,75")
+            type(StringsEn.dateFormat, "15/02/2026")
+            type(StringsEn.descriptionOptional, "Updated market")
+            assertTrue(named(StringsEn.save).config.getOrNull(SemanticsActions.OnClick)!!.action!!.invoke())
+
+            assertEquals(TransactionType.EXPENSE, submitted?.get(0))
+            assertEquals(18.75, submitted?.get(1))
+            assertEquals("Groceries", submitted?.get(2))
+            assertEquals("Updated market", submitted?.get(3))
+            assertEquals(null, submitted?.get(4))
+            assertEquals(parseDateInputToMillis("15/02/2026"), submitted?.get(5))
         } finally {
             scene.close()
         }
