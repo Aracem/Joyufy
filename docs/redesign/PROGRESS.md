@@ -163,3 +163,11 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - The undo assertions verify both original IDs, reciprocal account links, `DRAFT` review status, and `importBatch` are restored.
 - Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.account.AccountDetailTransferUndoTest` passed. Integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `0423f18c5800d3ab0056cf16c9739ebf`). Existing Gradle deprecation warnings remain.
 - The account-detail pair delete/undo data path is covered. Manual edit and visual undo snackbar checks remain open.
+
+## Transfer editing regression — 2026-11-13
+
+- Added in-memory account-detail regressions for editing a transfer from the destination account and converting a transfer into an ordinary expense.
+- Destination-side editing verifies the source remains an expense, destination remains an income, reciprocal account links are preserved, and amount, category, description, and date update on both legs. Conversion verifies the sibling leg is removed and the edited destination-side expense has no transfer link.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.account.AccountDetailTransferUndoTest --no-configuration-cache` passed (Gradle workflow `36adc8e32adc2e4c2d83b4b3a19b4543`). Existing Gradle deprecation warnings remain.
+- `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `36adc8e32adc2e4c2d83b4b3a19b4543`); `git diff --check` passed. Existing Gradle deprecation warnings remain.
+- Manual account/transfer editing and undo-snackbar traversal remain unverified, along with the rest of the route, localization/theme, accessibility and delivery acceptance matrix.
