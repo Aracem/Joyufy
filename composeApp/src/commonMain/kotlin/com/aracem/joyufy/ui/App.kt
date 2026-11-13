@@ -725,7 +725,7 @@ private fun handleAppShortcut(
 }
 
 @Composable
-private fun LocalImportPreviewDialog(
+internal fun LocalImportPreviewDialog(
     diff: BackupDiff,
     s: com.aracem.joyufy.ui.strings.Strings,
     onDismiss: () -> Unit,

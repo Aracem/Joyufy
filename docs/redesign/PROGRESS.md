@@ -257,3 +257,9 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - The transaction edit controls are now headlessly exercised, but app-wide visual/keyboard traversal remains open. See the acceptance gaps in the preceding entry; redesign acceptance remains incomplete.
 - A follow-up contrast calculation across 20 representative Material and semantic text/container pairs in both schemes ranged from 4.77:1 to 15.83:1. This is a sample token check, not a full rendered contrast audit.
 - Push was attempted after commit `cdb2466`, but SSH returned `Permission denied (publickey)`. The configured personal key is rejected, while the available GitHub CLI identity has read-only permission on `Aracem/Joyufy`; commits remain local until write access is available.
+
+## Local restore preview dialog regression — 2026-11-13
+
+- Added headless Compose semantics coverage for the local backup restore confirmation. It verifies the Spanish diff summary shows account, transaction, and snapshot changes, cancel leaves restore untouched, and the restore callback fires only when its explicit confirmation button is clicked. The dialog was exposed as module-internal so the test can render the production composable directly.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.LocalImportPreviewDialogUiTest --no-configuration-cache` passed. Integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `b50664f855af6e5ca76eff09c75d57b6`); existing Kotlin/Gradle deprecation warnings remain. Wrapper logs were cleaned with `gradle-workflow finish`.
+- This test covers preview semantics and the confirmation boundary without applying a backup. ID/relationship-preserving restore is covered by repository tests; an actual isolated restore via the settings workflow and the rest of the route/theme/language/keyboard and packaging checks remain open. Do not mark acceptance complete.
