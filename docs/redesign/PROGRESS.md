@@ -150,3 +150,9 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - Added an in-memory SQLDelight test proving matching uncategorized transactions are updated, the first matching rule wins, nonmatching transactions remain uncategorized, and existing categories are preserved.
 - Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.settings.CategorizationRuleApplierTest` passed. Integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `24e36abd508b685c5a57f8f599752c85`). Existing Kotlin/Gradle deprecation warnings remain.
 - This verifies the rule application data operation; manual route-level creation, deletion, and progress display remain open along with the wider workflow matrix.
+
+## Account creation type regression — 2026-11-13
+
+- Added an in-memory `CreateAccountViewModelTest` that creates Bank, Cash, and Investment accounts. It confirms only Bank/Cash receive their entered opening balance as an income transaction and that Investment creation starts without a transaction or snapshot.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.account.CreateAccountViewModelTest` passed. Integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `435e22539ddb27ef9d789b3dc9dd05ec`). The test's coroutine opt-in warnings were fixed; only the existing Gradle deprecation warning remains.
+- Account creation behavior is verified at the ViewModel/repository seam. The Create Account dialog's visual focus and account type interaction still need route-level inspection.
