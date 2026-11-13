@@ -373,7 +373,7 @@ object StringsEn : Strings {
 
     // Confirm dialogs
     override val confirmDeleteTransaction = "Delete transaction?"
-    override val confirmDeleteTransactionText = "This action cannot be undone."
+    override val confirmDeleteTransactionText = "You can undo this from the notification that appears after deletion."
     override val confirmDeleteSnapshot = "Delete weekly record?"
     override val confirmDeleteSnapshotText = "You can undo this from the notification that appears after deletion."
     override val confirmDeleteAccount = "Delete account?"

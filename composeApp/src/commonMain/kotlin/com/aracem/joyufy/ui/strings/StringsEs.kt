@@ -373,7 +373,7 @@ object StringsEs : Strings {
 
     // Confirm dialogs
     override val confirmDeleteTransaction = "¿Eliminar transacción?"
-    override val confirmDeleteTransactionText = "Esta acción no se puede deshacer."
+    override val confirmDeleteTransactionText = "Podrás deshacerlo desde el aviso que aparecerá después."
     override val confirmDeleteSnapshot = "¿Eliminar registro semanal?"
     override val confirmDeleteSnapshotText = "Podrás deshacerlo desde el aviso que aparecerá después."
     override val confirmDeleteAccount = "¿Eliminar cuenta?"
