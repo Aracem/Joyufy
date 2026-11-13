@@ -215,3 +215,8 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - Opened monthly analysis from the dashboard. November 2026 was identified as incomplete, showed the October comparison, and blocked forward navigation; October showed no earlier comparison for the available fixture. Cross-year route navigation is still not manually exercised; calculation and UI tests cover year boundaries.
 - The app closed normally (Gradle `:composeApp:run` exit 0). The disposable database was returned to one account, two original transactions and zero investment snapshots. Wrapper-owned logs were removed; local screenshots were removed. No live data was opened.
 - Still incomplete: rule apply flow, entry commit/edit for transactions and transfers, statement import dialog, backup export, full route walkthrough across both languages/themes, keyboard traversal, narrow dialog/ledger checks, and DMG/Dock verification. Do not mark acceptance complete.
+
+## Snapshot delete confirmation copy — 2026-11-13
+
+- Updated the English and Spanish snapshot confirmation text to explain that the next notification provides Undo, matching the existing undo snackbar and snapshot restoration behavior.
+- `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `86301f433bfea7fcad354546a276bc4d`); existing Kotlin and Gradle deprecation warnings remain. Visual dialog wording was observed before the change; the revised copy is compile-verified but not reopened in the desktop app.
