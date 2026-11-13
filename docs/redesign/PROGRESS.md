@@ -156,3 +156,10 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - Added an in-memory `CreateAccountViewModelTest` that creates Bank, Cash, and Investment accounts. It confirms only Bank/Cash receive their entered opening balance as an income transaction and that Investment creation starts without a transaction or snapshot.
 - Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.account.CreateAccountViewModelTest` passed. Integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `435e22539ddb27ef9d789b3dc9dd05ec`). The test's coroutine opt-in warnings were fixed; only the existing Gradle deprecation warning remains.
 - Account creation behavior is verified at the ViewModel/repository seam. The Create Account dialog's visual focus and account type interaction still need route-level inspection.
+
+## Transfer deletion and undo regression — 2026-11-13
+
+- Added an in-memory `AccountDetailTransferUndoTest` that deletes one transfer through the account-detail ViewModel, verifies its matching sibling is removed while a separate transfer between the same accounts remains, then undoes the action.
+- The undo assertions verify both original IDs, reciprocal account links, `DRAFT` review status, and `importBatch` are restored.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.account.AccountDetailTransferUndoTest` passed. Integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `0423f18c5800d3ab0056cf16c9739ebf`). Existing Gradle deprecation warnings remain.
+- The account-detail pair delete/undo data path is covered. Manual edit and visual undo snackbar checks remain open.
