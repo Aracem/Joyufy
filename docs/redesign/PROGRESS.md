@@ -171,3 +171,10 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.account.AccountDetailTransferUndoTest --no-configuration-cache` passed (Gradle workflow `36adc8e32adc2e4c2d83b4b3a19b4543`). Existing Gradle deprecation warnings remain.
 - `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `36adc8e32adc2e4c2d83b4b3a19b4543`); `git diff --check` passed. Existing Gradle deprecation warnings remain.
 - Manual account/transfer editing and undo-snackbar traversal remain unverified, along with the rest of the route, localization/theme, accessibility and delivery acceptance matrix.
+
+## Investment snapshot edit and undo regression — 2026-11-13
+
+- Added an in-memory account-detail regression that edits the snapshot value, week, deposits, withdrawals, fees, dividends, and note, then deletes and undoes the deletion.
+- The test verifies the update keeps the snapshot ID and undo restores the full edited snapshot with every annotation intact.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.account.AccountDetailSnapshotUndoTest --no-configuration-cache` and integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `42ff8a2acbdef4f0e2b541a96b03e245`). `git diff --check` passed; existing Gradle deprecation warnings remain.
+- Snapshot dialog annotation entry has existing UI coverage for inferred flows and collapse/save. Manual snapshot edit/delete/undo traversal and the stale-task resolution UI remain to be checked; other route, localization/theme, accessibility and delivery acceptance gaps remain.
