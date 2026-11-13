@@ -178,3 +178,10 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - The test verifies the update keeps the snapshot ID and undo restores the full edited snapshot with every annotation intact.
 - Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.account.AccountDetailSnapshotUndoTest --no-configuration-cache` and integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `42ff8a2acbdef4f0e2b541a96b03e245`). `git diff --check` passed; existing Gradle deprecation warnings remain.
 - Snapshot dialog annotation entry has existing UI coverage for inferred flows and collapse/save. Manual snapshot edit/delete/undo traversal and the stale-task resolution UI remain to be checked; other route, localization/theme, accessibility and delivery acceptance gaps remain.
+
+## Ledger bulk review and transfer undo regression — 2026-11-13
+
+- Added in-memory ledger ViewModel coverage for bulk marking imported draft transactions as reviewed and for deleting a selected transfer with its sibling leg.
+- The transfer test confirms an unrelated pair remains untouched and undo restores original IDs, reciprocal account links, draft status and import batch metadata.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.ledger.TransactionLedgerViewModelTest --no-configuration-cache` and integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `4fca030c808f8873338dd3bd40775616`). Existing Gradle deprecation warnings remain; `git diff --check` passed.
+- Ledger filtering, compact/narrow layout, and manual route interaction remain to be verified, alongside import preview and the broader accessibility/localization/theme walkthrough.
