@@ -8,6 +8,7 @@ import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.db.JoyufyDatabase
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.CategorizationRule
+import com.aracem.joyufy.domain.model.TransactionReviewStatus
 import com.aracem.joyufy.domain.model.TransactionType
 import com.aracem.joyufy.ui.components.parseDateInputToMillis
 import kotlin.test.Test
@@ -139,6 +140,57 @@ class CsvImportViewModelTest {
             assertFalse(state.rows[0].canCommit)
             assertTrue(state.rows[1].canCommit)
             assertFalse(state.rows[2].canCommit)
+        }
+    }
+
+    @Test
+    fun mixedPreviewCommitsOnlyValidNonduplicateRowsAsDrafts() = runBlockingWithMain {
+        inMemoryRepositories().use { repos ->
+            val accountId = repos.accounts.insertAccount(
+                name = "ING",
+                type = AccountType.BANK,
+                colorHex = "#7B6EF6",
+                logoUrl = null,
+                position = 0,
+            )
+            repos.transactions.insertTransaction(
+                accountId = accountId,
+                type = TransactionType.EXPENSE,
+                amount = 30.0,
+                category = null,
+                description = "Existing duplicate",
+                relatedAccountId = null,
+                date = requireNotNull(parseDateInputToMillis("07/07/2026")),
+            )
+            val viewModel = CsvImportViewModel(repos.accounts, repos.transactions)
+            viewModel.setDefaultAccount(accountId)
+            viewModel.loadCsv(
+                """
+                Date	Amount	Description
+                07/07/2026	-30,00	Existing duplicate
+                08/07/2026	-12,50	Valid unique row
+                invalid-date	-8,00	Invalid row
+                09/07/2026	-5,00	Repeated row
+                09/07/2026	-5,00	Repeated row
+                """.trimIndent(),
+            )
+
+            val preview = viewModel.awaitRows(count = 5)
+            assertEquals(1, preview.validCount)
+            assertEquals(1, preview.errorCount)
+            assertEquals(3, preview.duplicateCount)
+            assertEquals(4, preview.rows.count { !it.canCommit })
+
+            viewModel.commitValidRows()
+            assertEquals(CsvImportEvent.Imported(1), viewModel.event.first { it is CsvImportEvent.Imported })
+
+            val transactions = repos.transactions.getTransactionsForAccount(accountId)
+            assertEquals(2, transactions.size)
+            val imported = transactions.single { it.description == "Valid unique row" }
+            assertEquals(TransactionReviewStatus.DRAFT, imported.reviewStatus)
+            assertEquals(12.5, imported.amount)
+            assertEquals(1, transactions.count { it.description == "Existing duplicate" })
+            assertFalse(transactions.any { it.description == "Repeated row" || it.description == "Invalid row" })
         }
     }
 

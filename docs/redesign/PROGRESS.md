@@ -185,3 +185,10 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - The transfer test confirms an unrelated pair remains untouched and undo restores original IDs, reciprocal account links, draft status and import batch metadata.
 - Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.ledger.TransactionLedgerViewModelTest --no-configuration-cache` and integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `4fca030c808f8873338dd3bd40775616`). Existing Gradle deprecation warnings remain; `git diff --check` passed.
 - Ledger filtering, compact/narrow layout, and manual route interaction remain to be verified, alongside import preview and the broader accessibility/localization/theme walkthrough.
+
+## Mixed statement import preview regression — 2026-11-13
+
+- Added an isolated importer scenario combining a duplicate of an existing transaction, one invalid date, two repeated statement rows, and one valid unique expense.
+- The preview blocks all four invalid/duplicate rows; committing writes only the unique row as a `DRAFT` and leaves the pre-existing duplicate untouched.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.importer.CsvImportViewModelTest --no-configuration-cache` and integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `4d1736353fb57afa6eeaebfd50a7f409`). `git diff --check` passed; existing Gradle deprecation warnings remain.
+- Import dialog visual/keyboard traversal and file-picker review remain open, along with remaining route and accessibility/theme/localization acceptance checks.
