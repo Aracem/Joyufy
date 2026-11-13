@@ -27,7 +27,6 @@ import com.aracem.joyufy.data.repository.TransactionRepository
 import com.aracem.joyufy.domain.model.Account
 import com.aracem.joyufy.domain.model.AccountType
 import com.aracem.joyufy.domain.model.CategorizationRule
-import com.aracem.joyufy.domain.model.categoryFor
 import com.aracem.joyufy.domain.model.TransactionCategory
 import com.aracem.joyufy.ui.components.AccountLogo
 import com.aracem.joyufy.ui.components.AccountLogoInitials
@@ -43,9 +42,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private enum class SettingsTab { GENERAL, ACCOUNTS, DATA, CLOUD, ABOUT }
 
@@ -952,29 +949,7 @@ fun CategorizationRulesScreen(onBack: () -> Unit) {
                                 scope.launch {
                                     isApplying = true
                                     try {
-                                        appliedCount = withContext(Dispatchers.IO) {
-                                            var count = 0
-                                            transactions.getAllTransactions()
-                                                .filter { it.category.isNullOrBlank() }
-                                                .forEach { transaction ->
-                                                    rules.categoryFor(
-                                                        transaction.description.orEmpty(),
-                                                        transaction.accountId,
-                                                    )?.let { matched ->
-                                                        transactions.updateTransaction(
-                                                            transaction.id,
-                                                            transaction.type,
-                                                            transaction.amount,
-                                                            matched,
-                                                            transaction.description,
-                                                            transaction.relatedAccountId,
-                                                            transaction.date,
-                                                        )
-                                                        count++
-                                                    }
-                                                }
-                                            count
-                                        }
+                                        appliedCount = applyCategorizationRules(rules, transactions)
                                     } finally {
                                         isApplying = false
                                     }

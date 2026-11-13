@@ -143,3 +143,10 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 
 - Tried opening Settings from the isolated dashboard by cycling keyboard focus and by coordinate clicks. The app window was visible but the automation did not move the route; this leaves route-level keyboard navigation unverified. No fixture rows changed. The run closed normally with `:composeApp:run` exit 0 (workflow `93cfdd99eb85636540047903b3db76a6`).
 - Continue the acceptance matrix by improving foreground/focus control or by adding a route-level Compose test harness. Do not mark accessibility or route acceptance complete based only on the dashboard Tab indicator.
+
+## Categorization rule application test seam — 2026-11-13
+
+- Extracted the categorization-rule application operation used by the rules screen into `CategorizationRuleApplier.kt` so it can be exercised against the existing repository layer.
+- Added an in-memory SQLDelight test proving matching uncategorized transactions are updated, the first matching rule wins, nonmatching transactions remain uncategorized, and existing categories are preserved.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.settings.CategorizationRuleApplierTest` passed. Integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `24e36abd508b685c5a57f8f599752c85`). Existing Kotlin/Gradle deprecation warnings remain.
+- This verifies the rule application data operation; manual route-level creation, deletion, and progress display remain open along with the wider workflow matrix.
