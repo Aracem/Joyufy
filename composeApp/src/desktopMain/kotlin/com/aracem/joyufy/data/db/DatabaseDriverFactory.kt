@@ -14,7 +14,7 @@ actual class DatabaseDriverFactory actual constructor() {
 
     private fun openOrCreate(dbDir: File, dbFile: File): SqlDriver {
         val isNew = !dbFile.exists()
-        val driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}")
+        val driver = createSqliteDriver(dbFile)
         if (isNew) {
             JoyufyDatabase.Schema.create(driver)
         } else {
@@ -28,7 +28,7 @@ actual class DatabaseDriverFactory actual constructor() {
                 // BD corrupta o incompleta — recrear
                 driver.close()
                 dbFile.delete()
-                val freshDriver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}")
+                val freshDriver = createSqliteDriver(dbFile)
                 JoyufyDatabase.Schema.create(freshDriver)
                 return freshDriver
             }
@@ -45,4 +45,9 @@ actual class DatabaseDriverFactory actual constructor() {
         }
         return driver
     }
+
+    private fun createSqliteDriver(dbFile: File): JdbcSqliteDriver =
+        JdbcSqliteDriver("jdbc:sqlite:${dbFile.absolutePath}").also { driver ->
+            driver.execute(null, "PRAGMA foreign_keys = ON", 0)
+        }
 }

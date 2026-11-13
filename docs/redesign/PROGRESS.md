@@ -192,3 +192,10 @@ Branch: `redesign/joyufy`. Preserve the existing uncommitted work; do not touch 
 - The preview blocks all four invalid/duplicate rows; committing writes only the unique row as a `DRAFT` and leaves the pre-existing duplicate untouched.
 - Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.importer.CsvImportViewModelTest --no-configuration-cache` and integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `4d1736353fb57afa6eeaebfd50a7f409`). `git diff --check` passed; existing Gradle deprecation warnings remain.
 - Import dialog visual/keyboard traversal and file-picker review remain open, along with remaining route and accessibility/theme/localization acceptance checks.
+
+## Account-delete referential integrity — 2026-11-13
+
+- A new in-memory Settings undo regression exposed that the desktop SQLite connection did not enable declared foreign-key constraints. Hard deletion therefore left account-owned transaction rows instead of cascading, and did not clear sibling transfer references as the schema specifies.
+- Desktop driver creation now enables `PRAGMA foreign_keys = ON` for both normal and corrupt-database recreation paths. The regression enables the same pragma and verifies account deletion removes owned rows/snapshots and undo restores account, snapshot annotations, transfer pair IDs/links, draft status and import batch.
+- Focused `:composeApp:desktopTest --tests com.aracem.joyufy.ui.settings.SettingsAccountDeleteUndoTest --no-configuration-cache` and integrated `:composeApp:compileKotlinDesktop :composeApp:desktopTest --no-configuration-cache` passed (workflow `df27b7eefe1ee246e30ad301f8407939`). `git diff --check` passed; existing Kotlin and Gradle deprecation warnings remain.
+- Settings delete/archive confirmation and undo UI, backup preview, cloud, and the remaining route/accessibility/localization/theme checks still need verification.
